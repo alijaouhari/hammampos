@@ -1,5 +1,10 @@
 /**
- * Plugin System Interfaces
+ * HammamPOS - Plugin System Interfaces
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
  * Defines the contracts for HammamPOS plugin architecture
  */
 

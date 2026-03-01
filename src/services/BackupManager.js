@@ -1,5 +1,11 @@
 /**
- * BackupManager - Multi-Format Database Backup
+ * HammamPOS - BackupManager
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * Multi-Format Database Backup
  * Free alternative to Excel - supports CSV, JSON, HTML, and TXT formats
  * Saves to user-friendly locations for Google Drive sync and emergency access
  */

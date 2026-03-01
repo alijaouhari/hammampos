@@ -1,6 +1,11 @@
 /**
- * ExcelManager - Excel File Integration
- * Handles real-time Excel backup and remote access
+ * HammamPOS - ExcelManager
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * Excel File Integration - Handles real-time Excel backup and remote access
  * Works alongside BackupManager for dual backup strategy
  */
 

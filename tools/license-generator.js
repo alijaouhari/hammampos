@@ -1,5 +1,10 @@
 /**
- * License Key Generator
+ * HammamPOS - License Key Generator
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
  * Simple tool to generate activation keys for HammamPOS premium features
  */
 

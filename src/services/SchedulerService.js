@@ -1,6 +1,11 @@
 /**
- * SchedulerService - Automatic Task Scheduling
- * Handles automatic day close, yearly reset, and email reports
+ * HammamPOS - SchedulerService
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * Automatic Task Scheduling - Handles automatic day close, yearly reset, and email reports
  * REQ-9: Automatic day close at 23:59
  * REQ-10: Yearly serial reset on January 1st
  * REQ-14: Automatic email reports

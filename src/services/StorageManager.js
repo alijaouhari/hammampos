@@ -1,6 +1,11 @@
 /**
- * StorageManager - SQLite Database Layer
- * Handles all database operations for HammamPOS
+ * HammamPOS - StorageManager
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * SQLite Database Layer - Handles all database operations for HammamPOS
  * REQ-2: Data Architecture (SQLite as master storage)
  * Using sql.js (SQLite compiled to WebAssembly - no build tools needed)
  */

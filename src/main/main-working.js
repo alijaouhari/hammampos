@@ -1,5 +1,10 @@
 /**
  * HammamPOS - Working Main Process
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
  * Based on the minimal setup that works, but with backend services
  */
 

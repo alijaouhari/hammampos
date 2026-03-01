@@ -1,6 +1,11 @@
 /**
- * PrintManager - Thermal Printer Integration
- * Handles thermal printing using Windows notepad command
+ * HammamPOS - PrintManager
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * Thermal Printer Integration - Handles thermal printing using Windows notepad command
  * REQ-15: Thermal printing with Windows installed printers
  */
 

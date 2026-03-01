@@ -1,6 +1,11 @@
 /**
- * LicenseManager - Hardware-Based Licensing System
- * Handles license activation, validation, and hardware fingerprinting
+ * HammamPOS - LicenseManager
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * Hardware-Based Licensing System - Handles license activation, validation, and hardware fingerprinting
  */
 
 const crypto = require('crypto');

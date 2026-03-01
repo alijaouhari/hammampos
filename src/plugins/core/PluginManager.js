@@ -1,6 +1,11 @@
 /**
- * PluginManager - Core Plugin System Management
- * Handles plugin lifecycle, registration, and coordination
+ * HammamPOS - PluginManager
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * Core Plugin System Management - Handles plugin lifecycle, registration, and coordination
  */
 
 const path = require('path');

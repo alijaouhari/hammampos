@@ -1,6 +1,11 @@
 /**
- * ExpenseTemplateManager - Predefined Expense Templates
- * Handles expense categories, templates, and wood calculations
+ * HammamPOS - ExpenseTemplateManager
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * Predefined Expense Templates - Handles expense categories, templates, and wood calculations
  */
 
 class ExpenseTemplateManager {

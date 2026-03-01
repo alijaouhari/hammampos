@@ -1,6 +1,11 @@
 ﻿/**
- * WebDashboard - Remote Access Web Server
- * Provides secure web-based access to HammamPOS data
+ * HammamPOS - WebDashboard
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * Remote Access Web Server - Provides secure web-based access to HammamPOS data
  */
 
 const express = require('express');

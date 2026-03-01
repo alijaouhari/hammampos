@@ -1,6 +1,11 @@
 /**
- * Excel Consolidator - Multi-Hammam Data Merger
- * Combines Excel files from multiple hammams into a single owner dashboard file
+ * HammamPOS - Excel Consolidator
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * Multi-Hammam Data Merger - Combines Excel files from multiple hammams into a single owner dashboard file
  * Usage: node tools/excel-consolidator.js
  */
 

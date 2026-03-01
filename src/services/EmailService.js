@@ -1,6 +1,11 @@
 /**
- * EmailService - Email Reporting
- * Handles sending daily reports via email
+ * HammamPOS - EmailService
+ * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * 
+ * Email Reporting - Handles sending daily reports via email
  * REQ-14: Email reporting functionality
  */
 
