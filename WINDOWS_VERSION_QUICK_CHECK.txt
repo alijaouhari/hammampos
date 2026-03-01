@@ -1,0 +1,41 @@
+╔════════════════════════════════════════════════════════════╗
+║     HammamPOS - Windows Version Quick Reference           ║
+╚════════════════════════════════════════════════════════════╝
+
+📋 HOW TO CHECK WINDOWS VERSION:
+   1. Press Win + R
+   2. Type: winver
+   3. Press Enter
+   4. Read the version shown
+
+✅ WHAT YOU'LL SEE:
+
+   "Windows 11"     → ✅ PERFECT! Install now
+   "Windows 10"     → ✅ PERFECT! Install now
+   "Windows 8.1"    → ✅ GOOD! Works with warning
+   "Windows 8"      → ✅ GOOD! Works with warning
+   "Windows 7"      → ⚠️ LIMITED! Test core features only
+   Older versions   → ❌ STOP! Upgrade Windows first
+
+🎯 QUICK DECISION:
+
+   Windows 10/11    → Install immediately, all features work
+   Windows 8/8.1    → Install with warning, all features work
+   Windows 7        → Test carefully, core features only
+   Older            → Upgrade Windows before installing
+
+⚠️ WINDOWS 7 USERS:
+   - Core POS works (tickets, expenses, cash)
+   - Web dashboard may not work
+   - Cloud sync may not work
+   - Security risk (no updates since 2020)
+   - STRONGLY recommend upgrading to Windows 10
+
+📞 NEED HELP?
+   - Run: CHECK_WINDOWS_VERSION.bat
+   - Read: WINDOWS_COMPATIBILITY.md
+   - Test on non-production machine first
+
+═══════════════════════════════════════════════════════════════
+
+COPY THIS TO USB DRIVE WITH YOUR INSTALLER!

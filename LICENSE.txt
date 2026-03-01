@@ -1,0 +1,44 @@
+HammamPOS Professional License Agreement
+
+Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+
+PROPRIETARY SOFTWARE LICENSE
+
+This software is proprietary and confidential. Unauthorized copying, distribution, 
+or use of this software, via any medium, is strictly prohibited without the express 
+written permission of HammamPOS Solutions.
+
+GRANT OF LICENSE
+Subject to the terms and conditions of this Agreement, HammamPOS Solutions grants 
+you a limited, non-exclusive, non-transferable license to use this software solely 
+for your internal business operations.
+
+RESTRICTIONS
+You may not:
+- Copy, modify, or distribute the software
+- Reverse engineer, decompile, or disassemble the software
+- Remove or alter any proprietary notices or labels
+- Use the software for any unlawful purpose
+
+PREMIUM FEATURES
+Certain premium features require separate licensing and activation keys. These 
+features are subject to additional terms and conditions.
+
+SUPPORT AND UPDATES
+Support and updates are provided according to your service agreement with 
+HammamPOS Solutions.
+
+DISCLAIMER
+This software is provided "as is" without warranty of any kind. HammamPOS Solutions 
+disclaims all warranties, express or implied, including but not limited to the 
+warranties of merchantability and fitness for a particular purpose.
+
+LIMITATION OF LIABILITY
+In no event shall HammamPOS Solutions be liable for any damages whatsoever arising 
+out of the use of or inability to use this software.
+
+For licensing inquiries, contact: support@hammampos.com
+
+This license is effective until terminated. Your rights under this license will 
+terminate automatically without notice if you fail to comply with any term(s) of 
+this license.

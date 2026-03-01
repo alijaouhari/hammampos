@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HammamPOS - معالج الإعداد</title>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            direction: rtl;
+            text-align: right;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .wizard-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 600px;
+            overflow: hidden;
+        }
+        
+        .wizard-header {
+            background: #2563eb;
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .wizard-header h1 {
+            margin: 0 0 0.5rem 0;
+            font-size: 2rem;
+        }
+        
+        .wizard-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .wizard-content {
+            padding: 2rem;
+        }
+        
+        .step {
+            display: none;
+        }
+        
+        .step.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .step h2 {
+            color: #2563eb;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #374151;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+        
+        .form-group small {
+            color: #6b7280;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
+        
+        .categories-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .category-item {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .category-item input[type="text"] {
+            flex: 2;
+        }
+        
+        .category-item input[type="number"] {
+            flex: 1;
+        }
+        
+        .wizard-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e5e7eb;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .progress-bar {
+            background: #e5e7eb;
+            height: 4px;
+            border-radius: 2px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: #2563eb;
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+        
+        .step-indicator {
+            text-align: center;
+            margin-bottom: 1rem;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .printer-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 0.5rem;
+        }
+        
+        .printer-item {
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        
+        .printer-item:hover {
+            background: #f3f4f6;
+        }
+        
+        .printer-item.selected {
+            background: #eff6ff;
+            border: 2px solid #2563eb;
+        }
+        
+        .test-result {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        
+        .test-result.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+        
+        .test-result.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 50%;
+            border-top-color: #2563eb;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 0.5rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="wizard-container">
+        <div class="wizard-header">
+            <h1>🏛️ HammamPOS</h1>
+            <p>معالج الإعداد الأولي</p>
+        </div>
+        
+        <div class="wizard-content">
+            <div class="step-indicator">
+                <span id="step-counter">الخطوة 1 من 5</span>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 20%"></div>
+            </div>
+            
+            <!-- Step 1: Welcome & Hammam Info -->
+            <div class="step active" id="step-1">
+                <h2>🏛️ معلومات الحمام</h2>
+                <div class="form-group">
+                    <label for="hammam-name">اسم الحمام *</label>
+                    <input type="text" id="hammam-name" placeholder="مثال: حمام الأندلس" required>
+                    <small>سيظهر هذا الاسم على التذاكر المطبوعة</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="admin-password">كلمة مرور الإدارة *</label>
+                    <input type="password" id="admin-password" placeholder="أدخل كلمة مرور قوية" required>
+                    <small>ستحتاج هذه الكلمة للوصول إلى لوحة الإدارة</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="admin-password-confirm">تأكيد كلمة المرور *</label>
+                    <input type="password" id="admin-password-confirm" placeholder="أعد إدخال كلمة المرور" required>
+                </div>
+            </div>
+            
+            <!-- Step 2: Categories Setup -->
+            <div class="step" id="step-2">
+                <h2>📋 إعداد الفئات</h2>
+                <p>قم بإعداد فئات التذاكر وأسعارها. يمكنك تعديل هذه المعلومات لاحقاً من الإعدادات.</p>
+                
+                <div class="categories-grid">
+                    <div class="category-item">
+                        <input type="text" id="cat-1-name" placeholder="اسم الفئة" value="رجال">
+                        <input type="number" id="cat-1-price" placeholder="السعر" value="15" min="0" step="0.01">
+                    </div>
+                    <div class="category-item">
+                        <input type="text" id="cat-2-name" placeholder="اسم الفئة" value="نساء">
+                        <input type="number" id="cat-2-price" placeholder="السعر" value="15" min="0" step="0.01">
+                    </div>
+                    <div class="category-item">
+                        <input type="text" id="cat-3-name" placeholder="اسم الفئة" value="أولاد">
+                        <input type="number" id="cat-3-price" placeholder="السعر" value="10" min="0" step="0.01">
+                    </div>
+                    <div class="category-item">
+                        <input type="text" id="cat-4-name" placeholder="اسم الفئة" value="بنات">
+                        <input type="number" id="cat-4-price" placeholder="السعر" value="10" min="0" step="0.01">
+                    </div>
+                </div>
+                
+                <small style="color: #6b7280; margin-top: 1rem; display: block;">
+                    💡 يمكنك ترك الحقول فارغة إذا لم تكن تحتاج لجميع الفئات
+                </small>
+            </div>
+            
+            <!-- Step 3: Printer Setup -->
+            <div class="step" id="step-3">
+                <h2>🖨️ إعداد الطابعة</h2>
+                <p>اختر الطابعة الحرارية لطباعة التذاكر</p>
+                
+                <div class="form-group">
+                    <label>الطابعات المتاحة:</label>
+                    <div class="printer-list" id="printer-list">
+                        <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                            <div class="loading"></div>
+                            جاري البحث عن الطابعات...
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="paper-width">عرض الورق:</label>
+                    <select id="paper-width">
+                        <option value="58">58 مم</option>
+                        <option value="80">80 مم</option>
+                    </select>
+                </div>
+                
+                <button type="button" class="btn btn-secondary" id="test-printer" disabled>
+                    اختبار الطباعة
+                </button>
+                
+                <div id="test-result" class="test-result" style="display: none;"></div>
+            </div>
+            
+            <!-- Step 4: Email Setup (Optional) -->
+            <div class="step" id="step-4">
+                <h2>📧 إعداد البريد الإلكتروني (اختياري)</h2>
+                <p>قم بإعداد البريد الإلكتروني لاستلام التقارير اليومية تلقائياً</p>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="enable-email" style="margin-left: 0.5rem;">
+                        تفعيل التقارير الإلكترونية
+                    </label>
+                </div>
+                
+                <div id="email-settings" style="display: none;">
+                    <div class="form-group">
+                        <label for="email-address">عنوان البريد الإلكتروني:</label>
+                        <input type="email" id="email-address" placeholder="example@gmail.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="smtp-host">خادم SMTP:</label>
+                        <input type="text" id="smtp-host" placeholder="smtp.gmail.com" value="smtp.gmail.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="smtp-port">منفذ SMTP:</label>
+                        <input type="number" id="smtp-port" placeholder="587" value="587">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email-password">كلمة مرور التطبيق:</label>
+                        <input type="password" id="email-password" placeholder="كلمة مرور التطبيق">
+                        <small>استخدم كلمة مرور التطبيق وليس كلمة مرور الحساب العادية</small>
+                    </div>
+                    
+                    <button type="button" class="btn btn-secondary" id="test-email">
+                        اختبار الاتصال
+                    </button>
+                    
+                    <div id="email-test-result" class="test-result" style="display: none;"></div>
+                </div>
+            </div>
+            
+            <!-- Step 5: Completion -->
+            <div class="step" id="step-5">
+                <h2>🎉 اكتمل الإعداد!</h2>
+                <p>تم إعداد HammamPOS بنجاح. إليك ملخص الإعدادات:</p>
+                
+                <div id="setup-summary" style="background: #f9fafb; padding: 1.5rem; border-radius: 8px; margin: 1rem 0;">
+                    <!-- Summary will be populated by JavaScript -->
+                </div>
+                
+                <p style="color: #059669; font-weight: 600;">
+                    ✅ تم إنشاء قاعدة البيانات<br>
+                    ✅ تم إنشاء ملف Excel<br>
+                    ✅ تم حفظ الإعدادات<br>
+                    ✅ النظام جاهز للاستخدام
+                </p>
+            </div>
+            
+            <div class="wizard-actions">
+                <button type="button" class="btn btn-secondary" id="prev-btn" style="display: none;">
+                    السابق
+                </button>
+                
+                <div style="flex: 1;"></div>
+                
+                <button type="button" class="btn btn-primary" id="next-btn">
+                    التالي
+                </button>
+                
+                <button type="button" class="btn btn-primary" id="finish-btn" style="display: none;">
+                    بدء الاستخدام
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Setup wizard logic will be added here
+        const { ipcRenderer } = require('electron');
+        const os = require('os');
+        
+        let currentStep = 1;
+        const totalSteps = 5;
+        let selectedPrinter = null;
+        let setupData = {};
+        
+        // Hardware check function
+        function checkHardware() {
+            const cpus = os.cpus();
+            const totalRAM = os.totalmem() / (1024**3); // Convert to GB
+            const cpuSpeed = cpus[0].speed; // MHz
+            
+            const requirements = {
+                minRAM: 2, // GB
+                minCPUSpeed: 1500 // MHz (1.5 GHz)
+            };
+            
+            const issues = [];
+            
+            if (totalRAM < requirements.minRAM) {
+                issues.push(`• الذاكرة: ${totalRAM.toFixed(1)} جيجابايت (الحد الأدنى: ${requirements.minRAM} جيجابايت)`);
+            }
+            
+            if (cpuSpeed < requirements.minCPUSpeed) {
+                issues.push(`• المعالج: ${cpuSpeed} ميجاهرتز (الحد الأدنى: ${requirements.minCPUSpeed} ميجاهرتز)`);
+            }
+            
+            return {
+                compatible: issues.length === 0,
+                issues: issues,
+                specs: {
+                    cpu: cpus[0].model,
+                    cpuSpeed: cpuSpeed,
+                    ram: totalRAM.toFixed(1),
+                    cores: cpus.length
+                }
+            };
+        }
+        
+        // Show hardware warning if needed
+        function showHardwareWarning(checkResult) {
+            if (!checkResult.compatible) {
+                const warningHTML = `
+                    <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <h3 style="color: #92400e; margin: 0 0 1rem 0;">⚠️ تحذير: مواصفات الجهاز</h3>
+                        <p style="margin: 0 0 1rem 0; color: #92400e;">
+                            جهازك لا يستوفي الحد الأدنى من المتطلبات:
+                        </p>
+                        <ul style="margin: 0 0 1rem 0; color: #92400e; padding-right: 1.5rem;">
+                            ${checkResult.issues.map(issue => `<li>${issue}</li>`).join('')}
+                        </ul>
+                        <p style="margin: 0; color: #92400e; font-weight: 600;">
+                            قد يعمل البرنامج ببطء أو يتوقف عن العمل. يُنصح بترقية الجهاز.
+                        </p>
+                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f59e0b;">
+                            <strong style="color: #92400e;">مواصفات جهازك:</strong><br>
+                            <small style="color: #92400e;">
+                                المعالج: ${checkResult.specs.cpu}<br>
+                                السرعة: ${checkResult.specs.cpuSpeed} ميجاهرتز<br>
+                                الذاكرة: ${checkResult.specs.ram} جيجابايت<br>
+                                الأنوية: ${checkResult.specs.cores}
+                            </small>
+                        </div>
+                    </div>
+                `;
+                
+                const step1 = document.getElementById('step-1');
+                step1.insertAdjacentHTML('afterbegin', warningHTML);
+            }
+        }
+        
+        // Initialize wizard
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check hardware first
+            const hardwareCheck = checkHardware();
+            showHardwareWarning(hardwareCheck);
+            
+            loadPrinters();
+            setupEventListeners();
+        });
+        
+        function setupEventListeners() {
+            document.getElementById('next-btn').addEventListener('click', nextStep);
+            document.getElementById('prev-btn').addEventListener('click', prevStep);
+            document.getElementById('finish-btn').addEventListener('click', finishSetup);
+            
+            document.getElementById('enable-email').addEventListener('change', toggleEmailSettings);
+            document.getElementById('test-printer').addEventListener('click', testPrinter);
+            document.getElementById('test-email').addEventListener('click', testEmail);
+        }
+        
+        function updateProgress() {
+            const progress = (currentStep / totalSteps) * 100;
+            document.getElementById('progress-fill').style.width = progress + '%';
+            document.getElementById('step-counter').textContent = `الخطوة ${currentStep} من ${totalSteps}`;
+        }
+        
+        function showStep(step) {
+            // Hide all steps
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            
+            // Show current step
+            document.getElementById(`step-${step}`).classList.add('active');
+            
+            // Update navigation buttons
+            document.getElementById('prev-btn').style.display = step > 1 ? 'block' : 'none';
+            document.getElementById('next-btn').style.display = step < totalSteps ? 'block' : 'none';
+            document.getElementById('finish-btn').style.display = step === totalSteps ? 'block' : 'none';
+            
+            updateProgress();
+        }
+        
+        function validateStep(step) {
+            switch(step) {
+                case 1:
+                    const hammamName = document.getElementById('hammam-name').value.trim();
+                    const password = document.getElementById('admin-password').value;
+                    const confirmPassword = document.getElementById('admin-password-confirm').value;
+                    
+                    if (!hammamName) {
+                        alert('يرجى إدخال اسم الحمام');
+                        return false;
+                    }
+                    
+                    if (!password || password.length < 4) {
+                        alert('يرجى إدخال كلمة مرور لا تقل عن 4 أحرف');
+                        return false;
+                    }
+                    
+                    if (password !== confirmPassword) {
+                        alert('كلمات المرور غير متطابقة');
+                        return false;
+                    }
+                    
+                    setupData.hammamName = hammamName;
+                    setupData.adminPassword = password;
+                    return true;
+                    
+                case 2:
+                    setupData.categories = [];
+                    for (let i = 1; i <= 4; i++) {
+                        const name = document.getElementById(`cat-${i}-name`).value.trim();
+                        const price = parseFloat(document.getElementById(`cat-${i}-price`).value);
+                        
+                        if (name && price > 0) {
+                            setupData.categories.push({ name, price });
+                        }
+                    }
+                    
+                    if (setupData.categories.length === 0) {
+                        alert('يرجى إضافة فئة واحدة على الأقل');
+                        return false;
+                    }
+                    return true;
+                    
+                case 3:
+                    if (!selectedPrinter) {
+                        alert('يرجى اختيار طابعة');
+                        return false;
+                    }
+                    
+                    setupData.printer = selectedPrinter;
+                    setupData.paperWidth = document.getElementById('paper-width').value;
+                    return true;
+                    
+                case 4:
+                    const emailEnabled = document.getElementById('enable-email').checked;
+                    setupData.emailEnabled = emailEnabled;
+                    
+                    if (emailEnabled) {
+                        const email = document.getElementById('email-address').value.trim();
+                        const smtpHost = document.getElementById('smtp-host').value.trim();
+                        const smtpPort = document.getElementById('smtp-port').value;
+                        const emailPassword = document.getElementById('email-password').value;
+                        
+                        if (!email || !smtpHost || !smtpPort || !emailPassword) {
+                            alert('يرجى ملء جميع حقول البريد الإلكتروني');
+                            return false;
+                        }
+                        
+                        setupData.email = email;
+                        setupData.smtpHost = smtpHost;
+                        setupData.smtpPort = smtpPort;
+                        setupData.emailPassword = emailPassword;
+                    }
+                    return true;
+                    
+                default:
+                    return true;
+            }
+        }
+        
+        function nextStep() {
+            if (validateStep(currentStep)) {
+                if (currentStep < totalSteps) {
+                    currentStep++;
+                    showStep(currentStep);
+                    
+                    if (currentStep === 5) {
+                        showSetupSummary();
+                    }
+                }
+            }
+        }
+        
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        }
+        
+        async function loadPrinters() {
+            try {
+                const printers = await ipcRenderer.invoke('printer:listPrinters');
+                const printerList = document.getElementById('printer-list');
+                
+                if (printers.length === 0) {
+                    printerList.innerHTML = '<div style="text-align: center; padding: 2rem; color: #6b7280;">لم يتم العثور على طابعات</div>';
+                    return;
+                }
+                
+                printerList.innerHTML = '';
+                printers.forEach(printer => {
+                    const item = document.createElement('div');
+                    item.className = 'printer-item';
+                    item.textContent = printer;
+                    item.addEventListener('click', () => selectPrinter(printer, item));
+                    printerList.appendChild(item);
+                });
+                
+            } catch (error) {
+                console.error('Failed to load printers:', error);
+                document.getElementById('printer-list').innerHTML = '<div style="text-align: center; padding: 2rem; color: #dc2626;">خطأ في تحميل الطابعات</div>';
+            }
+        }
+        
+        function selectPrinter(printer, element) {
+            // Remove previous selection
+            document.querySelectorAll('.printer-item').forEach(item => item.classList.remove('selected'));
+            
+            // Select current printer
+            element.classList.add('selected');
+            selectedPrinter = printer;
+            
+            // Enable test button
+            document.getElementById('test-printer').disabled = false;
+        }
+        
+        async function testPrinter() {
+            const testResult = document.getElementById('test-result');
+            testResult.style.display = 'block';
+            testResult.className = 'test-result';
+            testResult.innerHTML = '<div class="loading"></div> جاري اختبار الطباعة...';
+            
+            try {
+                await ipcRenderer.invoke('printer:testPrint', selectedPrinter);
+                testResult.className = 'test-result success';
+                testResult.textContent = '✅ تم اختبار الطباعة بنجاح';
+            } catch (error) {
+                testResult.className = 'test-result error';
+                testResult.textContent = '❌ فشل في اختبار الطباعة: ' + error.message;
+            }
+        }
+        
+        function toggleEmailSettings() {
+            const emailSettings = document.getElementById('email-settings');
+            const enabled = document.getElementById('enable-email').checked;
+            emailSettings.style.display = enabled ? 'block' : 'none';
+        }
+        
+        async function testEmail() {
+            const testResult = document.getElementById('email-test-result');
+            testResult.style.display = 'block';
+            testResult.className = 'test-result';
+            testResult.innerHTML = '<div class="loading"></div> جاري اختبار الاتصال...';
+            
+            try {
+                const emailConfig = {
+                    host: document.getElementById('smtp-host').value,
+                    port: document.getElementById('smtp-port').value,
+                    user: document.getElementById('email-address').value,
+                    password: document.getElementById('email-password').value
+                };
+                
+                await ipcRenderer.invoke('email:testConnection', emailConfig);
+                testResult.className = 'test-result success';
+                testResult.textContent = '✅ تم اختبار الاتصال بنجاح';
+            } catch (error) {
+                testResult.className = 'test-result error';
+                testResult.textContent = '❌ فشل في الاتصال: ' + error.message;
+            }
+        }
+        
+        function showSetupSummary() {
+            const summary = document.getElementById('setup-summary');
+            let html = `
+                <h4 style="margin-top: 0; color: #2563eb;">📋 ملخص الإعدادات:</h4>
+                <p><strong>اسم الحمام:</strong> ${setupData.hammamName}</p>
+                <p><strong>عدد الفئات:</strong> ${setupData.categories.length}</p>
+                <p><strong>الطابعة:</strong> ${setupData.printer}</p>
+                <p><strong>عرض الورق:</strong> ${setupData.paperWidth} مم</p>
+                <p><strong>البريد الإلكتروني:</strong> ${setupData.emailEnabled ? 'مفعل' : 'غير مفعل'}</p>
+            `;
+            
+            if (setupData.categories.length > 0) {
+                html += '<p><strong>الفئات:</strong></p><ul>';
+                setupData.categories.forEach(cat => {
+                    html += `<li>${cat.name} - ${cat.price} درهم</li>`;
+                });
+                html += '</ul>';
+            }
+            
+            summary.innerHTML = html;
+        }
+        
+        async function finishSetup() {
+            const finishBtn = document.getElementById('finish-btn');
+            finishBtn.disabled = true;
+            finishBtn.innerHTML = '<div class="loading"></div> جاري الإعداد...';
+            
+            try {
+                await ipcRenderer.invoke('setup:complete', setupData);
+                
+                // Close setup wizard and open main app
+                ipcRenderer.send('setup:finished');
+                
+            } catch (error) {
+                console.error('Setup failed:', error);
+                alert('فشل في إكمال الإعداد: ' + error.message);
+                finishBtn.disabled = false;
+                finishBtn.textContent = 'بدء الاستخدام';
+            }
+        }
+    </script>
+</body>
+</html>
