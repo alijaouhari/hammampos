@@ -1,0 +1,3 @@
+@echo off
+echo Starting HammamPOS Customer Dashboard...
+start "" "%~dp0customer-dashboard.html"

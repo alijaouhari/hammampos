@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HammamPOS - License Key Generator</title>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%);
+            color: #333;
+            direction: rtl;
+            text-align: right;
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            max-width: 700px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #1e40af;
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0 0 0.5rem 0;
+            font-size: 2rem;
+        }
+        
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #374151;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+        
+        .form-group small {
+            color: #6b7280;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        
+        .result-box {
+            background: #f0fdf4;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            display: none;
+        }
+        
+        .result-box.show {
+            display: block;
+        }
+        
+        .result-box h3 {
+            margin: 0 0 1rem 0;
+            color: #065f46;
+        }
+        
+        .license-key {
+            background: white;
+            border: 2px solid #10b981;
+            border-radius: 6px;
+            padding: 1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            color: #065f46;
+            letter-spacing: 2px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 1rem;
+        }
+        
+        .copy-btn {
+            background: #10b981;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .copy-btn:hover {
+            background: #059669;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #2563eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .info-box h4 {
+            margin: 0 0 0.5rem 0;
+            color: #1e40af;
+        }
+        
+        .info-box p {
+            margin: 0;
+            color: #1e40af;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 HammamPOS License Generator</h1>
+            <p>أداة توليد مفاتيح الترخيص</p>
+        </div>
+        
+        <div class="content">
+            <div class="info-box">
+                <h4>⚠️ تحذير</h4>
+                <p>هذه الأداة للاستخدام الداخلي فقط. لا تشارك المفاتيح المولدة إلا مع العملاء المصرح لهم.</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="feature-id">نوع الترخيص *</label>
+                <select id="feature-id">
+                    <option value="hammampos-core">HammamPOS Core (الترخيص الأساسي)</option>
+                    <option value="inventory-management">Inventory Management (إدارة المخزون)</option>
+                    <option value="spa-appointments">Spa Appointments (حجوزات السبا)</option>
+                    <option value="commission-system">Commission System (نظام العمولات)</option>
+                    <option value="loyalty-cards">Loyalty Cards (بطاقات الولاء)</option>
+                    <option value="analytics-dashboard">Analytics Dashboard (لوحة التحليلات)</option>
+                    <option value="multi-location">Multi-Location (فروع متعددة)</option>
+                    <option value="communication-tools">Communication Tools (أدوات التواصل)</option>
+                    <option value="financial-integration">Financial Integration (التكامل المالي)</option>
+                </select>
+                <small>اختر نوع الترخيص المطلوب</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="machine-id">معرف الجهاز (Machine ID) *</label>
+                <input type="text" id="machine-id" placeholder="أدخل معرف الجهاز من شاشة التفعيل">
+                <small>يجب الحصول على هذا المعرف من جهاز العميل</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="duration">مدة الترخيص (بالأشهر) *</label>
+                <input type="number" id="duration" value="12" min="1" max="120">
+                <small>المدة الافتراضية: 12 شهر (سنة واحدة)</small>
+            </div>
+            
+            <button type="button" class="btn btn-primary" id="generate-btn">
+                توليد مفتاح الترخيص
+            </button>
+            
+            <div class="result-box" id="result-box">
+                <h3>✅ تم توليد مفتاح الترخيص بنجاح</h3>
+                <div class="license-key" id="license-key"></div>
+                <button class="copy-btn" id="copy-btn">📋 نسخ المفتاح</button>
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #10b981;">
+                    <p style="margin: 0; color: #065f46; font-size: 0.875rem;">
+                        <strong>نوع الترخيص:</strong> <span id="result-feature"></span><br>
+                        <strong>معرف الجهاز:</strong> <span id="result-machine"></span><br>
+                        <strong>المدة:</strong> <span id="result-duration"></span> شهر<br>
+                        <strong>تاريخ الانتهاء:</strong> <span id="result-expiry"></span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const crypto = require('crypto');
+        
+        const MASTER_KEY = 'HAMMAMPOS-MASTER-SECRET-2026';
+        
+        document.getElementById('generate-btn').addEventListener('click', generateLicense);
+        document.getElementById('copy-btn').addEventListener('click', copyLicenseKey);
+        
+        function generateLicense() {
+            const featureId = document.getElementById('feature-id').value;
+            const machineId = document.getElementById('machine-id').value.trim();
+            const duration = parseInt(document.getElementById('duration').value);
+            
+            if (!machineId) {
+                alert('يرجى إدخال معرف الجهاز');
+                return;
+            }
+            
+            if (!duration || duration < 1) {
+                alert('يرجى إدخال مدة صحيحة');
+                return;
+            }
+            
+            // Generate license key
+            const expirationDate = new Date();
+            expirationDate.setMonth(expirationDate.getMonth() + duration);
+            
+            const licenseData = {
+                feature: featureId,
+                machine: machineId.substring(0, 16),
+                expires: Math.floor(expirationDate.getTime() / 1000),
+                issued: Math.floor(Date.now() / 1000)
+            };
+            
+            const dataString = `${licenseData.feature}|${licenseData.machine}|${licenseData.expires}|${licenseData.issued}`;
+            const signature = crypto
+                .createHmac('sha256', MASTER_KEY)
+                .update(dataString)
+                .digest('hex')
+                .substring(0, 16);
+            
+            const key = signature.toUpperCase();
+            const formattedKey = `${key.substring(0, 4)}-${key.substring(4, 8)}-${key.substring(8, 12)}-${key.substring(12, 16)}`;
+            
+            // Display result
+            document.getElementById('license-key').textContent = formattedKey;
+            document.getElementById('result-feature').textContent = featureId;
+            document.getElementById('result-machine').textContent = machineId.substring(0, 16);
+            document.getElementById('result-duration').textContent = duration;
+            document.getElementById('result-expiry').textContent = expirationDate.toLocaleDateString('ar-MA');
+            document.getElementById('result-box').classList.add('show');
+        }
+        
+        function copyLicenseKey() {
+            const licenseKey = document.getElementById('license-key').textContent;
+            
+            // Create temporary textarea
+            const textarea = document.createElement('textarea');
+            textarea.value = licenseKey;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            // Update button
+            const btn = document.getElementById('copy-btn');
+            const originalText = btn.textContent;
+            btn.textContent = '✅ تم النسخ';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

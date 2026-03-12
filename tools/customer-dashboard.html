@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HammamPOS - Customer Dashboard</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            direction: rtl;
+            text-align: right;
+        }
+        
+        .header {
+            background: #1e40af;
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .header p {
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .search-box {
+            flex: 1;
+            max-width: 400px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background: #f3f4f6;
+        }
+        
+        th {
+            padding: 1rem;
+            text-align: right;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        tbody tr:hover {
+            background: #f9fafb;
+        }
+        
+        .action-btns {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            background: #2563eb;
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.3rem;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #374151;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #6b7280;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 HammamPOS Customer Dashboard</h1>
+        <p>لوحة إدارة العملاء والتراخيص</p>
+    </div>
+    
+    <div class="container">
+        <div class="stats">
+            <div class="stat-card">
+                <h3>إجمالي العملاء</h3>
+                <div class="value" id="total-customers">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>التراخيص النشطة</h3>
+                <div class="value" id="active-licenses">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>التثبيتات هذا الشهر</h3>
+                <div class="value" id="monthly-installs">0</div>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <button class="btn btn-primary" id="add-customer-btn">➕ إضافة عميل جديد</button>
+            <button class="btn btn-success" id="export-btn">📥 تصدير البيانات</button>
+            <button class="btn btn-secondary" id="import-btn">📤 استيراد البيانات</button>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="🔍 بحث عن عميل...">
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>اسم العميل</th>
+                        <th>اسم الحمام</th>
+                        <th>الهاتف</th>
+                        <th>المدينة</th>
+                        <th>تاريخ التثبيت</th>
+                        <th>الإصدار</th>
+                        <th>الإضافات</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="customers-tbody">
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 3rem; color: #6b7280;">
+                            لا توجد بيانات. اضغط "إضافة عميل جديد" للبدء.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Customer Modal -->
+    <div class="modal" id="customer-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">إضافة عميل جديد</h2>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="customer-id">
+                
+                <div class="form-group">
+                    <label for="customer-name">اسم العميل *</label>
+                    <input type="text" id="customer-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="hammam-name">اسم الحمام *</label>
+                    <input type="text" id="hammam-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">رقم الهاتف *</label>
+                    <input type="tel" id="phone" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="city">المدينة</label>
+                    <input type="text" id="city">
+                </div>
+                
+                <div class="form-group">
+                    <label for="installation-date">تاريخ التثبيت</label>
+                    <input type="date" id="installation-date">
+                </div>
+                
+                <div class="form-group">
+                    <label for="machine-fingerprint">معرف الجهاز (Machine Fingerprint)</label>
+                    <input type="text" id="machine-fingerprint">
+                </div>
+                
+                <div class="form-group">
+                    <label for="license-key">مفتاح الترخيص</label>
+                    <input type="text" id="license-key">
+                </div>
+                
+                <div class="form-group">
+                    <label for="installed-version">الإصدار المثبت</label>
+                    <input type="text" id="installed-version" placeholder="2.0.0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="addons">الإضافات المفعلة</label>
+                    <input type="text" id="addons" placeholder="inventory-management, spa-appointments">
+                </div>
+                
+                <div class="form-group">
+                    <label for="installation-type">نوع التثبيت</label>
+                    <select id="installation-type">
+                        <option value="new">تثبيت جديد</option>
+                        <option value="reinstall">إعادة تثبيت</option>
+                        <option value="upgrade">ترقية</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reinstall-fee">رسوم إعادة التثبيت (درهم)</label>
+                    <input type="number" id="reinstall-fee" value="0" min="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">ملاحظات</label>
+                    <textarea id="notes"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-btn">إلغاء</button>
+                <button class="btn btn-primary" id="save-btn">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fs = require('fs');
+        const path = require('path');
+        
+        const DATA_FILE = path.join(__dirname, 'customers-data.json');
+        
+        let customers = [];
+        let editingId = null;
+        
+        // Load data on startup
+        loadData();
+        updateStats();
+        renderTable();
+        
+        // Event listeners
+        document.getElementById('add-customer-btn').addEventListener('click', () => openModal());
+        document.getElementById('cancel-btn').addEventListener('click', closeModal);
+        document.getElementById('save-btn').addEventListener('click', saveCustomer);
+        document.getElementById('export-btn').addEventListener('click', exportData);
+        document.getElementById('import-btn').addEventListener('click', importData);
+        document.getElementById('search-input').addEventListener('input', filterTable);
+        
+        function loadData() {
+            try {
+                if (fs.existsSync(DATA_FILE)) {
+                    const data = fs.readFileSync(DATA_FILE, 'utf8');
+                    customers = JSON.parse(data);
+                }
+            } catch (error) {
+                console.error('Failed to load data:', error);
+                customers = [];
+            }
+        }
+        
+        function saveData() {
+            try {
+                fs.writeFileSync(DATA_FILE, JSON.stringify(customers, null, 2), 'utf8');
+            } catch (error) {
+                console.error('Failed to save data:', error);
+                alert('فشل في حفظ البيانات: ' + error.message);
+            }
+        }
+        
+        function updateStats() {
+            document.getElementById('total-customers').textContent = customers.length;
+            
+            const activeLicenses = customers.filter(c => c.licenseKey).length;
+            document.getElementById('active-licenses').textContent = activeLicenses;
+            
+            const thisMonth = new Date().toISOString().substring(0, 7);
+            const monthlyInstalls = customers.filter(c => c.installationDate && c.installationDate.startsWith(thisMonth)).length;
+            document.getElementById('monthly-installs').textContent = monthlyInstalls;
+        }
+        
+        function renderTable(filteredCustomers = null) {
+            const tbody = document.getElementById('customers-tbody');
+            const data = filteredCustomers || customers;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 3rem; color: #6b7280;">لا توجد بيانات.</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map(customer => `
+                <tr>
+                    <td>${customer.customerName}</td>
+                    <td>${customer.hammamName}</td>
+                    <td>${customer.phone}</td>
+                    <td>${customer.city || '-'}</td>
+                    <td>${customer.installationDate || '-'}</td>
+                    <td>${customer.installedVersion || '-'}</td>
+                    <td>${customer.addons || '-'}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="btn btn-primary btn-sm" onclick="editCustomer('${customer.id}')">تعديل</button>
+                            <button class="btn btn-secondary btn-sm" onclick="deleteCustomer('${customer.id}')">حذف</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function openModal(customer = null) {
+            editingId = customer ? customer.id : null;
+            
+            if (customer) {
+                document.getElementById('modal-title').textContent = 'تعديل بيانات العميل';
+                document.getElementById('customer-id').value = customer.id;
+                document.getElementById('customer-name').value = customer.customerName;
+                document.getElementById('hammam-name').value = customer.hammamName;
+                document.getElementById('phone').value = customer.phone;
+                document.getElementById('city').value = customer.city || '';
+                document.getElementById('installation-date').value = customer.installationDate || '';
+                document.getElementById('machine-fingerprint').value = customer.machineFingerprint || '';
+                document.getElementById('license-key').value = customer.licenseKey || '';
+                document.getElementById('installed-version').value = customer.installedVersion || '';
+                document.getElementById('addons').value = customer.addons || '';
+                document.getElementById('installation-type').value = customer.installationType || 'new';
+                document.getElementById('reinstall-fee').value = customer.reinstallFee || 0;
+                document.getElementById('notes').value = customer.notes || '';
+            } else {
+                document.getElementById('modal-title').textContent = 'إضافة عميل جديد';
+                document.getElementById('customer-id').value = '';
+                document.getElementById('customer-name').value = '';
+                document.getElementById('hammam-name').value = '';
+                document.getElementById('phone').value = '';
+                document.getElementById('city').value = '';
+                document.getElementById('installation-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('machine-fingerprint').value = '';
+                document.getElementById('license-key').value = '';
+                document.getElementById('installed-version').value = '2.0.0';
+                document.getElementById('addons').value = '';
+                document.getElementById('installation-type').value = 'new';
+                document.getElementById('reinstall-fee').value = 0;
+                document.getElementById('notes').value = '';
+            }
+            
+            document.getElementById('customer-modal').classList.add('show');
+        }
+        
+        function closeModal() {
+            document.getElementById('customer-modal').classList.remove('show');
+            editingId = null;
+        }
+        
+        function saveCustomer() {
+            const customerData = {
+                id: editingId || Date.now().toString(),
+                customerName: document.getElementById('customer-name').value.trim(),
+                hammamName: document.getElementById('hammam-name').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                city: document.getElementById('city').value.trim(),
+                installationDate: document.getElementById('installation-date').value,
+                machineFingerprint: document.getElementById('machine-fingerprint').value.trim(),
+                licenseKey: document.getElementById('license-key').value.trim(),
+                installedVersion: document.getElementById('installed-version').value.trim(),
+                addons: document.getElementById('addons').value.trim(),
+                installationType: document.getElementById('installation-type').value,
+                reinstallFee: parseFloat(document.getElementById('reinstall-fee').value) || 0,
+                notes: document.getElementById('notes').value.trim(),
+                updatedAt: new Date().toISOString()
+            };
+            
+            if (!customerData.customerName || !customerData.hammamName || !customerData.phone) {
+                alert('يرجى ملء الحقول المطلوبة');
+                return;
+            }
+            
+            if (editingId) {
+                const index = customers.findIndex(c => c.id === editingId);
+                customers[index] = customerData;
+            } else {
+                customerData.createdAt = new Date().toISOString();
+                customers.push(customerData);
+            }
+            
+            saveData();
+            updateStats();
+            renderTable();
+            closeModal();
+        }
+        
+        function editCustomer(id) {
+            const customer = customers.find(c => c.id === id);
+            if (customer) {
+                openModal(customer);
+            }
+        }
+        
+        function deleteCustomer(id) {
+            if (confirm('هل أنت متأكد من حذف هذا العميل؟')) {
+                customers = customers.filter(c => c.id !== id);
+                saveData();
+                updateStats();
+                renderTable();
+            }
+        }
+        
+        function filterTable() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            
+            if (!searchTerm) {
+                renderTable();
+                return;
+            }
+            
+            const filtered = customers.filter(c => 
+                c.customerName.toLowerCase().includes(searchTerm) ||
+                c.hammamName.toLowerCase().includes(searchTerm) ||
+                c.phone.includes(searchTerm) ||
+                (c.city && c.city.toLowerCase().includes(searchTerm))
+            );
+            
+            renderTable(filtered);
+        }
+        
+        function exportData() {
+            const dataStr = JSON.stringify(customers, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `hammampos-customers-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const imported = JSON.parse(event.target.result);
+                        if (confirm(`سيتم استيراد ${imported.length} عميل. هل تريد المتابعة؟`)) {
+                            customers = imported;
+                            saveData();
+                            updateStats();
+                            renderTable();
+                        }
+                    } catch (error) {
+                        alert('فشل في استيراد البيانات: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+    </script>
+</body>
+</html>

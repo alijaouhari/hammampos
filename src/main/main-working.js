@@ -26,6 +26,7 @@ const WebDashboard = require('../services/WebDashboard');
 // Keep a global reference of the window object
 let mainWindow;
 let setupWindow;
+let licenseWindow;
 let storage;
 let backupManager;
 let excelManager;
@@ -37,6 +38,39 @@ let pluginManager;
 let licenseManager;
 // let cloudSync; // REMOVED
 let webDashboard;
+
+function createLicenseWindow() {
+  // Create the license activation window
+  licenseWindow = new BrowserWindow({
+    width: 600,
+    height: 700,
+    show: true,
+    resizable: false,
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      enableRemoteModule: true,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      experimentalFeatures: true
+    }
+  });
+
+  // Load the license activation HTML
+  const licensePath = path.join(__dirname, '../renderer/license-activation.html');
+  console.log('Loading License Activation from:', licensePath);
+  licenseWindow.loadFile(licensePath);
+
+  // Open DevTools in development mode
+  if (process.argv.includes('--dev')) {
+    licenseWindow.webContents.openDevTools();
+  }
+
+  licenseWindow.on('closed', () => {
+    licenseWindow = null;
+  });
+}
 
 function createSetupWindow() {
   // Create the setup wizard window
@@ -116,6 +150,37 @@ function createWindow() {
 app.whenReady().then(async () => {
   console.log('HammamPOS Main Process Started');
   
+  try {
+    // Initialize License Manager FIRST
+    licenseManager = new LicenseManager();
+    try {
+      await licenseManager.initialize();
+      console.log('✅ License Manager ready');
+      console.log(`🖥️ Machine ID: ${licenseManager.getHardwareFingerprint().substring(0, 16)}...`);
+    } catch (error) {
+      console.error('❌ License Manager initialization failed:', error);
+      licenseManager = null;
+    }
+    
+    // Check base license BEFORE anything else
+    const hasBaseLicense = licenseManager && await licenseManager.validateLicense('hammampos-core');
+    
+    if (!hasBaseLicense) {
+      console.log('⚠️ No valid base license found - showing license activation screen');
+      createLicenseWindow();
+      return;
+    }
+    
+    console.log('✅ Base license validated - continuing startup');
+    
+    await initializeApplication();
+    
+  } catch (error) {
+    console.error('Failed to initialize:', error);
+  }
+});
+
+async function initializeApplication() {
   try {
     // Initialize database
     storage = new StorageManager();
@@ -286,7 +351,7 @@ app.whenReady().then(async () => {
     console.error('Failed to initialize backend:', error);
     createWindow(); // Still create window even if backend fails
   }
-});
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -302,6 +367,33 @@ app.on('activate', () => {
 
 // IPC Handlers for database operations
 console.log('Setting up IPC handlers...');
+
+// License operations
+ipcMain.handle('license:getMachineId', async () => {
+  if (!licenseManager) {
+    throw new Error('License Manager not initialized');
+  }
+  return licenseManager.getHardwareFingerprint();
+});
+
+ipcMain.handle('license:activate', async (event, licenseKey, featureId) => {
+  if (!licenseManager) {
+    return { success: false, error: 'License Manager not initialized' };
+  }
+  return await licenseManager.activateLicense(licenseKey, featureId);
+});
+
+ipcMain.on('license:activated', () => {
+  console.log('License activated - closing license window and continuing startup');
+  
+  if (licenseWindow) {
+    licenseWindow.close();
+    licenseWindow = null;
+  }
+  
+  // Restart the initialization process
+  initializeApplication();
+});
 
 // Storage operations
 ipcMain.handle('storage:getCategories', () => {
