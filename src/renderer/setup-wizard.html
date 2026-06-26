@@ -348,6 +348,9 @@
                 <button type="button" class="btn btn-secondary" id="test-printer" disabled>
                     اختبار الطباعة
                 </button>
+                <button type="button" class="btn btn-secondary" id="refresh-printers-wizard" style="margin-right: 0.5rem;">
+                    🔄 تحديث القائمة
+                </button>
                 
                 <div id="test-result" class="test-result" style="display: none;"></div>
             </div>
@@ -544,6 +547,7 @@
             document.getElementById('enable-email').addEventListener('change', toggleEmailSettings);
             document.getElementById('test-printer').addEventListener('click', testPrinter);
             document.getElementById('test-email').addEventListener('click', testEmail);
+            document.getElementById('refresh-printers-wizard').addEventListener('click', loadPrinters);
         }
         
         function updateProgress() {
