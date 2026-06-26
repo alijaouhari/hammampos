@@ -116,9 +116,7 @@
         }
         
         .categories-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
+            display: block;
             margin-top: 1rem;
         }
         
@@ -126,14 +124,15 @@
             display: flex;
             gap: 0.5rem;
             align-items: center;
+            margin-bottom: 0.75rem;
         }
         
         .category-item input[type="text"] {
-            width: 200px;
+            flex: 2;
         }
         
         .category-item input[type="number"] {
-            width: 80px;
+            flex: 1;
         }
         
         .wizard-actions {
