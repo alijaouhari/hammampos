@@ -44,6 +44,10 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "src/services/raw-print.ps1",
+        "to": "raw-print.ps1"
       }
     ],
     "win": {

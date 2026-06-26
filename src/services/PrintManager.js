@@ -33,6 +33,10 @@ class PrintManager {
     this.printerName = null;
     this.isInitialized = false;
     this.rawPrintScript = path.join(__dirname, 'raw-print.ps1');
+    // In production (asar), the script is in extraResources
+    if (!fs.existsSync(this.rawPrintScript)) {
+      this.rawPrintScript = path.join(process.resourcesPath, 'raw-print.ps1');
+    }
     this._getSavedPrinter = null; // injected by main process to read from DB
   }
 
