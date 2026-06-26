@@ -10,8 +10,7 @@
     "build:win": "electron-builder --win",
     "build:installer": "npm run build:win && build-installer.bat",
     "dist": "npm run build:installer",
-    "pack": "electron-builder --dir",
-    "postinstall": "electron-builder install-app-deps"
+    "pack": "electron-builder --dir"
   },
   "keywords": [
     "pos",
