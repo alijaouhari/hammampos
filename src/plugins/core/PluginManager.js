@@ -1,8 +1,8 @@
 /**
  * HammamPOS - PluginManager
- * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved.
  * 
- * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
  * Unauthorized copying or distribution is strictly prohibited.
  * 
  * Core Plugin System Management - Handles plugin lifecycle, registration, and coordination
@@ -178,13 +178,8 @@ class PluginManager extends EventEmitter {
         return this.loadedPlugins.get(descriptor.id);
       }
 
-      // Validate license if required
-      if (descriptor.licenseRequired && this.context?.licensing) {
-        const isLicensed = await this.context.licensing.validateLicense(descriptor.id);
-        if (!isLicensed) {
-          throw new Error(`License required for plugin: ${descriptor.id}`);
-        }
-      }
+      // Plugin loads if its folder exists — no license check needed
+      // Add-ons are managed by file presence (you install = it loads)
 
       // Load plugin module
       if (!fs.existsSync(descriptor.entryPointPath)) {

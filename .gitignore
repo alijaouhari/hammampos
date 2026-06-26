@@ -2,8 +2,7 @@ node_modules/
 PROJECT_VAULT.md
 dist/
 build/
+HammamPOS Installer/
 *.log
 .env
 .DS_Store
-data/
-installer/

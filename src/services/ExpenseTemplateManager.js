@@ -1,8 +1,8 @@
 /**
  * HammamPOS - ExpenseTemplateManager
- * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved.
  * 
- * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
  * Unauthorized copying or distribution is strictly prohibited.
  * 
  * Predefined Expense Templates - Handles expense categories, templates, and wood calculations
@@ -99,7 +99,14 @@ class ExpenseTemplateManager {
         this.storage.db.run(`
           INSERT INTO expense_templates (name, category, fixed_amount, unit, price_per_unit, description)
           VALUES (?, ?, ?, ?, ?, ?)
-        `, [template.name, template.category, template.fixed_amount, template.unit, template.price_per_unit, template.description]);
+        `, [
+          template.name,
+          template.category,
+          template.fixed_amount || null,
+          template.unit || null,
+          template.price_per_unit || null,
+          template.description || ''
+        ]);
       }
     });
 

@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- HammamPOS - Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved. -->
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -1640,13 +1641,6 @@
                     </button>
                 </div>
                 <div class="form-group">
-                    <label>عرض الورق:</label>
-                    <select id="settings-paper-width">
-                        <option value="58">58 مم</option>
-                        <option value="80">80 مم</option>
-                    </select>
-                </div>
-                <div class="form-group">
                     <button type="button" id="test-printer-settings" class="btn btn-info" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
                         اختبار الطباعة
                     </button>
@@ -1698,52 +1692,27 @@
                 </div>
             </div>
 
-            <!-- Web Dashboard Settings Section -->
+            <!-- Cloud Sync Settings Section -->
             <div class="category-section">
-                <h4>🌐 لوحة التحكم عن بُعد (Web Dashboard)</h4>
-                <div style="background: #eff6ff; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
-                    <p style="margin: 0; color: #1e40af; font-size: 0.9rem;">
-                        تتيح لك لوحة التحكم عن بُعد الوصول إلى المبيعات والمصروفات من أي جهاز متصل بنفس الشبكة
+                <h4>☁️ المزامنة السحابية (Cloud Sync)</h4>
+                <div style="background: #f0fdf4; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+                    <p style="margin: 0; color: #166534; font-size: 0.9rem;">
+                        مزامنة المبيعات تلقائياً مع السحابة لمراقبة جميع الفروع من أي مكان
                     </p>
                 </div>
-                
-                <!-- Toggle Switch Row -->
-                <div class="dashboard-toggle-row">
-                    <div class="dashboard-toggle-label">
-                        <span>تفعيل لوحة التحكم عن بُعد</span>
-                        <div id="dashboard-status-badge" class="status-badge stopped">
-                            <div class="status-indicator red"></div>
-                            <span>متوقف</span>
-                        </div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="settings-dashboard-enabled">
-                        <span class="toggle-slider"></span>
-                    </label>
+                <div class="form-group">
+                    <label>رابط Supabase (URL):</label>
+                    <input type="text" id="settings-cloud-url" placeholder="https://xxxxx.supabase.co" style="direction: ltr; text-align: left;">
                 </div>
-                
-                <div id="dashboard-settings-fields" style="display: none;">
-                    <div class="form-group">
-                        <label>المنفذ (Port):</label>
-                        <input type="number" id="settings-dashboard-port" placeholder="3000" value="3000" min="1000" max="65535">
-                        <small style="color: #6b7280; font-size: 0.8rem;">
-                            المنفذ الافتراضي: 3000 (غيّره فقط إذا كان مستخدماً)
-                        </small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <div id="dashboard-url" style="display: none; padding: 0.75rem; background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px;">
-                            <strong>رابط الوصول:</strong> <a href="#" id="dashboard-url-link" target="_blank" style="color: #16a34a; text-decoration: underline; font-weight: 600;">-</a>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <button type="button" id="toggle-dashboard" class="btn btn-info" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
-                            تشغيل لوحة التحكم
-                        </button>
-                        <div id="dashboard-toggle-result" style="margin-top: 0.5rem; display: none;"></div>
-                    </div>
+                <div class="form-group">
+                    <label>مفتاح API (Anon Key):</label>
+                    <input type="password" id="settings-cloud-key" placeholder="eyJhbGci..." style="direction: ltr; text-align: left;">
                 </div>
+                <div class="form-group">
+                    <label>اسم الفرع:</label>
+                    <input type="text" id="settings-location-name" placeholder="حمام الهدى - الفرع الرئيسي">
+                </div>
+                <div id="cloud-sync-status" style="margin-top: 0.5rem; padding: 0.5rem; border-radius: 4px; display: none;"></div>
             </div>
 
             <div class="modal-actions">
@@ -2011,12 +1980,6 @@
                 createFromTemplate: (templateId, quantity, customAmount, notes) => ipcRenderer.invoke('expenseTemplates:createFromTemplate', templateId, quantity, customAmount, notes),
                 addWoodPurchase: (supplierName, grossWeight, emptyWeight, pricePerKg, deliveryDate, notes) => ipcRenderer.invoke('expenseTemplates:addWoodPurchase', supplierName, grossWeight, emptyWeight, pricePerKg, deliveryDate, notes),
                 getWoodPurchases: (limit) => ipcRenderer.invoke('expenseTemplates:getWoodPurchases', limit)
-            },
-            webDashboard: {
-                getStatus: () => ipcRenderer.invoke('webDashboard:getStatus'),
-                toggle: (enable, port) => ipcRenderer.invoke('webDashboard:toggle', enable, port),
-                start: (port) => ipcRenderer.invoke('webDashboard:start', port),
-                stop: () => ipcRenderer.invoke('webDashboard:stop')
             }
         };
         
@@ -2121,7 +2084,8 @@
                 
                 // Print ticket in parallel (don't wait for it)
                 api.printer.printTicket(ticket, hammamData).catch(printError => {
-                    console.warn('Print failed:', printError);
+                    console.error('Print failed:', printError);
+                    showToast('⚠️ Erreur impression : ' + (printError.message || 'Erreur inconnue'), 'error');
                 });
                 
                 // Update displays and ledger in parallel (don't block UI)
@@ -3658,7 +3622,6 @@
                 document.getElementById('settings-current-password').value = '';
                 document.getElementById('settings-new-password').value = '';
                 document.getElementById('settings-confirm-password').value = '';
-                document.getElementById('settings-paper-width').value = settings.paper_width || '58';
                 
                 // Email settings
                 const emailEnabled = settings.email_enabled === 'true';
@@ -3667,6 +3630,25 @@
                 document.getElementById('settings-smtp-host').value = settings.email_smtp_host || 'smtp.gmail.com';
                 document.getElementById('settings-smtp-port').value = settings.email_smtp_port || '587';
                 document.getElementById('settings-email-password').value = '';
+                
+                // Cloud sync settings
+                document.getElementById('settings-cloud-url').value = settings.cloud_url || '';
+                document.getElementById('settings-cloud-key').value = settings.cloud_key || '';
+                document.getElementById('settings-location-name').value = settings.location_name || '';
+                const cloudStatus = document.getElementById('cloud-sync-status');
+                if (settings.cloud_url && settings.location_id) {
+                    cloudStatus.style.display = 'block';
+                    cloudStatus.style.background = '#d1fae5';
+                    cloudStatus.style.color = '#065f46';
+                    cloudStatus.innerHTML = '✅ متصل — معرف الفرع: <code style="font-size:0.8rem">' + settings.location_id + '</code>';
+                } else if (settings.cloud_url) {
+                    cloudStatus.style.display = 'block';
+                    cloudStatus.style.background = '#fef3c7';
+                    cloudStatus.style.color = '#92400e';
+                    cloudStatus.textContent = '⏳ تم الإعداد — سيتم الاتصال عند إعادة التشغيل';
+                } else {
+                    cloudStatus.style.display = 'none';
+                }
                 
                 // Toggle email fields visibility
                 toggleEmailSettingsFields();
@@ -3679,14 +3661,9 @@
                 
                 // Setup event listeners
                 document.getElementById('settings-email-enabled').onchange = toggleEmailSettingsFields;
-                document.getElementById('settings-dashboard-enabled').onchange = toggleDashboardSettingsFields;
                 document.getElementById('refresh-printers').onclick = loadPrintersForSettings;
                 document.getElementById('test-printer-settings').onclick = testPrinterInSettings;
                 document.getElementById('test-email-settings').onclick = testEmailInSettings;
-                document.getElementById('toggle-dashboard').onclick = toggleDashboard;
-                
-                // Load dashboard status
-                await loadDashboardStatus();
                 
                 // Show modal
                 const modal = document.getElementById('settings-modal');
@@ -3781,93 +3758,6 @@
             }
         }
 
-        function toggleDashboardSettingsFields() {
-            const enabled = document.getElementById('settings-dashboard-enabled').checked;
-            const fieldsContainer = document.getElementById('dashboard-settings-fields');
-            fieldsContainer.style.display = enabled ? 'block' : 'none';
-        }
-
-        async function loadDashboardStatus() {
-            try {
-                const status = await api.webDashboard.getStatus();
-                const statusBadge = document.getElementById('dashboard-status-badge');
-                const urlDiv = document.getElementById('dashboard-url');
-                const urlLink = document.getElementById('dashboard-url-link');
-                const toggleBtn = document.getElementById('toggle-dashboard');
-                const enabledCheckbox = document.getElementById('settings-dashboard-enabled');
-                const portInput = document.getElementById('settings-dashboard-port');
-                
-                // Set checkbox state
-                enabledCheckbox.checked = status.enabled || false;
-                toggleDashboardSettingsFields();
-                
-                // Set port
-                portInput.value = status.port || 3000;
-                
-                // Update status badge
-                if (status.isRunning) {
-                    statusBadge.className = 'status-badge running';
-                    statusBadge.innerHTML = '<div class="status-indicator green"></div><span>قيد التشغيل</span>';
-                    toggleBtn.textContent = 'إيقاف لوحة التحكم';
-                    toggleBtn.className = 'btn btn-danger';
-                    toggleBtn.style.padding = '0.5rem 1rem';
-                    toggleBtn.style.fontSize = '0.9rem';
-                    
-                    // Show URL
-                    urlDiv.style.display = 'block';
-                    urlLink.href = status.url || `http://localhost:${status.port}`;
-                    urlLink.textContent = status.url || `http://localhost:${status.port}`;
-                } else {
-                    statusBadge.className = 'status-badge stopped';
-                    statusBadge.innerHTML = '<div class="status-indicator red"></div><span>متوقف</span>';
-                    toggleBtn.textContent = 'تشغيل لوحة التحكم';
-                    toggleBtn.className = 'btn btn-info';
-                    toggleBtn.style.padding = '0.5rem 1rem';
-                    toggleBtn.style.fontSize = '0.9rem';
-                    urlDiv.style.display = 'none';
-                }
-            } catch (error) {
-                console.error('Failed to load dashboard status:', error);
-            }
-        }
-
-        async function toggleDashboard() {
-            const enabled = document.getElementById('settings-dashboard-enabled').checked;
-            const port = parseInt(document.getElementById('settings-dashboard-port').value) || 3000;
-            const resultDiv = document.getElementById('dashboard-toggle-result');
-            const toggleBtn = document.getElementById('toggle-dashboard');
-            
-            if (!enabled) {
-                showToast('يرجى تفعيل لوحة التحكم أولاً', 'error');
-                return;
-            }
-            
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'test-result';
-            resultDiv.innerHTML = '<div class="loading"></div> جاري التشغيل...';
-            toggleBtn.disabled = true;
-            
-            try {
-                const status = await api.webDashboard.getStatus();
-                const result = await api.webDashboard.toggle(!status.isRunning, port);
-                
-                if (result.success || result.url) {
-                    resultDiv.className = 'test-result success';
-                    resultDiv.textContent = status.isRunning ? '✅ تم إيقاف لوحة التحكم' : '✅ تم تشغيل لوحة التحكم بنجاح';
-                    await loadDashboardStatus();
-                    showToast(status.isRunning ? 'تم إيقاف لوحة التحكم' : 'تم تشغيل لوحة التحكم', 'success');
-                } else {
-                    throw new Error(result.error || 'فشل في تبديل حالة لوحة التحكم');
-                }
-            } catch (error) {
-                resultDiv.className = 'test-result error';
-                resultDiv.textContent = '❌ خطأ: ' + error.message;
-                showToast('فشل في تبديل حالة لوحة التحكم', 'error');
-            } finally {
-                toggleBtn.disabled = false;
-            }
-        }
-
         async function saveSystemSettings() {
             try {
                 // Validate password change if requested
@@ -3903,8 +3793,10 @@
                 const settings = {
                     hammam_name: document.getElementById('settings-hammam-name').value.trim(),
                     printer_name: document.getElementById('settings-printer-name').value,
-                    paper_width: document.getElementById('settings-paper-width').value,
-                    email_enabled: document.getElementById('settings-email-enabled').checked ? 'true' : 'false'
+                    email_enabled: document.getElementById('settings-email-enabled').checked ? 'true' : 'false',
+                    cloud_url: document.getElementById('settings-cloud-url').value.trim(),
+                    cloud_key: document.getElementById('settings-cloud-key').value.trim(),
+                    location_name: document.getElementById('settings-location-name').value.trim()
                 };
                 
                 // Add email settings if enabled
@@ -3924,7 +3816,7 @@
                 
                 // Save new password if provided
                 if (newPassword) {
-                    await api.settings.setSetting('admin_password', newPassword);
+                    await api.settings.setSetting('admin_password_change', newPassword);
                 }
                 
                 // Update UI if hammam name changed

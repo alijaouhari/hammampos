@@ -59,8 +59,6 @@ Source: "..\dist\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recurse
 Source: "..\data\*"; DestDir: "{userappdata}\{#MyAppName}\data"; Flags: ignoreversion recursesubdirs createallsubdirs onlyifdoesntexist
 ; Documentation
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\SETUP.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\PROJECT_STRUCTURE.md"; DestDir: "{app}"; Flags: ignoreversion
 ; License files
 Source: "..\data\licenses\*"; DestDir: "{userappdata}\{#MyAppName}\licenses"; Flags: ignoreversion recursesubdirs createallsubdirs onlyifdoesntexist
 

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+<!-- HammamPOS - Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved. -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -340,14 +341,6 @@
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="paper-width">عرض الورق:</label>
-                    <select id="paper-width">
-                        <option value="58">58 مم</option>
-                        <option value="80">80 مم</option>
-                    </select>
-                </div>
-                
                 <button type="button" class="btn btn-secondary" id="test-printer" disabled>
                     اختبار الطباعة
                 </button>
@@ -397,8 +390,30 @@
                 </div>
             </div>
             
-            <!-- Step 5: Completion -->
+            <!-- Step 5: Cloud Sync (Optional) -->
             <div class="step" id="step-5">
+                <h2>☁️ المزامنة السحابية (اختياري)</h2>
+                <p>ربط هذا الفرع بالسحابة لمراقبة المبيعات عن بُعد</p>
+                
+                <div class="form-group">
+                    <label for="cloud-url">رابط Supabase:</label>
+                    <input type="text" id="cloud-url" placeholder="https://xxxxx.supabase.co" style="direction:ltr;text-align:left">
+                    <small>اتركه فارغاً إذا لم تكن تريد المزامنة السحابية</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cloud-key">مفتاح API:</label>
+                    <input type="text" id="cloud-key" placeholder="eyJhbGci..." style="direction:ltr;text-align:left">
+                </div>
+                
+                <div class="form-group">
+                    <label for="location-name">اسم الفرع:</label>
+                    <input type="text" id="location-name" placeholder="حمام الأندلس - الفرع الرئيسي">
+                </div>
+            </div>
+
+            <!-- Step 6: Completion -->
+            <div class="step" id="step-6">
                 <h2>🎉 اكتمل الإعداد!</h2>
                 <p>تم إعداد HammamPOS بنجاح. إليك ملخص الإعدادات:</p>
                 
@@ -438,7 +453,7 @@
         const os = require('os');
         
         let currentStep = 1;
-        const totalSteps = 5;
+        const totalSteps = 6;
         let selectedPrinter = null;
         let setupData = {};
         
@@ -598,7 +613,6 @@
                     }
                     
                     setupData.printer = selectedPrinter;
-                    setupData.paperWidth = document.getElementById('paper-width').value;
                     return true;
                     
                 case 4:
@@ -623,6 +637,12 @@
                     }
                     return true;
                     
+                case 5:
+                    setupData.cloudUrl = document.getElementById('cloud-url').value.trim();
+                    setupData.cloudKey = document.getElementById('cloud-key').value.trim();
+                    setupData.locationName = document.getElementById('location-name').value.trim();
+                    return true;
+                    
                 default:
                     return true;
             }
@@ -634,7 +654,7 @@
                     currentStep++;
                     showStep(currentStep);
                     
-                    if (currentStep === 5) {
+                    if (currentStep === 6) {
                         showSetupSummary();
                     }
                 }
@@ -737,7 +757,6 @@
                 <p><strong>اسم الحمام:</strong> ${setupData.hammamName}</p>
                 <p><strong>عدد الفئات:</strong> ${setupData.categories.length}</p>
                 <p><strong>الطابعة:</strong> ${setupData.printer}</p>
-                <p><strong>عرض الورق:</strong> ${setupData.paperWidth} مم</p>
                 <p><strong>البريد الإلكتروني:</strong> ${setupData.emailEnabled ? 'مفعل' : 'غير مفعل'}</p>
             `;
             

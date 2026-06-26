@@ -22,7 +22,7 @@
     "professional",
     "premium"
   ],
-  "author": "HammamPOS Solutions",
+  "author": "Ali Jaouhari",
   "license": "Proprietary",
   "homepage": "https://hammampos.com",
   "build": {
@@ -62,7 +62,9 @@
         }
       ],
       "icon": "resources/icon.ico",
-      "requestedExecutionLevel": "requireAdministrator"
+      "requestedExecutionLevel": "requireAdministrator",
+      "signAndEditExecutable": false,
+      "signingHashAlgorithms": []
     },
     "nsis": {
       "oneClick": false,
@@ -77,18 +79,13 @@
     "electron-builder": "^24.13.3"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
     "bcryptjs": "^3.0.3",
     "chokidar": "^3.6.0",
-    "cors": "^2.8.6",
     "exceljs": "^4.4.0",
-    "express": "^5.2.1",
-    "google-auth-library": "^10.5.0",
-    "googleapis": "^171.2.0",
-    "helmet": "^8.1.0",
-    "jsonwebtoken": "^9.0.3",
-    "morgan": "^1.10.1",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.8",
-    "sql.js": "^1.13.0"
+    "sql.js": "^1.13.0",
+    "ws": "^8.21.0"
   }
 }

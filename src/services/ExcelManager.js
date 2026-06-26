@@ -1,8 +1,8 @@
 /**
  * HammamPOS - ExcelManager
- * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved.
  * 
- * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
  * Unauthorized copying or distribution is strictly prohibited.
  * 
  * Excel File Integration - Handles real-time Excel backup and remote access

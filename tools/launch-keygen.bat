@@ -1,3 +1,0 @@
-@echo off
-echo Starting HammamPOS License Key Generator...
-start "" "%~dp0keygen-gui.html"

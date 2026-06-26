@@ -1,8 +1,8 @@
 /**
  * HammamPOS - StorageManager
- * Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
+ * Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved.
  * 
- * This software is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
  * Unauthorized copying or distribution is strictly prohibited.
  * 
  * SQLite Database Layer - Handles all database operations for HammamPOS
@@ -13,6 +13,7 @@
 const initSqlJs = require('sql.js');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
 
 class StorageManager {
   constructor(dbPath = null) {
@@ -73,7 +74,6 @@ class StorageManager {
       ['hammam_name', 'حمام'],
       ['admin_password', '1234'], // Default password
       ['printer_name', ''],
-      ['paper_width', '58'],
       ['email_enabled', 'false'],
       ['email_address', ''],
       ['email_password', ''],
@@ -176,11 +176,21 @@ class StorageManager {
    */
   verifyAdminPassword(password) {
     const storedPassword = this.getSetting('admin_password');
-    return password === storedPassword;
+    // Support both legacy plaintext and bcrypt hashed passwords
+    if (storedPassword.startsWith('$2a$') || storedPassword.startsWith('$2b$')) {
+      return bcrypt.compareSync(password, storedPassword);
+    }
+    // Legacy plaintext — verify and upgrade to bcrypt
+    if (password === storedPassword) {
+      this.changeAdminPassword(password); // re-save as hash
+      return true;
+    }
+    return false;
   }
 
   changeAdminPassword(newPassword) {
-    this.setSetting('admin_password', newPassword);
+    const hash = bcrypt.hashSync(newPassword, 10);
+    this.setSetting('admin_password', hash);
   }
 
   /**

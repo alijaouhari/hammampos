@@ -1,44 +1,23 @@
-HammamPOS Professional License Agreement
-
-Copyright (c) 2024 HammamPOS Solutions. All rights reserved.
-
 PROPRIETARY SOFTWARE LICENSE
 
-This software is proprietary and confidential. Unauthorized copying, distribution, 
-or use of this software, via any medium, is strictly prohibited without the express 
-written permission of HammamPOS Solutions.
+Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved.
 
-GRANT OF LICENSE
-Subject to the terms and conditions of this Agreement, HammamPOS Solutions grants 
-you a limited, non-exclusive, non-transferable license to use this software solely 
-for your internal business operations.
+This software, HammamPOS, including all source code, documentation, 
+designs, algorithms, and associated materials, is the exclusive 
+intellectual property of Ali Jaouhari.
 
-RESTRICTIONS
-You may not:
-- Copy, modify, or distribute the software
-- Reverse engineer, decompile, or disassemble the software
-- Remove or alter any proprietary notices or labels
-- Use the software for any unlawful purpose
+UNAUTHORIZED COPYING, MODIFICATION, DISTRIBUTION, OR USE OF THIS 
+SOFTWARE, IN WHOLE OR IN PART, IS STRICTLY PROHIBITED.
 
-PREMIUM FEATURES
-Certain premium features require separate licensing and activation keys. These 
-features are subject to additional terms and conditions.
+This software is licensed, not sold. Each installation requires a 
+valid license agreement with Ali Jaouhari.
 
-SUPPORT AND UPDATES
-Support and updates are provided according to your service agreement with 
-HammamPOS Solutions.
+No part of this software may be reproduced, reverse-engineered, 
+decompiled, disassembled, or transmitted in any form without prior 
+written consent from Ali Jaouhari.
 
-DISCLAIMER
-This software is provided "as is" without warranty of any kind. HammamPOS Solutions 
-disclaims all warranties, express or implied, including but not limited to the 
-warranties of merchantability and fitness for a particular purpose.
+VIOLATION OF THIS LICENSE IS SUBJECT TO LEGAL ACTION UNDER 
+APPLICABLE COPYRIGHT AND INTELLECTUAL PROPERTY LAWS.
 
-LIMITATION OF LIABILITY
-In no event shall HammamPOS Solutions be liable for any damages whatsoever arising 
-out of the use of or inability to use this software.
-
-For licensing inquiries, contact: support@hammampos.com
-
-This license is effective until terminated. Your rights under this license will 
-terminate automatically without notice if you fail to comply with any term(s) of 
-this license.
+Contact: Ali Jaouhari
+Date of first publication: 2024
