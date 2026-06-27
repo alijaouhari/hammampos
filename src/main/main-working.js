@@ -118,6 +118,10 @@ function createWindow() {
     }
   });
 
+  // Set title with version
+  const packageJson = require('../../package.json');
+  mainWindow.setTitle(`HammamPOS v${packageJson.version}`);
+
   // Load the main HammamPOS HTML
   const htmlPath = path.join(__dirname, '../renderer/hammampos.html');
   console.log('Loading HammamPOS from:', htmlPath);
