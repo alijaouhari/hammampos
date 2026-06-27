@@ -20,6 +20,16 @@ class StorageManager {
     // Store database in user's AppData so it survives app updates
     const appDataDir = path.join(process.env.APPDATA || process.env.HOME, 'HammamPOS');
     this.dbPath = dbPath || path.join(appDataDir, 'hammampos.db');
+    
+    // Migrate from old location if needed
+    if (!fs.existsSync(this.dbPath)) {
+      const oldPath = path.join(process.cwd(), 'data', 'hammampos.db');
+      if (fs.existsSync(oldPath)) {
+        if (!fs.existsSync(appDataDir)) fs.mkdirSync(appDataDir, { recursive: true });
+        fs.copyFileSync(oldPath, this.dbPath);
+        console.log('📦 Database migrated to AppData');
+      }
+    }
     this.db = null;
     this.SQL = null;
   }
