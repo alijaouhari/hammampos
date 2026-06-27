@@ -279,8 +279,9 @@ async function initializeServices() {
     console.warn('⚠️ Email service not initialized:', error.message);
   }
   
-  // Initialize Plugin Manager
+  // Initialize Plugin Manager (hot reload only in dev mode)
   pluginManager = new PluginManager();
+  pluginManager.hotReloadEnabled = process.argv.includes('--dev');
   try {
     const pluginContext = {
       database: storage,

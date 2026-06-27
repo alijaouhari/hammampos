@@ -1875,6 +1875,18 @@
         </div>
     </div>
 
+    <!-- Confirmation Modal (replaces native confirm()) -->
+    <div id="confirm-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h3 id="confirm-modal-title" style="color: #dc2626;">⚠️ تأكيد</h3>
+            <p id="confirm-modal-message" style="margin: 1rem 0; white-space: pre-line; color: #374151; line-height: 1.8;"></p>
+            <div class="modal-actions" style="justify-content: center;">
+                <button type="button" id="confirm-modal-yes" class="btn" style="background: #dc2626; color: white;">تأكيد الحذف</button>
+                <button type="button" id="confirm-modal-no" class="btn btn-secondary">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         console.log('=== HammamPOS Script Starting ===');
         
@@ -4030,9 +4042,8 @@
 
         // Delete transaction functions
         async function deleteTicket(ticketId) {
-            if (!confirm('هل أنت متأكد من حذف هذه التذكرة؟\nهذا الإجراء لا يمكن التراجع عنه.\n\nملاحظة: ستبقى التذكرة في ملف Excel للمحاسبة.')) {
-                return;
-            }
+            const confirmed = await showConfirm('هل أنت متأكد من حذف هذه التذكرة؟\nهذا الإجراء لا يمكن التراجع عنه.\n\nملاحظة: ستبقى التذكرة في ملف Excel للمحاسبة.');
+            if (!confirmed) return;
             
             try {
                 const deletedTicket = await api.storage.deleteTicket(ticketId);
@@ -4054,9 +4065,8 @@
         }
 
         async function deleteExpense(expenseId) {
-            if (!confirm('هل أنت متأكد من حذف هذا المصروف؟\nهذا الإجراء لا يمكن التراجع عنه.\n\nملاحظة: سيبقى المصروف في ملف Excel للمحاسبة.')) {
-                return;
-            }
+            const confirmed = await showConfirm('هل أنت متأكد من حذف هذا المصروف؟\nهذا الإجراء لا يمكن التراجع عنه.\n\nملاحظة: سيبقى المصروف في ملف Excel للمحاسبة.');
+            if (!confirmed) return;
             
             try {
                 const deletedExpense = await api.storage.deleteExpense(expenseId);
@@ -4641,9 +4651,8 @@
         async function toggleCategory(id, activate) {
             const action = activate ? 'تفعيل' : 'إلغاء تفعيل';
             
-            if (!confirm(`هل أنت متأكد من ${action} هذه الفئة؟`)) {
-                return;
-            }
+            const confirmed = await showConfirm(`هل أنت متأكد من ${action} هذه الفئة؟`, '⚠️ تأكيد', action);
+            if (!confirmed) return;
 
             try {
                 console.log(`🔄 ${action} category ${id}...`);
@@ -4787,9 +4796,8 @@
 
         // Delete collection function
         async function deleteCollection(collectionId) {
-            if (!confirm('هل أنت متأكد من حذف عملية التحصيل هذه؟\nهذا الإجراء لا يمكن التراجع عنه.\n\nملاحظة: ستبقى العملية في ملف Excel للمحاسبة.')) {
-                return;
-            }
+            const confirmed = await showConfirm('هل أنت متأكد من حذف عملية التحصيل هذه؟\nهذا الإجراء لا يمكن التراجع عنه.\n\nملاحظة: ستبقى العملية في ملف Excel للمحاسبة.');
+            if (!confirmed) return;
             
             try {
                 const deletedCollection = await api.storage.deleteCollection(collectionId);
@@ -4868,6 +4876,28 @@
                     toast.parentNode.removeChild(toast);
                 }
             }, 3000);
+        }
+        
+        function showConfirm(message, title = '⚠️ تأكيد', confirmText = 'تأكيد الحذف') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirm-modal');
+                document.getElementById('confirm-modal-title').textContent = title;
+                document.getElementById('confirm-modal-message').textContent = message;
+                document.getElementById('confirm-modal-yes').textContent = confirmText;
+                modal.classList.remove('hidden');
+                
+                const yesBtn = document.getElementById('confirm-modal-yes');
+                const noBtn = document.getElementById('confirm-modal-no');
+                
+                function cleanup() {
+                    modal.classList.add('hidden');
+                    yesBtn.onclick = null;
+                    noBtn.onclick = null;
+                }
+                
+                yesBtn.onclick = () => { cleanup(); resolve(true); };
+                noBtn.onclick = () => { cleanup(); resolve(false); };
+            });
         }
         
         // Start the app when DOM is ready
