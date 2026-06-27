@@ -73,7 +73,7 @@ class PrintManager {
     const printers = await this.getReceiptPrinters();
 
     if (printers.length === 0) {
-      throw new Error('Aucune imprimante thermique détectée. Branchez une imprimante 80mm via USB.');
+      throw new Error('لم يتم العثور على طابعة حرارية. قم بتوصيل طابعة 80mm عبر USB.');
     }
 
     // Saved printer available?
@@ -94,7 +94,7 @@ class PrintManager {
 
     // Multiple and none saved → user must choose
     const names = printers.map(p => p.Name).join(', ');
-    throw new Error(`Plusieurs imprimantes détectées (${names}). Sélectionnez une imprimante dans Paramètres.`);
+    throw new Error(`تم اكتشاف عدة طابعات (${names}). اختر طابعة من الإعدادات.`);
   }
 
   /**
@@ -184,7 +184,7 @@ body { padding: 4px 8px 16px 8px; }
    */
   async printTicket(ticket, hammamData = {}) {
     if (!this.isInitialized) {
-      throw new Error('Imprimante non initialisée');
+      throw new Error('الطابعة غير مهيأة');
     }
 
     // Re-resolve on every print (handles printer changes in settings)
@@ -192,7 +192,7 @@ body { padding: 4px 8px 16px 8px; }
     try {
       this.printerName = await this.resolvePrinter(savedPrinter);
     } catch (error) {
-      throw new Error(`Imprimante indisponible: ${error.message}`);
+      throw new Error(`الطابعة غير متوفرة: ${error.message}`);
     }
 
     // Render → Capture → Convert → Send
@@ -309,7 +309,7 @@ body { padding: 4px 8px 16px 8px; }
 
       if (!stdout.trim().includes('SUCCESS')) {
         const err = (stderr || stdout || 'Unknown error').trim().split('\n')[0];
-        throw new Error(`Impression échouée: ${err}`);
+        throw new Error(`فشل الطباعة: ${err}`);
       }
     } finally {
       try { fs.unlinkSync(tempPath); } catch (_) {}

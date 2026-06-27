@@ -673,7 +673,7 @@ class StorageManager {
       this.db.run('DELETE FROM expenses');
       this.db.run('DELETE FROM collections');
       this.db.run('DELETE FROM daily_summary');
-      this.db.run('DELETE FROM wood_purchases');
+      try { this.db.run('DELETE FROM wood_purchases'); } catch (_) {} // Table may not exist on fresh installs
       
       // Reset category serial counters
       this.db.run('UPDATE categories SET serial_counter = 0');

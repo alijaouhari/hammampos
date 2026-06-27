@@ -150,6 +150,9 @@ const menuTemplate = [
 ];
 Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
 
+// Force DPI scale factor to 1 so thermal printer bitmaps are always 1:1 pixel ratio
+app.commandLine.appendSwitch('force-device-scale-factor', '1');
+
 // Initialize backend services
 app.whenReady().then(async () => {
   console.log('HammamPOS Main Process Started');
@@ -230,11 +233,6 @@ async function initializeApplication() {
       await excelManager.initialize();
       console.log('✅ Excel Manager initialized successfully');
       
-      // Rebuild Excel from database if needed
-      console.log('🔄 Rebuilding Excel from database...');
-      await excelManager.rebuildFromDatabase(storage);
-      console.log('✅ Excel rebuilt from database');
-      
     } catch (error) {
       console.error('❌ Excel Manager initialization failed:', error);
       console.error('Excel error stack:', error.stack);
@@ -274,17 +272,6 @@ async function initializeApplication() {
       }
     } catch (error) {
       console.warn('⚠️ Email service not initialized:', error.message);
-    }
-    
-    // Initialize License Manager
-    licenseManager = new LicenseManager();
-    try {
-      await licenseManager.initialize();
-      console.log('✅ License Manager ready');
-      console.log(`🖥️ Machine ID: ${licenseManager.getHardwareFingerprint().substring(0, 16)}...`);
-    } catch (error) {
-      console.error('❌ License Manager initialization failed:', error);
-      licenseManager = null;
     }
     
     // Initialize Plugin Manager
