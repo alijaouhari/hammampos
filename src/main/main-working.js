@@ -4,7 +4,7 @@
  * Unauthorized copying or distribution is strictly prohibited.
  */
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const StorageManager = require('../services/StorageManager');
@@ -140,6 +140,15 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+// Enable keyboard shortcuts (Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A)
+const menuTemplate = [
+  { label: 'Edit', submenu: [
+    { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
+    { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }
+  ]}
+];
+Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
 
 // Initialize backend services
 app.whenReady().then(async () => {
