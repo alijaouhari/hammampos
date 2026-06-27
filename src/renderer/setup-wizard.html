@@ -591,16 +591,20 @@
                     
                     if (!hammamName) {
                         alert('يرجى إدخال اسم الحمام');
+                        setTimeout(() => document.getElementById('hammam-name').focus(), 100);
                         return false;
                     }
                     
                     if (!password || password.length < 4) {
                         alert('يرجى إدخال كلمة مرور لا تقل عن 4 أحرف');
+                        setTimeout(() => document.getElementById('admin-password').focus(), 100);
                         return false;
                     }
                     
                     if (password !== confirmPassword) {
                         alert('كلمات المرور غير متطابقة');
+                        document.getElementById('admin-password-confirm').value = '';
+                        setTimeout(() => document.getElementById('admin-password-confirm').focus(), 100);
                         return false;
                     }
                     
