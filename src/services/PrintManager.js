@@ -160,6 +160,7 @@ html, body {
 body { padding: 4px 8px 16px 8px; }
 .header { font-size: 28px; font-weight: bold; }
 .category { font-size: 40px; font-weight: bold; margin: 4px 0; }
+.price { font-size: 30px; font-weight: bold; margin: 2px 0; }
 .sep { border-top: 3px dashed #000; margin: 6px 0; }
 .serial { font-size: 30px; font-weight: bold; }
 .datetime { font-size: 22px; margin-top: 4px; direction: ltr; }
@@ -168,6 +169,7 @@ body { padding: 4px 8px 16px 8px; }
 <body>
 <div class="header">${hammamName}</div>
 <div class="category">${ticket.category_name}</div>
+<div class="price">${Math.round(ticket.price)} DH</div>
 <div class="sep"></div>
 <div class="serial">#${ticket.serial_number}/${ticket.year}</div>
 <div class="datetime">${dateTime}</div>
