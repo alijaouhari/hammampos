@@ -16,8 +16,8 @@ const EmailService = require('../services/EmailService');
 const ExpenseTemplateManager = require('../services/ExpenseTemplateManager');
 const PluginManager = require('../plugins/core/PluginManager');
 const LicenseManager = require('../plugins/core/LicenseManager');
-// const CloudSyncManager = require('../services/CloudSyncManager'); // REMOVED
 const CloudSync = require('../services/CloudSync');
+const UpdateManager = require('../services/UpdateManager');
 
 // Keep a global reference of the window object
 let mainWindow;
@@ -33,6 +33,7 @@ let expenseTemplates;
 let pluginManager;
 let licenseManager;
 let cloudSync;
+let updateManager;
 
 function createLicenseWindow() {
   // Create the license activation window
@@ -320,6 +321,14 @@ async function initializeServices() {
     console.warn('☁️ Cloud sync not available:', error.message);
     cloudSync = null;
   }
+  
+  // Initialize Update Manager and check for updates (non-blocking)
+  updateManager = new UpdateManager();
+  updateManager.checkForUpdate().then(update => {
+    if (update) {
+      console.log(`🔄 Update available: v${update.version}`);
+    }
+  }).catch(() => {});
 }
 
 app.on('window-all-closed', () => {
@@ -852,6 +861,42 @@ ipcMain.handle('setup:complete', async (event, setupData) => {
     console.error('Setup completion failed:', error);
     throw error;
   }
+});
+
+// Update system handlers
+ipcMain.handle('update:getStatus', async () => {
+  if (!updateManager) return { currentVersion: '0.0.0', latestRelease: null };
+  return updateManager.getStatus();
+});
+
+ipcMain.handle('update:check', async () => {
+  if (!updateManager) return null;
+  return await updateManager.checkForUpdate();
+});
+
+ipcMain.handle('update:download', async () => {
+  if (!updateManager) throw new Error('Update manager not ready');
+  return await updateManager.downloadUpdate();
+});
+
+ipcMain.handle('update:apply', async () => {
+  if (!updateManager) throw new Error('Update manager not ready');
+  return await updateManager.applyUpdate();
+});
+
+ipcMain.handle('update:revert', async () => {
+  if (!updateManager) throw new Error('Update manager not ready');
+  return await updateManager.revertUpdate();
+});
+
+ipcMain.handle('update:getProgress', () => {
+  if (!updateManager) return 0;
+  return updateManager.downloadProgress;
+});
+
+ipcMain.handle('app:restart', () => {
+  app.relaunch();
+  app.exit(0);
 });
 
 ipcMain.on('setup:finished', async () => {

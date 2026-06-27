@@ -1712,6 +1712,56 @@
                 <div id="cloud-sync-status" style="margin-top: 0.5rem; padding: 0.5rem; border-radius: 4px; display: none;"></div>
             </div>
 
+            <!-- Update Section -->
+            <div class="category-section">
+                <h4>🔄 تحديثات النظام</h4>
+                <div id="update-status-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <span style="font-weight: 600; color: #374151;">الإصدار الحالي:</span>
+                        <span id="current-version-display" style="font-weight: 700; color: #2563eb;"></span>
+                    </div>
+                    <div id="update-available-section" style="display: none;">
+                        <div style="background: #f0fdf4; padding: 1rem; border-radius: 6px; border: 1px solid #10b981; margin-bottom: 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: 600; color: #065f46;">تحديث متاح:</span>
+                                <span id="update-version-display" style="font-weight: 700; color: #059669;"></span>
+                            </div>
+                            <p id="update-notes-display" style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #374151;"></p>
+                        </div>
+                        <button type="button" id="download-update-btn" class="btn btn-success" style="width: 100%;">
+                            تحميل وتثبيت التحديث
+                        </button>
+                        <div id="update-progress" style="display: none; margin-top: 0.75rem;">
+                            <div style="background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden;">
+                                <div id="update-progress-bar" style="background: #2563eb; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                            <p id="update-progress-text" style="text-align: center; font-size: 0.85rem; color: #6b7280; margin: 0.5rem 0 0 0;">جاري التحميل...</p>
+                        </div>
+                    </div>
+                    <div id="update-uptodate-section" style="display: none;">
+                        <div style="background: #f9fafb; padding: 1rem; border-radius: 6px; text-align: center; color: #6b7280;">
+                            ✅ التطبيق محدث لآخر إصدار
+                        </div>
+                    </div>
+                    <button type="button" id="check-update-btn" class="btn btn-secondary" style="margin-top: 0.75rem; padding: 0.5rem 1rem; font-size: 0.9rem;">
+                        التحقق من التحديثات
+                    </button>
+                </div>
+                
+                <!-- Revert Section -->
+                <div id="revert-section" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-weight: 600; color: #374151;">الرجوع للنسخة السابقة</span>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem; color: #6b7280;" id="revert-info">لا توجد نسخة سابقة</p>
+                        </div>
+                        <button type="button" id="revert-update-btn" class="btn" style="background: #f59e0b; color: white; padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
+                            الرجوع
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="modal-actions">
                 <button type="button" id="save-settings" class="btn btn-primary">حفظ الإعدادات</button>
                 <button type="button" id="close-settings" class="btn btn-secondary">إلغاء</button>
@@ -1989,6 +2039,15 @@
                 createFromTemplate: (templateId, quantity, customAmount, notes) => ipcRenderer.invoke('expenseTemplates:createFromTemplate', templateId, quantity, customAmount, notes),
                 addWoodPurchase: (supplierName, grossWeight, emptyWeight, pricePerKg, deliveryDate, notes) => ipcRenderer.invoke('expenseTemplates:addWoodPurchase', supplierName, grossWeight, emptyWeight, pricePerKg, deliveryDate, notes),
                 getWoodPurchases: (limit) => ipcRenderer.invoke('expenseTemplates:getWoodPurchases', limit)
+            },
+            update: {
+                getStatus: () => ipcRenderer.invoke('update:getStatus'),
+                check: () => ipcRenderer.invoke('update:check'),
+                download: () => ipcRenderer.invoke('update:download'),
+                apply: () => ipcRenderer.invoke('update:apply'),
+                revert: () => ipcRenderer.invoke('update:revert'),
+                getProgress: () => ipcRenderer.invoke('update:getProgress'),
+                restart: () => ipcRenderer.invoke('app:restart')
             }
         };
         
@@ -3674,6 +3733,12 @@
                 document.getElementById('test-printer-settings').onclick = testPrinterInSettings;
                 document.getElementById('test-email-settings').onclick = testEmailInSettings;
                 
+                // Setup update UI
+                await loadUpdateStatus();
+                document.getElementById('check-update-btn').onclick = checkForUpdateUI;
+                document.getElementById('download-update-btn').onclick = downloadAndApplyUpdate;
+                document.getElementById('revert-update-btn').onclick = revertUpdateUI;
+                
                 // Show modal
                 const modal = document.getElementById('settings-modal');
                 modal.classList.remove('hidden');
@@ -3681,6 +3746,129 @@
             } catch (error) {
                 console.error('Failed to show settings modal:', error);
                 showToast('خطأ في فتح الإعدادات', 'error');
+            }
+        }
+
+        // ─── UPDATE UI FUNCTIONS ──────────────────────────────────────────
+
+        async function loadUpdateStatus() {
+            try {
+                const status = await api.update.getStatus();
+                
+                // Show current version
+                document.getElementById('current-version-display').textContent = 'v' + status.currentVersion;
+                
+                // Show update availability
+                if (status.latestRelease) {
+                    document.getElementById('update-available-section').style.display = 'block';
+                    document.getElementById('update-uptodate-section').style.display = 'none';
+                    document.getElementById('update-version-display').textContent = 'v' + status.latestRelease.version;
+                    document.getElementById('update-notes-display').textContent = status.latestRelease.notes || '';
+                } else {
+                    document.getElementById('update-available-section').style.display = 'none';
+                    document.getElementById('update-uptodate-section').style.display = 'block';
+                }
+                
+                // Show revert availability
+                const backups = status.availableBackups || [];
+                const revertBtn = document.getElementById('revert-update-btn');
+                const revertInfo = document.getElementById('revert-info');
+                if (backups.length > 0) {
+                    revertBtn.disabled = false;
+                    revertInfo.textContent = `متاح: الرجوع إلى v${backups[0].version}`;
+                } else {
+                    revertBtn.disabled = true;
+                    revertInfo.textContent = 'لا توجد نسخة سابقة';
+                }
+            } catch (error) {
+                console.error('Failed to load update status:', error);
+            }
+        }
+
+        async function checkForUpdateUI() {
+            const btn = document.getElementById('check-update-btn');
+            btn.disabled = true;
+            btn.textContent = 'جاري التحقق...';
+            
+            try {
+                const update = await api.update.check();
+                await loadUpdateStatus();
+                
+                if (!update) {
+                    showToast('التطبيق محدث لآخر إصدار', 'success');
+                }
+            } catch (error) {
+                showToast('فشل التحقق من التحديثات', 'error');
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'التحقق من التحديثات';
+        }
+
+        async function downloadAndApplyUpdate() {
+            const btn = document.getElementById('download-update-btn');
+            const progressDiv = document.getElementById('update-progress');
+            const progressBar = document.getElementById('update-progress-bar');
+            const progressText = document.getElementById('update-progress-text');
+            
+            btn.disabled = true;
+            btn.textContent = 'جاري التحميل...';
+            progressDiv.style.display = 'block';
+            
+            try {
+                // Start download
+                const downloadPromise = api.update.download();
+                
+                // Poll progress
+                const progressInterval = setInterval(async () => {
+                    const progress = await api.update.getProgress();
+                    progressBar.style.width = progress + '%';
+                    progressText.textContent = `جاري التحميل... ${progress}%`;
+                }, 500);
+                
+                await downloadPromise;
+                clearInterval(progressInterval);
+                
+                // Download complete, now apply
+                progressBar.style.width = '100%';
+                progressText.textContent = 'جاري تثبيت التحديث...';
+                
+                await api.update.apply();
+                
+                progressText.textContent = '✅ تم التحديث — أعد تشغيل التطبيق';
+                progressBar.style.background = '#10b981';
+                
+                btn.textContent = 'إعادة تشغيل';
+                btn.disabled = false;
+                btn.onclick = () => api.update.restart();
+                
+            } catch (error) {
+                progressDiv.style.display = 'none';
+                btn.disabled = false;
+                btn.textContent = 'تحميل وتثبيت التحديث';
+                showToast('فشل التحديث: ' + error.message, 'error');
+            }
+        }
+
+        async function revertUpdateUI() {
+            const confirmed = await showConfirm(
+                'سيتم الرجوع للنسخة السابقة.\nستحتاج لإعادة تشغيل التطبيق بعد الرجوع.',
+                '⚠️ الرجوع للنسخة السابقة',
+                'رجوع'
+            );
+            if (!confirmed) return;
+            
+            try {
+                const result = await api.update.revert();
+                showToast(`تم الرجوع إلى v${result.revertedTo} — أعد تشغيل التطبيق`, 'success');
+                
+                // Change revert button to restart button
+                const btn = document.getElementById('revert-update-btn');
+                btn.textContent = 'إعادة تشغيل';
+                btn.style.background = '#2563eb';
+                btn.onclick = () => api.update.restart();
+            } catch (error) {
+                showToast('فشل الرجوع: ' + error.message, 'error');
             }
         }
 
