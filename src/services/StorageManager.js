@@ -17,7 +17,9 @@ const bcrypt = require('bcryptjs');
 
 class StorageManager {
   constructor(dbPath = null) {
-    this.dbPath = dbPath || path.join(process.cwd(), 'data', 'hammampos.db');
+    // Store database in user's AppData so it survives app updates
+    const appDataDir = path.join(process.env.APPDATA || process.env.HOME, 'HammamPOS');
+    this.dbPath = dbPath || path.join(appDataDir, 'hammampos.db');
     this.db = null;
     this.SQL = null;
   }

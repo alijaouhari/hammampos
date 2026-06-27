@@ -15,7 +15,8 @@ const fs = require('fs');
 
 class ExcelManager {
   constructor(excelPath = null) {
-    this.excelPath = excelPath || path.join(process.cwd(), 'data', 'hammampos.xlsx');
+    const appDataDir = path.join(process.env.APPDATA || process.env.HOME, 'HammamPOS');
+    this.excelPath = excelPath || path.join(appDataDir, 'hammampos.xlsx');
     this.workbook = null;
     this.isInitialized = false;
   }
