@@ -207,122 +207,117 @@ async function initializeApplication() {
     if (!hammamName || hammamName === 'حمام') {
       console.log('First run detected - showing setup wizard');
       createSetupWindow();
+      // Stop here. setup:finished will call initializeServices() → createWindow()
       return;
     }
     
-    // Initialize Backup Manager (replaces Excel)
-    try {
-      console.log('🔧 Initializing Backup Manager...');
-      backupManager = new BackupManager();
-      console.log('✅ Backup Manager initialized successfully');
-      
-      // Test backup writing
-      console.log('🧪 Testing backup writing...');
-      // Backup manager doesn't need initialization test - it's simpler than Excel
-      
-    } catch (error) {
-      console.error('❌ Backup Manager initialization failed:', error);
-      console.error('Backup error stack:', error.stack);
-      backupManager = null;
-    }
-    
-    // Initialize Excel Manager (works alongside BackupManager)
-    try {
-      console.log('📊 Initializing Excel Manager...');
-      excelManager = new ExcelManager();
-      await excelManager.initialize();
-      console.log('✅ Excel Manager initialized successfully');
-      
-    } catch (error) {
-      console.error('❌ Excel Manager initialization failed:', error);
-      console.error('Excel error stack:', error.stack);
-      excelManager = null;
-    }
-    
-    // Initialize Printer
-    const savedPrinterName = storage.getSetting('printer_name');
-    printer = new PrintManager();
-    printer._getSavedPrinter = () => storage.getSetting('printer_name') || null;
-    try {
-      await printer.initialize(savedPrinterName || null);
-      console.log('✅ Printer ready');
-    } catch (error) {
-      console.warn('⚠️ Printer not initialized:', error.message);
-    }
-    
-    // Initialize Scheduler
-    scheduler = new SchedulerService(storage);
-    try {
-      scheduler.initialize();
-      console.log('✅ Scheduler ready');
-    } catch (error) {
-      console.warn('⚠️ Scheduler not initialized:', error.message);
-    }
-    
-    // Initialize Email Service
-    emailService = new EmailService(storage);
-    try {
-      const emailResult = await emailService.initialize();
-      if (emailResult.success) {
-        console.log('✅ Email service ready');
-        // Update scheduler with email service
-        scheduler.email = emailService;
-      } else {
-        console.log('📧 Email service not configured or disabled');
-      }
-    } catch (error) {
-      console.warn('⚠️ Email service not initialized:', error.message);
-    }
-    
-    // Initialize Plugin Manager
-    pluginManager = new PluginManager();
-    try {
-      // Create plugin context
-      const pluginContext = {
-        database: storage,
-        ui: null, // Will be set when UI is ready
-        licensing: licenseManager,
-        events: new (require('events').EventEmitter)(),
-        config: storage, // Using storage for config management
-        logger: console,
-        storage: storage,
-        excel: excelManager
-      };
-      
-      await pluginManager.initialize(pluginContext);
-      console.log('✅ Plugin Manager ready');
-      
-      // Load all available plugins
-      const loadResult = await pluginManager.loadAllPlugins();
-      console.log(`🔌 Loaded ${loadResult.loadedPlugins.length} plugins`);
-      
-      if (loadResult.errors.length > 0) {
-        console.warn(`⚠️ ${loadResult.errors.length} plugins failed to load`);
-        loadResult.errors.forEach(error => {
-          console.warn(`   - ${error.pluginId}: ${error.error}`);
-        });
-      }
-      
-    } catch (error) {
-      console.error('❌ Plugin Manager initialization failed:', error);
-      pluginManager = null;
-    }
-    
-    // Initialize Cloud Sync Manager - DISABLED (removed feature)
-    // Initialize Cloud Sync (optional — only if configured)
-    cloudSync = new CloudSync(storage);
-    try {
-      await cloudSync.initialize();
-    } catch (error) {
-      console.warn('☁️ Cloud sync not available:', error.message);
-      cloudSync = null;
-    }
-    
+    // Normal startup — initialize everything and show main window
+    await initializeServices();
     createWindow();
     
   } catch (error) {
     console.error('Failed to initialize backend:', error);
     createWindow(); // Still create window even if backend fails
+  }
+}
+
+/**
+ * Initialize all backend services (backup, excel, printer, scheduler, email, plugins, cloud sync).
+ * Called after DB + settings are ready — either on normal startup or after setup wizard finishes.
+ */
+async function initializeServices() {
+  // Initialize Backup Manager
+  try {
+    backupManager = new BackupManager();
+    console.log('✅ Backup Manager initialized');
+  } catch (error) {
+    console.error('❌ Backup Manager initialization failed:', error);
+    backupManager = null;
+  }
+  
+  // Initialize Excel Manager
+  try {
+    excelManager = new ExcelManager();
+    await excelManager.initialize();
+    console.log('✅ Excel Manager initialized');
+  } catch (error) {
+    console.error('❌ Excel Manager initialization failed:', error);
+    excelManager = null;
+  }
+  
+  // Initialize Printer
+  const savedPrinterName = storage.getSetting('printer_name');
+  printer = new PrintManager();
+  printer._getSavedPrinter = () => storage.getSetting('printer_name') || null;
+  try {
+    await printer.initialize(savedPrinterName || null);
+    console.log('✅ Printer ready');
+  } catch (error) {
+    console.warn('⚠️ Printer not initialized:', error.message);
+  }
+  
+  // Initialize Scheduler
+  scheduler = new SchedulerService(storage);
+  try {
+    scheduler.initialize();
+    console.log('✅ Scheduler ready');
+  } catch (error) {
+    console.warn('⚠️ Scheduler not initialized:', error.message);
+  }
+  
+  // Initialize Email Service
+  emailService = new EmailService(storage);
+  try {
+    const emailResult = await emailService.initialize();
+    if (emailResult.success) {
+      console.log('✅ Email service ready');
+      scheduler.email = emailService;
+    } else {
+      console.log('📧 Email service not configured or disabled');
+    }
+  } catch (error) {
+    console.warn('⚠️ Email service not initialized:', error.message);
+  }
+  
+  // Initialize Plugin Manager
+  pluginManager = new PluginManager();
+  try {
+    const pluginContext = {
+      database: storage,
+      ui: null,
+      licensing: licenseManager,
+      events: new (require('events').EventEmitter)(),
+      config: storage,
+      logger: console,
+      storage: storage,
+      excel: excelManager
+    };
+    
+    await pluginManager.initialize(pluginContext);
+    console.log('✅ Plugin Manager ready');
+    
+    const loadResult = await pluginManager.loadAllPlugins();
+    console.log(`🔌 Loaded ${loadResult.loadedPlugins.length} plugins`);
+    
+    if (loadResult.errors.length > 0) {
+      console.warn(`⚠️ ${loadResult.errors.length} plugins failed to load`);
+      loadResult.errors.forEach(error => {
+        console.warn(`   - ${error.pluginId}: ${error.error}`);
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Plugin Manager initialization failed:', error);
+    pluginManager = null;
+  }
+  
+  // Initialize Cloud Sync (optional — only if configured)
+  cloudSync = new CloudSync(storage);
+  try {
+    await cloudSync.initialize();
+  } catch (error) {
+    console.warn('☁️ Cloud sync not available:', error.message);
+    cloudSync = null;
   }
 }
 
@@ -859,72 +854,19 @@ ipcMain.handle('setup:complete', async (event, setupData) => {
 });
 
 ipcMain.on('setup:finished', async () => {
-  console.log('Setup finished - closing setup window and initializing all services');
+  console.log('Setup finished - initializing services and opening main app');
   
+  // Initialize all services now that settings are saved by the wizard
+  await initializeServices();
+  
+  // Open main window first (so window-all-closed doesn't quit the app)
+  createWindow();
+  
+  // Then close setup window
   if (setupWindow) {
     setupWindow.close();
     setupWindow = null;
   }
-  
-  // Re-run full initialization now that settings are saved
-  // (First run exits early before initializing services like CloudSync, Scheduler, etc.)
-  try {
-    // Initialize Backup Manager
-    try {
-      backupManager = new BackupManager();
-      console.log('✅ Backup Manager initialized');
-    } catch (error) {
-      console.error('❌ Backup Manager initialization failed:', error);
-      backupManager = null;
-    }
-    
-    // Initialize Excel Manager
-    try {
-      excelManager = new ExcelManager();
-      await excelManager.initialize();
-      console.log('✅ Excel Manager initialized');
-    } catch (error) {
-      console.error('❌ Excel Manager initialization failed:', error);
-      excelManager = null;
-    }
-    
-    // Initialize Scheduler
-    scheduler = new SchedulerService(storage);
-    try {
-      scheduler.initialize();
-      console.log('✅ Scheduler ready');
-    } catch (error) {
-      console.warn('⚠️ Scheduler not initialized:', error.message);
-    }
-    
-    // Initialize Email Service
-    emailService = new EmailService(storage);
-    try {
-      const emailResult = await emailService.initialize();
-      if (emailResult.success) {
-        console.log('✅ Email service ready');
-        scheduler.email = emailService;
-      }
-    } catch (error) {
-      console.warn('⚠️ Email service not initialized:', error.message);
-    }
-    
-    // Initialize Cloud Sync
-    cloudSync = new CloudSync(storage);
-    try {
-      await cloudSync.initialize();
-      console.log('✅ Cloud sync initialized after setup');
-    } catch (error) {
-      console.warn('☁️ Cloud sync not available:', error.message);
-      cloudSync = null;
-    }
-    
-  } catch (error) {
-    console.error('❌ Post-setup initialization failed:', error);
-  }
-  
-  // Create main window
-  createWindow();
 });
 
 console.log('IPC handlers set up');
