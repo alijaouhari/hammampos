@@ -858,12 +858,69 @@ ipcMain.handle('setup:complete', async (event, setupData) => {
   }
 });
 
-ipcMain.on('setup:finished', () => {
-  console.log('Setup finished - closing setup window and opening main app');
+ipcMain.on('setup:finished', async () => {
+  console.log('Setup finished - closing setup window and initializing all services');
   
   if (setupWindow) {
     setupWindow.close();
     setupWindow = null;
+  }
+  
+  // Re-run full initialization now that settings are saved
+  // (First run exits early before initializing services like CloudSync, Scheduler, etc.)
+  try {
+    // Initialize Backup Manager
+    try {
+      backupManager = new BackupManager();
+      console.log('✅ Backup Manager initialized');
+    } catch (error) {
+      console.error('❌ Backup Manager initialization failed:', error);
+      backupManager = null;
+    }
+    
+    // Initialize Excel Manager
+    try {
+      excelManager = new ExcelManager();
+      await excelManager.initialize();
+      console.log('✅ Excel Manager initialized');
+    } catch (error) {
+      console.error('❌ Excel Manager initialization failed:', error);
+      excelManager = null;
+    }
+    
+    // Initialize Scheduler
+    scheduler = new SchedulerService(storage);
+    try {
+      scheduler.initialize();
+      console.log('✅ Scheduler ready');
+    } catch (error) {
+      console.warn('⚠️ Scheduler not initialized:', error.message);
+    }
+    
+    // Initialize Email Service
+    emailService = new EmailService(storage);
+    try {
+      const emailResult = await emailService.initialize();
+      if (emailResult.success) {
+        console.log('✅ Email service ready');
+        scheduler.email = emailService;
+      }
+    } catch (error) {
+      console.warn('⚠️ Email service not initialized:', error.message);
+    }
+    
+    // Initialize Cloud Sync
+    cloudSync = new CloudSync(storage);
+    try {
+      await cloudSync.initialize();
+      console.log('✅ Cloud sync initialized after setup');
+    } catch (error) {
+      console.warn('☁️ Cloud sync not available:', error.message);
+      cloudSync = null;
+    }
+    
+  } catch (error) {
+    console.error('❌ Post-setup initialization failed:', error);
   }
   
   // Create main window
