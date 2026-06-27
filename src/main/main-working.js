@@ -886,23 +886,15 @@ ipcMain.handle('update:download', async () => {
 ipcMain.handle('update:apply', () => {
   if (!updateManager) throw new Error('Update manager not ready');
   const result = updateManager.applyAndRestart();
-  // Quit the app so the batch script can overwrite files
-  setTimeout(() => {
-    app.exit(0);
-    // Fallback: force kill if app.exit didn't work
-    setTimeout(() => process.exit(0), 1000);
-  }, 500);
+  // The PS1 script will kill us — but help it by exiting cleanly
+  setTimeout(() => process.exit(0), 300);
   return result;
 });
 
 ipcMain.handle('update:revert', () => {
   if (!updateManager) throw new Error('Update manager not ready');
   const result = updateManager.revertAndRestart();
-  // Quit the app so the batch script can overwrite files
-  setTimeout(() => {
-    app.exit(0);
-    setTimeout(() => process.exit(0), 1000);
-  }, 500);
+  setTimeout(() => process.exit(0), 300);
   return result;
 });
 
