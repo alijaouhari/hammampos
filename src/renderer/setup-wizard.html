@@ -550,6 +550,19 @@
             setupEventListeners();
         });
         
+        function showWizardError(msg) {
+            let el = document.getElementById('wizard-error');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'wizard-error';
+                el.style.cssText = 'background:#fee2e2;color:#991b1b;padding:0.75rem;border-radius:6px;margin-bottom:1rem;font-weight:600;text-align:center;border:2px solid #ef4444;';
+                document.querySelector('.wizard-content').prepend(el);
+            }
+            el.textContent = msg;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+
         function setupEventListeners() {
             document.getElementById('next-btn').addEventListener('click', nextStep);
             document.getElementById('prev-btn').addEventListener('click', prevStep);
@@ -590,21 +603,21 @@
                     const confirmPassword = document.getElementById('admin-password-confirm').value;
                     
                     if (!hammamName) {
-                        alert('يرجى إدخال اسم الحمام');
-                        setTimeout(() => document.getElementById('hammam-name').focus(), 100);
+                        showWizardError('يرجى إدخال اسم الحمام');
+                        document.getElementById('hammam-name').focus();
                         return false;
                     }
                     
                     if (!password || password.length < 4) {
-                        alert('يرجى إدخال كلمة مرور لا تقل عن 4 أحرف');
-                        setTimeout(() => document.getElementById('admin-password').focus(), 100);
+                        showWizardError('يرجى إدخال كلمة مرور لا تقل عن 4 أحرف');
+                        document.getElementById('admin-password').focus();
                         return false;
                     }
                     
                     if (password !== confirmPassword) {
-                        alert('كلمات المرور غير متطابقة');
+                        showWizardError('كلمات المرور غير متطابقة');
                         document.getElementById('admin-password-confirm').value = '';
-                        setTimeout(() => document.getElementById('admin-password-confirm').focus(), 100);
+                        document.getElementById('admin-password-confirm').focus();
                         return false;
                     }
                     
@@ -624,14 +637,14 @@
                     }
                     
                     if (setupData.categories.length === 0) {
-                        alert('يرجى إضافة فئة واحدة على الأقل');
+                        showWizardError('يرجى إضافة فئة واحدة على الأقل');
                         return false;
                     }
                     return true;
                     
                 case 3:
                     if (!selectedPrinter) {
-                        alert('يرجى اختيار طابعة');
+                        showWizardError('يرجى اختيار طابعة');
                         return false;
                     }
                     
@@ -649,7 +662,7 @@
                         const emailPassword = document.getElementById('email-password').value;
                         
                         if (!email || !smtpHost || !smtpPort || !emailPassword) {
-                            alert('يرجى ملء جميع حقول البريد الإلكتروني');
+                            showWizardError('يرجى ملء جميع حقول البريد الإلكتروني');
                             return false;
                         }
                         
@@ -807,7 +820,7 @@
                 
             } catch (error) {
                 console.error('Setup failed:', error);
-                alert('فشل في إكمال الإعداد: ' + error.message);
+                showWizardError('فشل في إكمال الإعداد: ' + error.message);
                 finishBtn.disabled = false;
                 finishBtn.textContent = 'بدء الاستخدام';
             }
