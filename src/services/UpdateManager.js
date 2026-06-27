@@ -2,23 +2,33 @@
  * HammamPOS - UpdateManager
  * Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved.
  * 
- * Handles version checking, downloading, applying, and reverting updates.
+ * Self-update system for HammamPOS desktop application.
  * 
- * Flow:
- *   1. checkForUpdate() — compares local version to latest GitHub Release
- *   2. downloadUpdate() — downloads ZIP to temp, backs up current install
- *   3. applyUpdate()    — extracts ZIP over install directory
- *   4. revertUpdate()   — restores backup ZIP over install directory
+ * Architecture:
+ *   A running Electron app cannot overwrite its own exe/asar (Windows locks them).
+ *   Solution: write a batch script that waits for the app to exit, performs the
+ *   file extraction, then relaunches the app. The app spawns the script detached
+ *   and immediately quits.
  * 
- * Install dir: C:\HammamPOS (contains exe, asar, DLLs)
- * Data dir:    %APPDATA%\HammamPOS (contains DB — never touched by updates)
- * Backup dir:  %APPDATA%\HammamPOS\updates\ (previous version ZIPs)
+ * Update flow:
+ *   1. checkForUpdate()  → compare local version to GitHub Releases latest tag
+ *   2. downloadUpdate()  → download ZIP, backup current install
+ *   3. applyAndRestart() → write batch script, spawn it detached, quit app
+ *   4. [batch script]    → wait for process exit, extract ZIP, relaunch exe
+ * 
+ * Revert flow:
+ *   1. revertAndRestart() → same as apply but uses the backup ZIP instead
+ * 
+ * Paths:
+ *   Install:  C:\HammamPOS\          (exe, asar, DLLs — overwritten by updates)
+ *   Data:     %APPDATA%\HammamPOS\   (database — never touched)
+ *   Updates:  %APPDATA%\HammamPOS\updates\ (downloaded ZIPs, backups, scripts)
  */
 
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 
 const GITHUB_OWNER = 'alijaouhari';
 const GITHUB_REPO = 'hammampos';
@@ -39,21 +49,16 @@ class UpdateManager {
     }
   }
 
-  /**
-   * Check GitHub Releases for a newer version.
-   * Returns null if up-to-date or if check fails (no internet).
-   */
+  // ─── PUBLIC API ─────────────────────────────────────────────────────
+
   async checkForUpdate() {
     try {
-      const release = await this._fetchLatestRelease();
+      const release = await this._fetchJSON(RELEASES_API);
       if (!release) return null;
 
       const remoteVersion = release.tag_name.replace(/^v/, '');
-      if (!this._isNewer(remoteVersion, this.currentVersion)) {
-        return null;
-      }
+      if (!this._isNewer(remoteVersion, this.currentVersion)) return null;
 
-      // Find the ZIP asset
       const zipAsset = release.assets.find(a => a.name.endsWith('.zip'));
       if (!zipAsset) return null;
 
@@ -62,21 +67,16 @@ class UpdateManager {
         tag: release.tag_name,
         notes: release.body || '',
         downloadUrl: zipAsset.browser_download_url,
-        size: zipAsset.size,
-        publishedAt: release.published_at
+        size: zipAsset.size
       };
 
       return this.latestRelease;
     } catch (error) {
-      // Silently fail — no internet or API error
       console.warn('☁️ Update check failed:', error.message);
       return null;
     }
   }
 
-  /**
-   * Download the update ZIP and back up the current installation.
-   */
   async downloadUpdate() {
     if (!this.latestRelease) throw new Error('No update available');
     if (this.isDownloading) throw new Error('Download already in progress');
@@ -84,181 +84,115 @@ class UpdateManager {
     this.isDownloading = true;
     this.downloadProgress = 0;
 
-    const zipPath = path.join(this.updatesDir, `HammamPOS-${this.latestRelease.version}.zip`);
+    const zipPath = path.join(this.updatesDir, `update-v${this.latestRelease.version}.zip`);
 
     try {
-      // Step 1: Download
       await this._downloadFile(this.latestRelease.downloadUrl, zipPath);
-
-      // Step 2: Backup current installation
-      await this._backupCurrentInstall();
-
+      this._backupCurrentInstall();
       this.isDownloading = false;
-      return { success: true, zipPath };
+      return { success: true };
     } catch (error) {
       this.isDownloading = false;
-      // Clean up partial download
       try { fs.unlinkSync(zipPath); } catch (_) {}
       throw error;
     }
   }
 
   /**
-   * Apply the downloaded update by extracting over the install directory.
-   * Returns instructions for the user to restart.
+   * Spawn the update script and quit the app.
+   * Caller must call app.exit() after this returns.
    */
-  async applyUpdate() {
+  applyAndRestart() {
     if (!this.latestRelease) throw new Error('No update available');
 
-    const zipPath = path.join(this.updatesDir, `HammamPOS-${this.latestRelease.version}.zip`);
-    if (!fs.existsSync(zipPath)) {
-      throw new Error('Update file not found — download first');
-    }
+    const zipPath = path.join(this.updatesDir, `update-v${this.latestRelease.version}.zip`);
+    if (!fs.existsSync(zipPath)) throw new Error('Update ZIP not found');
 
-    // Extract ZIP over install directory using PowerShell
-    // The -Force flag overwrites existing files
-    const cmd = `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${this.installDir}' -Force"`;
-    execSync(cmd, { timeout: 120000 });
-
-    // Clean up the downloaded ZIP (backup is separate)
-    try { fs.unlinkSync(zipPath); } catch (_) {}
-
-    return { success: true, version: this.latestRelease.version };
+    this._spawnUpdateScript(zipPath);
+    return { success: true };
   }
 
   /**
-   * Revert to the previous version using the backup.
+   * Revert to previous version. Spawn script and quit.
+   * Caller must call app.exit() after this returns.
    */
-  async revertUpdate() {
-    const backups = this._getAvailableBackups();
-    if (backups.length === 0) {
-      throw new Error('لا توجد نسخة سابقة للرجوع إليها');
-    }
+  revertAndRestart() {
+    const backups = this._getBackups();
+    if (backups.length === 0) throw new Error('لا توجد نسخة سابقة للرجوع إليها');
 
-    // Use the most recent backup
-    const latestBackup = backups[0];
-
-    // Extract backup over install directory
-    const cmd = `powershell -Command "Expand-Archive -Path '${latestBackup.path}' -DestinationPath '${this.installDir}' -Force"`;
-    execSync(cmd, { timeout: 120000 });
-
-    return { success: true, revertedTo: latestBackup.version };
+    this._spawnUpdateScript(backups[0].path);
+    return { success: true, revertedTo: backups[0].version };
   }
 
-  /**
-   * Get current status for the UI.
-   */
   getStatus() {
     return {
       currentVersion: this.currentVersion,
       latestRelease: this.latestRelease,
       isDownloading: this.isDownloading,
       downloadProgress: this.downloadProgress,
-      availableBackups: this._getAvailableBackups()
+      availableBackups: this._getBackups()
     };
   }
 
-  // ─── PRIVATE METHODS ────────────────────────────────────────────────
+  // ─── CORE MECHANISM ─────────────────────────────────────────────────
 
   /**
-   * Fetch the latest release from GitHub API.
+   * Write and spawn a detached batch script that:
+   *   1. Waits for HammamPOS.exe to exit
+   *   2. Extracts the given ZIP over the install directory
+   *   3. Relaunches HammamPOS.exe
+   *   4. Deletes itself
    */
-  _fetchLatestRelease() {
-    return new Promise((resolve, reject) => {
-      const options = {
-        headers: { 'User-Agent': 'HammamPOS-Updater' },
-        timeout: 10000
-      };
+  _spawnUpdateScript(zipPath) {
+    const scriptPath = path.join(this.updatesDir, 'apply.bat');
+    const exePath = path.join(this.installDir, 'HammamPOS.exe');
 
-      https.get(RELEASES_API, options, (res) => {
-        if (res.statusCode === 404) { resolve(null); return; }
-        if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); return; }
+    const bat = [
+      '@echo off',
+      'title HammamPOS - جاري التحديث...',
+      'echo Waiting for app to close...',
+      'timeout /t 3 /nobreak >nul',
+      ':wait',
+      'tasklist /FI "IMAGENAME eq HammamPOS.exe" 2>NUL | find /I "HammamPOS.exe" >NUL',
+      'if not errorlevel 1 ( timeout /t 1 /nobreak >nul & goto wait )',
+      'echo Extracting update...',
+      `powershell -Command "Expand-Archive -Path '%zipPath%' -DestinationPath '%installDir%' -Force"`,
+      'echo Starting HammamPOS...',
+      `start "" "%exePath%"`,
+      'del "%~f0"',
+    ].join('\r\n')
+      .replace(/%zipPath%/g, zipPath)
+      .replace(/%installDir%/g, this.installDir)
+      .replace(/%exePath%/g, exePath);
 
-        let data = '';
-        res.on('data', chunk => { data += chunk; });
-        res.on('end', () => {
-          try { resolve(JSON.parse(data)); }
-          catch (e) { reject(e); }
-        });
-      }).on('error', reject).on('timeout', () => reject(new Error('Timeout')));
-    });
+    fs.writeFileSync(scriptPath, bat, 'utf8');
+
+    // Spawn detached — the script outlives this process
+    spawn('cmd.exe', ['/c', scriptPath], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    }).unref();
   }
 
-  /**
-   * Download a file with redirect following and progress tracking.
-   */
-  _downloadFile(url, destPath) {
-    return new Promise((resolve, reject) => {
-      const file = fs.createWriteStream(destPath);
-      let totalSize = this.latestRelease ? this.latestRelease.size : 0;
-      let downloaded = 0;
+  // ─── BACKUP ─────────────────────────────────────────────────────────
 
-      const request = (requestUrl) => {
-        const mod = requestUrl.startsWith('https') ? https : require('http');
-        mod.get(requestUrl, { headers: { 'User-Agent': 'HammamPOS-Updater' }, timeout: 60000 }, (res) => {
-          // Follow redirects (GitHub redirects to CDN)
-          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            request(res.headers.location);
-            return;
-          }
-
-          if (res.statusCode !== 200) {
-            file.close();
-            fs.unlinkSync(destPath);
-            reject(new Error(`Download failed: HTTP ${res.statusCode}`));
-            return;
-          }
-
-          if (res.headers['content-length']) {
-            totalSize = parseInt(res.headers['content-length'], 10);
-          }
-
-          res.on('data', (chunk) => {
-            downloaded += chunk.length;
-            this.downloadProgress = totalSize > 0 ? Math.round((downloaded / totalSize) * 100) : 0;
-          });
-
-          res.pipe(file);
-          file.on('finish', () => { file.close(); resolve(); });
-          file.on('error', (err) => { fs.unlinkSync(destPath); reject(err); });
-        }).on('error', (err) => { file.close(); fs.unlinkSync(destPath); reject(err); });
-      };
-
-      request(url);
-    });
-  }
-
-  /**
-   * Create a backup ZIP of the current installation.
-   * Only backs up files that an update would overwrite (exe, DLLs, asar, resources).
-   * Keeps only the 2 most recent backups to save disk space.
-   */
-  async _backupCurrentInstall() {
-    const backupName = `backup-v${this.currentVersion}.zip`;
-    const backupPath = path.join(this.updatesDir, backupName);
-
-    // Skip if this version is already backed up
+  _backupCurrentInstall() {
+    const backupPath = path.join(this.updatesDir, `backup-v${this.currentVersion}.zip`);
     if (fs.existsSync(backupPath)) return;
 
-    // Create backup using PowerShell
-    const cmd = `powershell -Command "Compress-Archive -Path '${this.installDir}\\*' -DestinationPath '${backupPath}' -Force"`;
-    execSync(cmd, { timeout: 180000 });
+    execSync(
+      `powershell -Command "Compress-Archive -Path '${this.installDir}\\*' -DestinationPath '${backupPath}' -Force"`,
+      { timeout: 180000 }
+    );
 
-    // Prune old backups — keep only 2 most recent
-    const backups = this._getAvailableBackups();
-    if (backups.length > 2) {
-      backups.slice(2).forEach(b => {
-        try { fs.unlinkSync(b.path); } catch (_) {}
-      });
-    }
+    // Keep only 2 most recent backups
+    const backups = this._getBackups();
+    backups.slice(2).forEach(b => { try { fs.unlinkSync(b.path); } catch (_) {} });
   }
 
-  /**
-   * List available backup ZIPs sorted newest first.
-   */
-  _getAvailableBackups() {
+  _getBackups() {
     if (!fs.existsSync(this.updatesDir)) return [];
-
     return fs.readdirSync(this.updatesDir)
       .filter(f => f.startsWith('backup-v') && f.endsWith('.zip'))
       .map(f => ({
@@ -270,9 +204,53 @@ class UpdateManager {
       .sort((a, b) => b.created - a.created);
   }
 
-  /**
-   * Compare two semver strings. Returns true if remote > local.
-   */
+  // ─── NETWORK ────────────────────────────────────────────────────────
+
+  _fetchJSON(url) {
+    return new Promise((resolve, reject) => {
+      https.get(url, { headers: { 'User-Agent': 'HammamPOS' }, timeout: 10000 }, (res) => {
+        if (res.statusCode === 404) return resolve(null);
+        if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(e); } });
+      }).on('error', reject);
+    });
+  }
+
+  _downloadFile(url, dest) {
+    return new Promise((resolve, reject) => {
+      const file = fs.createWriteStream(dest);
+      let totalSize = this.latestRelease ? this.latestRelease.size : 0;
+      let downloaded = 0;
+
+      const follow = (reqUrl) => {
+        const mod = reqUrl.startsWith('https') ? https : require('http');
+        mod.get(reqUrl, { headers: { 'User-Agent': 'HammamPOS' }, timeout: 120000 }, (res) => {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            return follow(res.headers.location);
+          }
+          if (res.statusCode !== 200) {
+            file.close();
+            try { fs.unlinkSync(dest); } catch (_) {}
+            return reject(new Error(`HTTP ${res.statusCode}`));
+          }
+          if (res.headers['content-length']) totalSize = parseInt(res.headers['content-length'], 10);
+          res.on('data', chunk => {
+            downloaded += chunk.length;
+            this.downloadProgress = totalSize > 0 ? Math.round((downloaded / totalSize) * 100) : 0;
+          });
+          res.pipe(file);
+          file.on('finish', () => { file.close(); resolve(); });
+        }).on('error', err => { file.close(); try { fs.unlinkSync(dest); } catch (_) {} reject(err); });
+      };
+
+      follow(url);
+    });
+  }
+
+  // ─── UTIL ───────────────────────────────────────────────────────────
+
   _isNewer(remote, local) {
     const r = remote.split('.').map(Number);
     const l = local.split('.').map(Number);

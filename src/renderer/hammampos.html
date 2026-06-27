@@ -2098,8 +2098,7 @@
                 download: () => ipcRenderer.invoke('update:download'),
                 apply: () => ipcRenderer.invoke('update:apply'),
                 revert: () => ipcRenderer.invoke('update:revert'),
-                getProgress: () => ipcRenderer.invoke('update:getProgress'),
-                restart: () => ipcRenderer.invoke('app:restart')
+                getProgress: () => ipcRenderer.invoke('update:getProgress')
             }
         };
         
@@ -3881,18 +3880,12 @@
                 await downloadPromise;
                 clearInterval(progressInterval);
                 
-                // Download complete, now apply
+                // Download complete — apply and restart
                 progressBar.style.width = '100%';
-                progressText.textContent = 'جاري تثبيت التحديث...';
+                progressText.textContent = 'جاري التثبيت... سيتم إعادة تشغيل التطبيق تلقائياً';
                 
                 await api.update.apply();
-                
-                progressText.textContent = '✅ تم التحديث — أعد تشغيل التطبيق';
-                progressBar.style.background = '#10b981';
-                
-                btn.textContent = 'إعادة تشغيل';
-                btn.disabled = false;
-                btn.onclick = () => api.update.restart();
+                // App will quit and relaunch automatically via batch script
                 
             } catch (error) {
                 progressDiv.style.display = 'none';
@@ -3904,21 +3897,15 @@
 
         async function revertUpdateUI() {
             const confirmed = await showConfirm(
-                'سيتم الرجوع للنسخة السابقة.\nستحتاج لإعادة تشغيل التطبيق بعد الرجوع.',
+                'سيتم الرجوع للنسخة السابقة.\nسيتم إعادة تشغيل التطبيق تلقائياً.',
                 '⚠️ الرجوع للنسخة السابقة',
                 'رجوع'
             );
             if (!confirmed) return;
             
             try {
-                const result = await api.update.revert();
-                showToast(`تم الرجوع إلى v${result.revertedTo} — أعد تشغيل التطبيق`, 'success');
-                
-                // Change revert button to restart button
-                const btn = document.getElementById('revert-update-btn');
-                btn.textContent = 'إعادة تشغيل';
-                btn.style.background = '#2563eb';
-                btn.onclick = () => api.update.restart();
+                await api.update.revert();
+                // App will quit and relaunch automatically via batch script
             } catch (error) {
                 showToast('فشل الرجوع: ' + error.message, 'error');
             }

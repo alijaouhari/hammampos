@@ -864,7 +864,7 @@ ipcMain.handle('setup:complete', async (event, setupData) => {
 });
 
 // Update system handlers
-ipcMain.handle('update:getStatus', async () => {
+ipcMain.handle('update:getStatus', () => {
   if (!updateManager) return { currentVersion: '0.0.0', latestRelease: null };
   return updateManager.getStatus();
 });
@@ -879,24 +879,25 @@ ipcMain.handle('update:download', async () => {
   return await updateManager.downloadUpdate();
 });
 
-ipcMain.handle('update:apply', async () => {
+ipcMain.handle('update:apply', () => {
   if (!updateManager) throw new Error('Update manager not ready');
-  return await updateManager.applyUpdate();
+  const result = updateManager.applyAndRestart();
+  // Quit the app so the batch script can overwrite files
+  setTimeout(() => app.exit(0), 500);
+  return result;
 });
 
-ipcMain.handle('update:revert', async () => {
+ipcMain.handle('update:revert', () => {
   if (!updateManager) throw new Error('Update manager not ready');
-  return await updateManager.revertUpdate();
+  const result = updateManager.revertAndRestart();
+  // Quit the app so the batch script can overwrite files
+  setTimeout(() => app.exit(0), 500);
+  return result;
 });
 
 ipcMain.handle('update:getProgress', () => {
   if (!updateManager) return 0;
   return updateManager.downloadProgress;
-});
-
-ipcMain.handle('app:restart', () => {
-  app.relaunch();
-  app.exit(0);
 });
 
 ipcMain.on('setup:finished', async () => {
