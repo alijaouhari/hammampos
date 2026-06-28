@@ -248,7 +248,7 @@ class UpdateManager {
 
   _launchSwapScript() {
     const scriptPath = path.join(os.tmpdir(), 'hammampos-updater.ps1');
-    const logPath = path.join(this.logsDir, 'Updater.log').replace(/\\/g, '\\\\');
+    const logPath = path.join(this.logsDir, 'Updater.log');
 
     const ps1 = `
 $ErrorActionPreference = 'Stop'
@@ -452,7 +452,7 @@ Remove-Item -Path $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyCon
 
   _launchRevertScript() {
     const scriptPath = path.join(os.tmpdir(), 'hammampos-revert.ps1');
-    const logPath = path.join(this.logsDir, 'Updater.log').replace(/\\/g, '\\\\');
+    const logPath = path.join(this.logsDir, 'Updater.log');
 
     const ps1 = `
 $ErrorActionPreference = 'Stop'
