@@ -385,7 +385,7 @@ Start-Process -FilePath (Join-Path $installDir $exeName)
 Write-State "launch_started"
 
 # --- Step 7: Wait for success handshake ---
-Write-Log "Waiting for handshake (max ${handshakeTimeout}s)..."
+Write-Log "Waiting for handshake (max 30s)..."
 $deadline = (Get-Date).AddSeconds($handshakeTimeout)
 $handshakeReceived = $false
 
@@ -412,7 +412,7 @@ if ($handshakeReceived) {
     }
     Write-Log "Cleanup complete."
 } else {
-    Write-Log "WARNING: Handshake NOT received within ${handshakeTimeout}s."
+    Write-Log "WARNING: Handshake NOT received within 30s."
     Write-Log "  Keeping backup intact for manual rollback."
     Write-Log "  The new version may have failed to start."
 }
@@ -429,7 +429,9 @@ Remove-Item -Path $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyCon
 
     fs.writeFileSync(scriptPath, ps1.trim(), 'utf8');
 
-    spawn('powershell.exe', [
+    this._log('INFO', 'Script written', { path: scriptPath, size: fs.statSync(scriptPath).size });
+
+    const child = spawn('powershell.exe', [
       '-ExecutionPolicy', 'Bypass',
       '-WindowStyle', 'Hidden',
       '-File', scriptPath
@@ -437,9 +439,15 @@ Remove-Item -Path $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyCon
       detached: true,
       stdio: 'ignore',
       cwd: os.tmpdir()
-    }).unref();
+    });
 
-    this._log('INFO', 'Updater script launched', { path: scriptPath });
+    child.on('error', (err) => {
+      this._log('ERROR', 'Spawn failed', { error: err.message });
+    });
+
+    child.unref();
+
+    this._log('INFO', 'Updater script launched', { path: scriptPath, pid: child.pid });
   }
 
   _launchRevertScript() {
