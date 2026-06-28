@@ -1,15 +1,21 @@
 # =============================================================================
-# HammamPOS — One-Time Migration from v2.2.x to v2.3.x
+# HammamPOS — One-Time Migration from v2.2.x
 # =============================================================================
-# 
-# This script upgrades machines stuck on v2.2.2–v2.2.5 to the new update system.
-# It handles all legacy issues: orphaned cmd.exe, stale batch scripts, partial updates.
+#
+# Installs a SPECIFIC version to establish a known baseline.
+# Handles all legacy issues: orphaned cmd.exe, stale batch scripts, partial updates.
 #
 # USAGE (run as Administrator):
-#   powershell -ExecutionPolicy Bypass -File migrate-from-v2.2.ps1
+#   powershell -ExecutionPolicy Bypass -File migrate-from-v2.2.ps1 -Version v2.3.1
+#
+# If -Version is omitted, defaults to v2.3.1 (the validated baseline).
 #
 # IDEMPOTENT: Safe to run multiple times. Will not damage a working installation.
 # =============================================================================
+
+param(
+    [string]$Version = 'v2.3.1'
+)
 
 $ErrorActionPreference = 'Continue'
 
@@ -17,7 +23,9 @@ $installDir = 'C:\HammamPOS'
 $updatesDir = Join-Path $env:APPDATA 'HammamPOS\updates'
 $logsDir = Join-Path $env:APPDATA 'HammamPOS\Logs'
 $logFile = Join-Path $logsDir 'Migration.log'
-$releaseUrl = 'https://api.github.com/repos/alijaouhari/hammampos/releases/latest'
+$owner = 'alijaouhari'
+$repo = 'hammampos'
+$releaseUrl = "https://api.github.com/repos/$owner/$repo/releases/tags/$Version"
 
 # --- Ensure log directory ---
 if (-not (Test-Path $logsDir)) { New-Item -Path $logsDir -ItemType Directory -Force | Out-Null }
@@ -38,6 +46,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 }
 
 Write-Log "=== MIGRATION STARTED ==="
+Write-Log "Target version: $Version"
 Write-Log "Install dir: $installDir"
 
 # --- Step 1: Kill all HammamPOS processes ---
@@ -74,7 +83,7 @@ foreach ($f in $legacyFiles) {
 }
 
 # Remove stale staging/old directories
-$staleDirs = @("$installDir-update", "$installDir-old", "$installDir-old-previous")
+$staleDirs = @("$installDir-update", "$installDir-old", "$installDir-old-previous", "$installDir-removing")
 foreach ($d in $staleDirs) {
     if (Test-Path $d) {
         Remove-Item -Path $d -Recurse -Force -ErrorAction SilentlyContinue
@@ -82,40 +91,42 @@ foreach ($d in $staleDirs) {
     }
 }
 
-# --- Step 4: Get latest release URL ---
-Write-Log "Step 4: Fetching latest release..."
+# --- Step 4: Fetch specified release ---
+Write-Log "Step 4: Fetching release $Version..."
 try {
     $headers = @{ 'User-Agent' = 'HammamPOS-Migrator' }
     $release = Invoke-RestMethod -Uri $releaseUrl -Headers $headers -TimeoutSec 30
-    $version = $release.tag_name
+    $actualTag = $release.tag_name
     $zipAsset = $release.assets | Where-Object { $_.name -match '\.zip$' } | Select-Object -First 1
-    
+
     if (-not $zipAsset) {
-        Write-Log "ERROR: No ZIP asset found in release $version"
+        Write-Log "ERROR: No ZIP asset found in release $actualTag"
         pause
         exit 1
     }
-    
+
     $downloadUrl = $zipAsset.browser_download_url
     $expectedSize = $zipAsset.size
-    Write-Log "  Latest: $version ($expectedSize bytes)"
+    Write-Log "  Release: $actualTag ($expectedSize bytes)"
     Write-Log "  URL: $downloadUrl"
 } catch {
-    Write-Log "ERROR: Cannot reach GitHub: $_"
+    Write-Log "ERROR: Cannot fetch release $Version from GitHub: $_"
     Write-Host ""
-    Write-Host "No internet connection. Cannot download update." -ForegroundColor Red
+    Write-Host "Failed to reach GitHub or release not found." -ForegroundColor Red
+    Write-Host "Verify the tag '$Version' exists at:" -ForegroundColor Yellow
+    Write-Host "  https://github.com/$owner/$repo/releases/tag/$Version" -ForegroundColor Yellow
     pause
     exit 1
 }
 
 # --- Step 5: Download ---
-Write-Log "Step 5: Downloading $version..."
-$zipPath = Join-Path $env:TEMP "HammamPOS-migration.zip"
+Write-Log "Step 5: Downloading $actualTag..."
+$zipPath = Join-Path $env:TEMP "HammamPOS-migration-$Version.zip"
 try {
     Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -TimeoutSec 300
     $actualSize = (Get-Item $zipPath).Length
     Write-Log "  Downloaded: $actualSize bytes"
-    
+
     if ($expectedSize -and [Math]::Abs($actualSize - $expectedSize) -gt 1024) {
         Write-Log "ERROR: Size mismatch. Expected $expectedSize, got $actualSize"
         Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
@@ -130,9 +141,7 @@ try {
 
 # --- Step 6: Extract ---
 Write-Log "Step 6: Extracting to $installDir..."
-# Ensure install dir is clear (all processes killed, safe to overwrite)
 if (Test-Path $installDir) {
-    # For migration we extract over existing (processes are dead)
     try {
         Expand-Archive -Path $zipPath -DestinationPath $installDir -Force
         Write-Log "  Extraction complete (overwrite mode)."
@@ -159,12 +168,12 @@ if (-not (Test-Path (Join-Path $installDir 'resources\app.asar'))) {
     pause
     exit 1
 }
+Write-Log "  Verification passed."
 
 # --- Step 7: Cleanup ---
 Write-Log "Step 7: Cleanup..."
 Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 
-# Remove old backup ZIPs
 if (Test-Path $updatesDir) {
     Get-ChildItem -Path $updatesDir -Filter '*.zip' -ErrorAction SilentlyContinue | ForEach-Object {
         Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
@@ -175,8 +184,8 @@ if (Test-Path $updatesDir) {
 Write-Log "Step 8: Launching HammamPOS..."
 Start-Process -FilePath (Join-Path $installDir 'HammamPOS.exe')
 
-Write-Log "=== MIGRATION COMPLETE ==="
+Write-Log "=== MIGRATION COMPLETE ($actualTag) ==="
 Write-Host ""
-Write-Host "Migration successful! HammamPOS $version is now running." -ForegroundColor Green
+Write-Host "Migration successful! HammamPOS $actualTag installed." -ForegroundColor Green
 Write-Host ""
 pause
