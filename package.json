@@ -1,6 +1,6 @@
 {
   "name": "hammampos-desktop",
-  "version": "2.3.7",
+  "version": "2.3.8",
   "description": "HammamPOS Desktop - Professional Point-of-Sale system for Moroccan hammams",
   "main": "src/main/main-working.js",
   "scripts": {
