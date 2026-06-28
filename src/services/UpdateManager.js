@@ -236,7 +236,7 @@ class UpdateManager {
   // ─── SWAP SCRIPT ────────────────────────────────────────────────────
 
   _launchSwapScript(zipPath) {
-    const scriptPath = path.join(os.tmpdir(), 'hammampos-updater.ps1');
+    const scriptPath = path.join(this.updatesDir, 'hammampos-updater.ps1');
     const logPath = path.join(this.logsDir, 'Updater.log');
 
     const ps1 = `
@@ -435,7 +435,7 @@ Remove-Item -Path $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyCon
     ], {
       detached: true,
       stdio: 'ignore',
-      cwd: os.tmpdir()
+      cwd: this.updatesDir
     });
 
     child.on('error', (err) => {
@@ -448,7 +448,7 @@ Remove-Item -Path $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyCon
   }
 
   _launchRevertScript() {
-    const scriptPath = path.join(os.tmpdir(), 'hammampos-revert.ps1');
+    const scriptPath = path.join(this.updatesDir, 'hammampos-revert.ps1');
     const logPath = path.join(this.logsDir, 'Updater.log');
 
     const ps1 = `
@@ -517,7 +517,7 @@ Remove-Item -Path $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyCon
     ], {
       detached: true,
       stdio: 'ignore',
-      cwd: os.tmpdir()
+      cwd: this.updatesDir
     }).unref();
 
     this._log('INFO', 'Revert script launched');
