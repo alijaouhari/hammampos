@@ -123,33 +123,22 @@ class UpdateManager {
       this._log('INFO', 'Download complete', { size: actualSize });
       this._setState('download_complete', { size: actualSize });
 
-      // Extract to staging
-      this._log('INFO', 'Extraction started', { destination: this.stagingDir });
-      this._extractToStaging(zipPath);
-      this._log('INFO', 'Extraction complete');
-      this._setState('extraction_complete');
-
-      // Verify integrity
-      this._verifyStaging();
-      this._log('INFO', 'Verification passed');
-
       this.isDownloading = false;
       return { success: true };
     } catch (error) {
       this.isDownloading = false;
-      this._log('ERROR', 'Download/extract failed', { error: error.message });
-      this._cleanupStaging();
+      this._log('ERROR', 'Download failed', { error: error.message });
       try { fs.unlinkSync(zipPath); } catch (_) {}
       throw error;
     }
   }
 
   applyAndRestart() {
-    if (!fs.existsSync(this.stagingDir)) {
+    if (!this.latestRelease) throw new Error('لا يوجد تحديث');
+
+    const zipPath = path.join(this.updatesDir, `update-v${this.latestRelease.version}.zip`);
+    if (!fs.existsSync(zipPath)) {
       throw new Error('ملف التحديث غير موجود. أعد التحميل.');
-    }
-    if (!fs.existsSync(path.join(this.stagingDir, 'HammamPOS.exe'))) {
-      throw new Error('ملف التحديث تالف. أعد التحميل.');
     }
 
     // Remove any stale success flag
@@ -157,10 +146,10 @@ class UpdateManager {
 
     this._log('INFO', 'Apply started', {
       currentVersion: this.currentVersion,
-      targetVersion: this.latestRelease ? this.latestRelease.version : 'unknown'
+      targetVersion: this.latestRelease.version
     });
 
-    this._launchSwapScript();
+    this._launchSwapScript(zipPath);
     return { success: true };
   }
 
@@ -246,7 +235,7 @@ class UpdateManager {
 
   // ─── SWAP SCRIPT ────────────────────────────────────────────────────
 
-  _launchSwapScript() {
+  _launchSwapScript(zipPath) {
     const scriptPath = path.join(os.tmpdir(), 'hammampos-updater.ps1');
     const logPath = path.join(this.logsDir, 'Updater.log');
 
@@ -259,6 +248,7 @@ $oldPreviousDir = '${this.oldPreviousDir}'
 $flagPath = '${this.flagPath}'
 $statePath = '${this.statePath}'
 $logPath = '${logPath}'
+$zipPath = '${zipPath}'
 $exeName = 'HammamPOS.exe'
 $handshakeTimeout = 30
 
@@ -275,9 +265,32 @@ function Write-State($stage) {
 
 Write-Log "=== UPDATE STARTED ==="
 Write-Log "Install: $installDir"
-Write-Log "Staging: $stagingDir"
+Write-Log "ZIP: $zipPath"
 
-# --- Step 1: Kill orphaned cmd.exe running legacy apply.bat ---
+# --- Step 1: Extract ZIP to staging ---
+Write-Log "Extracting to staging..."
+if (Test-Path $stagingDir) { Remove-Item $stagingDir -Recurse -Force }
+try {
+    Expand-Archive -Path $zipPath -DestinationPath $stagingDir -Force
+    Write-Log "  Extraction complete."
+} catch {
+    Write-Log "FATAL: Extraction failed: $($_.Exception.Message)"
+    exit 1
+}
+
+# Verify exe exists
+if (-not (Test-Path (Join-Path $stagingDir $exeName))) {
+    Write-Log "FATAL: $exeName not found after extraction."
+    exit 1
+}
+if ((Get-Item (Join-Path $stagingDir $exeName)).Length -eq 0) {
+    Write-Log "FATAL: $exeName is 0 bytes after extraction."
+    exit 1
+}
+Write-Log "  Verification passed."
+Write-State "extraction_complete"
+
+# --- Step 2: Kill orphaned cmd.exe running legacy apply.bat ---
 Write-Log "Killing legacy cmd.exe (apply.bat)..."
 try {
     Get-WmiObject Win32_Process -Filter "Name='cmd.exe'" -ErrorAction SilentlyContinue | ForEach-Object {
@@ -290,7 +303,7 @@ try {
     Write-Log "  WMI query failed (non-critical): $_"
 }
 
-# --- Step 2: Kill all HammamPOS processes ---
+# --- Step 3: Kill all HammamPOS processes ---
 Write-Log "Killing HammamPOS processes..."
 Stop-Process -Name "HammamPOS" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
@@ -304,17 +317,14 @@ if ($remaining) {
     Start-Sleep -Seconds 3
 }
 Write-Log "Processes terminated."
-Write-State "backup_created"
 
-# --- Step 3: Manage backup lifecycle ---
-# Remove two-generations-back backup
+# --- Step 4: Manage backup lifecycle ---
 if (Test-Path $oldPreviousDir) {
     Write-Log "Removing old-previous backup..."
     Remove-Item -Path $oldPreviousDir -Recurse -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
 }
 
-# Promote current backup to old-previous (preserve one generation)
 if (Test-Path $oldDir) {
     Write-Log "Promoting old backup to old-previous..."
     try {
@@ -326,44 +336,35 @@ if (Test-Path $oldDir) {
     }
 }
 
-# Verify old dir is gone before proceeding
 if (Test-Path $oldDir) {
     Write-Log "FATAL: Cannot clear old backup directory. Aborting."
-    Start-Process -FilePath (Join-Path $installDir $exeName)
+    Start-Process -FilePath (Join-Path $installDir $exeName) -ErrorAction SilentlyContinue
     exit 1
 }
 
-# --- Step 4: Rename current -> old (create backup) ---
+# --- Step 5: Rename current install -> old ---
 Write-Log "Renaming install -> old..."
+Write-State "backup_created"
 try {
     Rename-Item -Path $installDir -NewName (Split-Path $oldDir -Leaf) -Force
     Write-Log "  Rename succeeded."
 } catch {
     $err = $_.Exception.Message
     Write-Log "FATAL: Rename install->old failed: $err"
-
-    # Targeted recovery: try killing any process that holds a lock
     Write-Log "  Attempting targeted recovery..."
     Stop-Process -Name "HammamPOS" -Force -ErrorAction SilentlyContinue
-    Get-WmiObject Win32_Process -Filter "Name='cmd.exe'" -ErrorAction SilentlyContinue | ForEach-Object {
-        if ($_.CommandLine -match 'apply\\.bat|HammamPOS') {
-            Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-        }
-    }
     Start-Sleep -Seconds 3
-
-    # Single retry
     try {
         Rename-Item -Path $installDir -NewName (Split-Path $oldDir -Leaf) -Force
         Write-Log "  Retry succeeded."
     } catch {
         Write-Log "FATAL: Retry failed: $($_.Exception.Message). Aborting."
-        Start-Process -FilePath (Join-Path $installDir $exeName)
+        Start-Process -FilePath (Join-Path $installDir $exeName) -ErrorAction SilentlyContinue
         exit 1
     }
 }
 
-# --- Step 5: Rename staging -> install ---
+# --- Step 6: Rename staging -> install ---
 Write-Log "Renaming staging -> install..."
 try {
     Rename-Item -Path $stagingDir -NewName (Split-Path $installDir -Leaf) -Force
@@ -371,20 +372,19 @@ try {
 } catch {
     $err = $_.Exception.Message
     Write-Log "FATAL: Rename staging->install failed: $err. Rolling back."
-    # ROLLBACK: restore old -> install
     Rename-Item -Path $oldDir -NewName (Split-Path $installDir -Leaf) -Force
-    Start-Process -FilePath (Join-Path $installDir $exeName)
+    Start-Process -FilePath (Join-Path $installDir $exeName) -ErrorAction SilentlyContinue
     exit 1
 }
 
 Write-State "install_swapped"
 
-# --- Step 6: Launch new version ---
+# --- Step 7: Launch new version ---
 Write-Log "Launching new version..."
 Start-Process -FilePath (Join-Path $installDir $exeName)
 Write-State "launch_started"
 
-# --- Step 7: Wait for success handshake ---
+# --- Step 8: Wait for success handshake ---
 Write-Log "Waiting for handshake (max 30s)..."
 $deadline = (Get-Date).AddSeconds($handshakeTimeout)
 $handshakeReceived = $false
@@ -400,13 +400,11 @@ while ((Get-Date) -lt $deadline) {
 if ($handshakeReceived) {
     Write-Log "Handshake received. Update successful."
     Write-State "handshake_received"
-    # Remove flag
     Remove-Item -Path $flagPath -Force -ErrorAction SilentlyContinue
-    # Clean old-previous (safe to delete now - old is the rollback)
     if (Test-Path $oldPreviousDir) {
         Remove-Item -Path $oldPreviousDir -Recurse -Force -ErrorAction SilentlyContinue
     }
-    # Clean downloaded ZIP
+    # Clean downloaded ZIPs
     Get-ChildItem -Path (Join-Path $env:APPDATA 'HammamPOS\\updates') -Filter 'update-v*.zip' -ErrorAction SilentlyContinue | ForEach-Object {
         Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
     }
@@ -414,7 +412,6 @@ if ($handshakeReceived) {
 } else {
     Write-Log "WARNING: Handshake NOT received within 30s."
     Write-Log "  Keeping backup intact for manual rollback."
-    Write-Log "  The new version may have failed to start."
 }
 
 Write-Log "=== UPDATE FINISHED ==="
@@ -422,7 +419,7 @@ Write-State "update_complete"
 Start-Sleep -Seconds 1
 Remove-Item -Path $statePath -Force -ErrorAction SilentlyContinue
 
-# --- Self-delete ---
+# Self-delete
 Start-Sleep -Seconds 2
 Remove-Item -Path $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyContinue
 `;
