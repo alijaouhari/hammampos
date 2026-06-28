@@ -219,14 +219,29 @@ class UpdateManager {
 
   _verifyStaging() {
     const requiredFiles = ['HammamPOS.exe', path.join('resources', 'app.asar')];
+    const maxWait = 15; // seconds
+    const start = Date.now();
+
     for (const file of requiredFiles) {
       const fullPath = path.join(this.stagingDir, file);
+
+      // Wait for file to exist and have content (filesystem flush on slow disks)
+      let size = 0;
+      while (Date.now() - start < maxWait * 1000) {
+        if (fs.existsSync(fullPath)) {
+          size = fs.statSync(fullPath).size;
+          if (size > 0) break;
+        }
+        // Busy-wait 500ms
+        const { execSync } = require('child_process');
+        execSync('powershell -Command "Start-Sleep -Milliseconds 500"', { timeout: 3000 });
+      }
+
       if (!fs.existsSync(fullPath)) {
         throw new Error(`ملف مفقود بعد الاستخراج: ${file}`);
       }
-      const stat = fs.statSync(fullPath);
-      if (stat.size === 0) {
-        throw new Error(`ملف فارغ بعد الاستخراج: ${file}`);
+      if (size === 0) {
+        throw new Error(`ملف فارغ بعد الاستخراج: ${file} (waited ${maxWait}s)`);
       }
     }
   }
