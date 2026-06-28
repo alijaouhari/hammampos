@@ -135,6 +135,10 @@ function createWindow() {
   // Debug events
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('HammamPOS page loaded');
+    // Signal successful startup for the updater handshake
+    if (updateManager) {
+      updateManager.signalStartupSuccess();
+    }
   });
 
   mainWindow.webContents.on('dom-ready', () => {
@@ -886,7 +890,7 @@ ipcMain.handle('update:download', async () => {
 ipcMain.handle('update:apply', () => {
   if (!updateManager) throw new Error('Update manager not ready');
   const result = updateManager.applyAndRestart();
-  // Script is launched and will kill us. Exit cleanly so it can rename our directory.
+  // PS1 script will kill us. Exit cleanly to release file handles.
   setTimeout(() => process.exit(0), 200);
   return result;
 });
