@@ -55,6 +55,7 @@ class UpdateManager {
     this.updatesDir = path.join(this.dataDir, 'updates');
     this.logsDir = path.join(this.dataDir, 'Logs');
     this.flagPath = path.join(this.dataDir, 'update-success.flag');
+    this.statePath = path.join(this.dataDir, 'update-state.json');
     this.latestRelease = null;
     this.downloadProgress = 0;
     this.isDownloading = false;
@@ -120,11 +121,13 @@ class UpdateManager {
         throw new Error(`حجم الملف غير صحيح: متوقع ${this.latestRelease.size}, فعلي ${actualSize}`);
       }
       this._log('INFO', 'Download complete', { size: actualSize });
+      this._setState('download_complete', { size: actualSize });
 
       // Extract to staging
       this._log('INFO', 'Extraction started', { destination: this.stagingDir });
       this._extractToStaging(zipPath);
       this._log('INFO', 'Extraction complete');
+      this._setState('extraction_complete');
 
       // Verify integrity
       this._verifyStaging();
@@ -238,6 +241,7 @@ $stagingDir = '${this.stagingDir}'
 $oldDir = '${this.oldDir}'
 $oldPreviousDir = '${this.oldPreviousDir}'
 $flagPath = '${this.flagPath}'
+$statePath = '${this.statePath}'
 $logPath = '${logPath}'
 $exeName = 'HammamPOS.exe'
 $handshakeTimeout = 30
@@ -246,6 +250,11 @@ function Write-Log($msg) {
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
     $entry = "[$ts] $msg"
     Add-Content -Path $logPath -Value $entry -ErrorAction SilentlyContinue
+}
+
+function Write-State($stage) {
+    $state = @{ stage = $stage; timestamp = (Get-Date -Format 'o') } | ConvertTo-Json
+    Set-Content -Path $statePath -Value $state -ErrorAction SilentlyContinue
 }
 
 Write-Log "=== UPDATE STARTED ==="
@@ -279,6 +288,7 @@ if ($remaining) {
     Start-Sleep -Seconds 3
 }
 Write-Log "Processes terminated."
+Write-State "backup_created"
 
 # --- Step 3: Manage backup lifecycle ---
 # Remove two-generations-back backup
@@ -351,9 +361,12 @@ try {
     exit 1
 }
 
+Write-State "install_swapped"
+
 # --- Step 6: Launch new version ---
 Write-Log "Launching new version..."
 Start-Process -FilePath (Join-Path $installDir $exeName)
+Write-State "launch_started"
 
 # --- Step 7: Wait for success handshake ---
 Write-Log "Waiting for handshake (max ${handshakeTimeout}s)..."
@@ -370,6 +383,7 @@ while ((Get-Date) -lt $deadline) {
 
 if ($handshakeReceived) {
     Write-Log "Handshake received. Update successful."
+    Write-State "handshake_received"
     # Remove flag
     Remove-Item -Path $flagPath -Force -ErrorAction SilentlyContinue
     # Clean old-previous (safe to delete now — old is the rollback)
@@ -388,6 +402,9 @@ if ($handshakeReceived) {
 }
 
 Write-Log "=== UPDATE FINISHED ==="
+Write-State "update_complete"
+Start-Sleep -Seconds 1
+Remove-Item -Path $statePath -Force -ErrorAction SilentlyContinue
 
 # --- Self-delete ---
 Start-Sleep -Seconds 2
@@ -554,6 +571,23 @@ Remove-Item -Path $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyCon
       const logFile = path.join(this.logsDir, 'Updater.log');
       fs.appendFileSync(logFile, entry, 'utf8');
     } catch (_) {}
+  }
+
+  _setState(stage, extra = {}) {
+    try {
+      const state = {
+        stage,
+        timestamp: new Date().toISOString(),
+        currentVersion: this.currentVersion,
+        targetVersion: this.latestRelease ? this.latestRelease.version : null,
+        ...extra
+      };
+      fs.writeFileSync(this.statePath, JSON.stringify(state, null, 2), 'utf8');
+    } catch (_) {}
+  }
+
+  _clearState() {
+    try { fs.unlinkSync(this.statePath); } catch (_) {}
   }
 
   // ─── NETWORK ────────────────────────────────────────────────────────
