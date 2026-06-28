@@ -1,11 +1,11 @@
-/**
+﻿/**
  * HammamPOS - UpdateManager (Production v2.3.1)
  * Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved.
  *
  * ARCHITECTURE: Rename-Swap with Success Handshake
  * =================================================
  *
- * 1. Download ZIP → %APPDATA%\HammamPOS\updates\
+ * 1. Download ZIP -> %APPDATA%\HammamPOS\updates\
  * 2. Extract to C:\HammamPOS-update\ (staging)
  * 3. Verify integrity (file size, exe, app.asar)
  * 4. Spawn PowerShell updater from %TEMP%
@@ -13,9 +13,9 @@
  *    a) Kill legacy cmd.exe (apply.bat orphans)
  *    b) Kill all HammamPOS.exe
  *    c) Remove stale C:\HammamPOS-old-previous (two generations back)
- *    d) Rename C:\HammamPOS-old → C:\HammamPOS-old-previous (preserve last backup)
- *    e) Rename C:\HammamPOS → C:\HammamPOS-old (create new backup)
- *    f) Rename C:\HammamPOS-update → C:\HammamPOS (install)
+ *    d) Rename C:\HammamPOS-old -> C:\HammamPOS-old-previous (preserve last backup)
+ *    e) Rename C:\HammamPOS -> C:\HammamPOS-old (create new backup)
+ *    f) Rename C:\HammamPOS-update -> C:\HammamPOS (install)
  *    g) Launch new exe
  *    h) Wait for success handshake (%APPDATA%\HammamPOS\update-success.flag)
  *    i) If handshake received: delete old-previous, cleanup
@@ -333,7 +333,7 @@ if (Test-Path $oldDir) {
     exit 1
 }
 
-# --- Step 4: Rename current → old (create backup) ---
+# --- Step 4: Rename current -> old (create backup) ---
 Write-Log "Renaming install -> old..."
 try {
     Rename-Item -Path $installDir -NewName (Split-Path $oldDir -Leaf) -Force
@@ -363,7 +363,7 @@ try {
     }
 }
 
-# --- Step 5: Rename staging → install ---
+# --- Step 5: Rename staging -> install ---
 Write-Log "Renaming staging -> install..."
 try {
     Rename-Item -Path $stagingDir -NewName (Split-Path $installDir -Leaf) -Force
@@ -371,7 +371,7 @@ try {
 } catch {
     $err = $_.Exception.Message
     Write-Log "FATAL: Rename staging->install failed: $err. Rolling back."
-    # ROLLBACK: restore old → install
+    # ROLLBACK: restore old -> install
     Rename-Item -Path $oldDir -NewName (Split-Path $installDir -Leaf) -Force
     Start-Process -FilePath (Join-Path $installDir $exeName)
     exit 1
@@ -402,7 +402,7 @@ if ($handshakeReceived) {
     Write-State "handshake_received"
     # Remove flag
     Remove-Item -Path $flagPath -Force -ErrorAction SilentlyContinue
-    # Clean old-previous (safe to delete now — old is the rollback)
+    # Clean old-previous (safe to delete now - old is the rollback)
     if (Test-Path $oldPreviousDir) {
         Remove-Item -Path $oldPreviousDir -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -479,7 +479,7 @@ Start-Sleep -Seconds 3
 Stop-Process -Name "HammamPOS" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
-# Rename current → removing
+# Rename current -> removing
 $removingDir = $installDir + '-removing'
 if (Test-Path $removingDir) { Remove-Item -Path $removingDir -Recurse -Force -ErrorAction SilentlyContinue }
 
@@ -491,7 +491,7 @@ try {
     exit 1
 }
 
-# Rename old → install
+# Rename old -> install
 try {
     Rename-Item -Path $oldDir -NewName (Split-Path $installDir -Leaf) -Force
 } catch {
@@ -574,7 +574,7 @@ Remove-Item -Path $MyInvocation.MyCommand.Source -Force -ErrorAction SilentlyCon
     if (execName === 'hammampos.exe') {
       return execDir;
     }
-    // Development mode — use hardcoded path
+    // Development mode - use hardcoded path
     return 'C:\\HammamPOS';
   }
 
