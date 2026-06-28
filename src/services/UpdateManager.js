@@ -218,31 +218,29 @@ class UpdateManager {
   }
 
   _verifyStaging() {
-    const requiredFiles = ['HammamPOS.exe', path.join('resources', 'app.asar')];
-    const maxWait = 15; // seconds
-    const start = Date.now();
+    // Verify using PowerShell (not Node fs) to avoid stale filesystem cache
+    // after execSync extraction in a child process
+    const { execSync } = require('child_process');
+    const requiredFiles = ['HammamPOS.exe', 'resources\\app.asar'];
 
-    for (const file of requiredFiles) {
-      const fullPath = path.join(this.stagingDir, file);
+    const script = requiredFiles.map(f => {
+      const fullPath = path.join(this.stagingDir, f).replace(/\\/g, '\\\\');
+      return `if (-not (Test-Path '${fullPath}')) { throw 'MISSING:${f}' }; $s = (Get-Item '${fullPath}').Length; if ($s -eq 0) { throw 'EMPTY:${f}' }`;
+    }).join('; ');
 
-      // Wait for file to exist and have content (filesystem flush on slow disks)
-      let size = 0;
-      while (Date.now() - start < maxWait * 1000) {
-        if (fs.existsSync(fullPath)) {
-          size = fs.statSync(fullPath).size;
-          if (size > 0) break;
-        }
-        // Busy-wait 500ms
-        const { execSync } = require('child_process');
-        execSync('powershell -Command "Start-Sleep -Milliseconds 500"', { timeout: 3000 });
-      }
-
-      if (!fs.existsSync(fullPath)) {
+    try {
+      execSync(`powershell -Command "${script}"`, { timeout: 30000 });
+    } catch (err) {
+      const output = (err.stderr || err.stdout || err.message || '').toString();
+      if (output.includes('MISSING:')) {
+        const file = output.match(/MISSING:(.+)/)?.[1] || 'unknown';
         throw new Error(`ملف مفقود بعد الاستخراج: ${file}`);
       }
-      if (size === 0) {
-        throw new Error(`ملف فارغ بعد الاستخراج: ${file} (waited ${maxWait}s)`);
+      if (output.includes('EMPTY:')) {
+        const file = output.match(/EMPTY:(.+)/)?.[1] || 'unknown';
+        throw new Error(`ملف فارغ بعد الاستخراج: ${file}`);
       }
+      throw new Error(`فشل التحقق: ${output.substring(0, 200)}`);
     }
   }
 
