@@ -212,6 +212,9 @@ class UpdateManager {
       `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${this.stagingDir}'"`,
       { timeout: 120000 }
     );
+
+    // Allow filesystem to flush large files (app.asar ~60MB)
+    execSync('powershell -Command "Start-Sleep -Seconds 2"', { timeout: 5000 });
   }
 
   _verifyStaging() {
