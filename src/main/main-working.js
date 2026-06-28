@@ -886,15 +886,15 @@ ipcMain.handle('update:download', async () => {
 ipcMain.handle('update:apply', () => {
   if (!updateManager) throw new Error('Update manager not ready');
   const result = updateManager.applyAndRestart();
-  // The PS1 script will kill us — but help it by exiting cleanly
-  setTimeout(() => process.exit(0), 300);
+  // Script is launched and will kill us. Exit cleanly so it can rename our directory.
+  setTimeout(() => process.exit(0), 200);
   return result;
 });
 
 ipcMain.handle('update:revert', () => {
   if (!updateManager) throw new Error('Update manager not ready');
   const result = updateManager.revertAndRestart();
-  setTimeout(() => process.exit(0), 300);
+  setTimeout(() => process.exit(0), 200);
   return result;
 });
 
