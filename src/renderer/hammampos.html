@@ -1379,7 +1379,6 @@
                 <button id="admin-manage-categories" class="btn btn-primary">📋 إدارة الفئات</button>
                 <button id="admin-settings" class="btn btn-warning">⚙️ الإعدادات</button>
                 <button id="toggle-charts" class="btn btn-secondary">📈 إظهار/إخفاء الرسوم البيانية</button>
-                <button id="generate-test-data" class="btn btn-info">🧪 إنشاء بيانات اختبار</button>
                 <button id="admin-clear-all-data" class="btn" style="background: #dc2626; color: white;">🗑️ مسح جميع البيانات</button>
             </div>
 
@@ -1800,16 +1799,16 @@
                     </button>
                 </div>
                 
-                <!-- Revert Section -->
-                <div id="revert-section" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <span style="font-weight: 600; color: #374151;">الرجوع للنسخة السابقة</span>
-                            <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem; color: #6b7280;" id="revert-info">لا توجد نسخة سابقة</p>
+                <!-- Version History Section -->
+                <div id="version-history-section" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <span style="font-weight: 600; color: #374151;">📦 الإصدارات السابقة</span>
+                        <button type="button" id="load-releases-btn" class="btn btn-secondary" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">تحميل القائمة</button>
+                    </div>
+                    <div id="releases-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb;">
+                        <div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">
+                            اضغط "تحميل القائمة" لعرض الإصدارات المتاحة
                         </div>
-                        <button type="button" id="revert-update-btn" class="btn" style="background: #f59e0b; color: white; padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
-                            الرجوع
-                        </button>
                     </div>
                 </div>
             </div>
@@ -1817,68 +1816,6 @@
             <div class="modal-actions">
                 <button type="button" id="save-settings" class="btn btn-primary">حفظ الإعدادات</button>
                 <button type="button" id="close-settings" class="btn btn-secondary">إلغاء</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Test Data Generation Modal -->
-    <div id="test-data-modal" class="modal hidden">
-        <div class="modal-content category-modal-content">
-            <h3>🧪 إنشاء بيانات اختبار</h3>
-            
-            <div style="margin-bottom: 1.5rem; padding: 1rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px;">
-                <h4 style="color: #92400e; margin: 0 0 0.5rem 0;">⚠️ تحذير مهم</h4>
-                <p style="margin: 0; color: #92400e; font-size: 0.9rem;">
-                    سيتم إضافة بيانات اختبار واقعية إلى قاعدة البيانات الحالية. 
-                    تأكد من عمل نسخة احتياطية إذا كنت تريد الاحتفاظ بالبيانات الحالية.
-                </p>
-            </div>
-
-            <div style="margin-bottom: 1.5rem;">
-                <h4 style="color: #374151; margin: 0 0 1rem 0;">اختر فترة البيانات:</h4>
-                
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-                    <button class="test-period-btn" data-period="week" style="padding: 1rem; border: 2px solid #e5e7eb; background: white; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
-                        <div style="font-weight: 600; color: #374151; margin-bottom: 0.25rem;">أسبوع واحد</div>
-                        <div style="font-size: 0.8rem; color: #6b7280;">7 أيام من البيانات</div>
-                    </button>
-                    
-                    <button class="test-period-btn" data-period="month" style="padding: 1rem; border: 2px solid #e5e7eb; background: white; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
-                        <div style="font-weight: 600; color: #374151; margin-bottom: 0.25rem;">شهر واحد</div>
-                        <div style="font-size: 0.8rem; color: #6b7280;">30 يوم من البيانات</div>
-                    </button>
-                    
-                    <button class="test-period-btn" data-period="3months" style="padding: 1rem; border: 2px solid #e5e7eb; background: white; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
-                        <div style="font-weight: 600; color: #374151; margin-bottom: 0.25rem;">3 أشهر</div>
-                        <div style="font-size: 0.8rem; color: #6b7280;">90 يوم من البيانات</div>
-                    </button>
-                    
-                    <button class="test-period-btn" data-period="year" style="padding: 1rem; border: 2px solid #e5e7eb; background: white; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
-                        <div style="font-weight: 600; color: #374151; margin-bottom: 0.25rem;">سنة كاملة</div>
-                        <div style="font-size: 0.8rem; color: #6b7280;">365 يوم من البيانات</div>
-                    </button>
-                    
-                    <button class="test-period-btn" data-period="all" style="padding: 1rem; border: 2px solid #2563eb; background: #eff6ff; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
-                        <div style="font-weight: 600; color: #1d4ed8; margin-bottom: 0.25rem;">جميع الفترات</div>
-                        <div style="font-size: 0.8rem; color: #2563eb;">أسبوع + شهر + 3 أشهر + سنة</div>
-                    </button>
-                </div>
-            </div>
-
-            <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px;">
-                <h4 style="color: #0c4a6e; margin: 0 0 0.5rem 0;">💡 ما سيتم إنشاؤه:</h4>
-                <ul style="margin: 0; color: #0c4a6e; font-size: 0.9rem;">
-                    <li>تذاكر واقعية بتوزيع طبيعي (رجال، نساء، أولاد، بنات)</li>
-                    <li>مصروفات شهرية (رواتب، فواتير، إيجار) ومصروفات عشوائية</li>
-                    <li>عمليات تحصيل منطقية حسب النقد المتاح</li>
-                    <li>تغيرات موسمية (الصيف أكثر ازدحاماً)</li>
-                    <li>أنماط نهاية الأسبوع (الجمعة والسبت أكثر ازدحاماً)</li>
-                </ul>
-            </div>
-
-            <div class="modal-actions">
-                <button id="cancel-test-data" class="btn btn-secondary">إلغاء</button>
-                <button id="generate-test-data-confirm" class="btn btn-primary" disabled>إنشاء البيانات</button>
             </div>
         </div>
     </div>
@@ -2062,8 +1999,7 @@
                 deleteTicket: (ticketId) => ipcRenderer.invoke('storage:deleteTicket', ticketId),
                 deleteExpense: (expenseId) => ipcRenderer.invoke('storage:deleteExpense', expenseId),
                 deleteCollection: (collectionId) => ipcRenderer.invoke('storage:deleteCollection', collectionId),
-                clearAllData: () => ipcRenderer.invoke('storage:clearAllData'),
-                generateTestData: (period) => ipcRenderer.invoke('storage:generateTestData', period)
+                clearAllData: () => ipcRenderer.invoke('storage:clearAllData')
             },
             printer: {
                 printTicket: (ticket, hammamData) => ipcRenderer.invoke('printer:printTicket', ticket, hammamData),
@@ -2097,8 +2033,9 @@
                 check: () => ipcRenderer.invoke('update:check'),
                 download: () => ipcRenderer.invoke('update:download'),
                 apply: () => ipcRenderer.invoke('update:apply'),
-                revert: () => ipcRenderer.invoke('update:revert'),
-                getProgress: () => ipcRenderer.invoke('update:getProgress')
+                revert: (version) => ipcRenderer.invoke('update:revert', version),
+                getProgress: () => ipcRenderer.invoke('update:getProgress'),
+                getReleases: () => ipcRenderer.invoke('update:getReleases')
             }
         };
         
@@ -2996,7 +2933,6 @@
             const adminManageCategories = document.getElementById('admin-manage-categories');
             const adminSettings = document.getElementById('admin-settings');
             const adminClearAllData = document.getElementById('admin-clear-all-data');
-            const generateTestData = document.getElementById('generate-test-data');
 
             if (adminCollectMoney) {
                 adminCollectMoney.onclick = () => {
@@ -3027,13 +2963,6 @@
                     showClearDataModal();
                 };
                 console.log('Admin clear all data handler set');
-            }
-
-            if (generateTestData) {
-                generateTestData.onclick = () => {
-                    showTestDataGenerationModal();
-                };
-                console.log('Generate test data handler set');
             }
         }
 
@@ -3788,7 +3717,7 @@
                 await loadUpdateStatus();
                 document.getElementById('check-update-btn').onclick = checkForUpdateUI;
                 document.getElementById('download-update-btn').onclick = downloadAndApplyUpdate;
-                document.getElementById('revert-update-btn').onclick = revertUpdateUI;
+                document.getElementById('load-releases-btn').onclick = loadReleasesListUI;
                 
                 // Show modal
                 const modal = document.getElementById('settings-modal');
@@ -3818,18 +3747,6 @@
                 } else {
                     document.getElementById('update-available-section').style.display = 'none';
                     document.getElementById('update-uptodate-section').style.display = 'block';
-                }
-                
-                // Show revert availability
-                const backups = status.availableBackups || [];
-                const revertBtn = document.getElementById('revert-update-btn');
-                const revertInfo = document.getElementById('revert-info');
-                if (backups.length > 0) {
-                    revertBtn.disabled = false;
-                    revertInfo.textContent = `متاح: الرجوع إلى v${backups[0].version}`;
-                } else {
-                    revertBtn.disabled = true;
-                    revertInfo.textContent = 'لا توجد نسخة سابقة';
                 }
             } catch (error) {
                 console.error('Failed to load update status:', error);
@@ -3895,19 +3812,63 @@
             }
         }
 
-        async function revertUpdateUI() {
+        async function loadReleasesListUI() {
+            const list = document.getElementById('releases-list');
+            const btn = document.getElementById('load-releases-btn');
+            btn.disabled = true;
+            btn.textContent = 'جاري التحميل...';
+            list.innerHTML = '<div style="padding: 1rem; text-align: center; color: #6b7280;">⏳ جاري تحميل الإصدارات...</div>';
+            
+            try {
+                const releases = await api.update.getReleases();
+                const status = await api.update.getStatus();
+                const currentVersion = status.currentVersion;
+                
+                if (!releases || releases.length === 0) {
+                    list.innerHTML = '<div style="padding: 1rem; text-align: center; color: #6b7280;">لا توجد إصدارات سابقة</div>';
+                    btn.disabled = false;
+                    btn.textContent = 'تحميل القائمة';
+                    return;
+                }
+                
+                let html = '';
+                for (const release of releases) {
+                    const version = release.version;
+                    const isCurrent = version === currentVersion;
+                    const notes = release.notes || 'بدون وصف';
+                    const date = new Date(release.date).toLocaleDateString('ar-MA');
+                    
+                    html += `<div style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">`;
+                    html += `<div style="flex: 1;">`;
+                    html += `<div style="font-weight: 600; color: ${isCurrent ? '#2563eb' : '#374151'}; font-size: 0.9rem;">v${version} ${isCurrent ? '(الحالي)' : ''}</div>`;
+                    html += `<div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">${date} — ${notes.substring(0, 60)}</div>`;
+                    html += `</div>`;
+                    if (!isCurrent) {
+                        html += `<button onclick="revertToVersion('${version}')" class="btn" style="background: #f59e0b; color: white; padding: 0.3rem 0.6rem; font-size: 0.75rem; white-space: nowrap;">تثبيت</button>`;
+                    }
+                    html += `</div>`;
+                }
+                list.innerHTML = html;
+            } catch (error) {
+                list.innerHTML = `<div style="padding: 1rem; text-align: center; color: #dc2626;">فشل تحميل الإصدارات: ${error.message}</div>`;
+            }
+            btn.disabled = false;
+            btn.textContent = 'تحميل القائمة';
+        }
+
+        async function revertToVersion(version) {
             const confirmed = await showConfirm(
-                'سيتم الرجوع للنسخة السابقة.\nسيتم إعادة تشغيل التطبيق تلقائياً.',
-                '⚠️ الرجوع للنسخة السابقة',
-                'رجوع'
+                `سيتم تثبيت الإصدار v${version}.\nسيتم تحميله من GitHub وإعادة تشغيل التطبيق.`,
+                '⚠️ تغيير الإصدار',
+                'تثبيت'
             );
             if (!confirmed) return;
             
             try {
-                await api.update.revert();
-                // App will quit and relaunch automatically via batch script
+                showToast('جاري تحميل الإصدار...', 'info');
+                await api.update.revert(version);
             } catch (error) {
-                showToast('فشل الرجوع: ' + error.message, 'error');
+                showToast('فشل تغيير الإصدار: ' + error.message, 'error');
             }
         }
 
@@ -4558,122 +4519,6 @@
             } catch (error) {
                 console.error('❌ Failed to clear all data:', error);
                 showToast('فشل في مسح البيانات', 'error');
-            }
-        }
-
-        // Test Data Generation Functions
-        function showTestDataGenerationModal() {
-            const modal = document.getElementById('test-data-modal');
-            modal.classList.remove('hidden');
-            
-            // Set up period selection
-            setupTestDataPeriodSelection();
-            
-            // Set up modal actions
-            document.getElementById('cancel-test-data').onclick = () => {
-                modal.classList.add('hidden');
-            };
-            
-            document.getElementById('generate-test-data-confirm').onclick = () => {
-                generateSelectedTestData();
-            };
-        }
-
-        function setupTestDataPeriodSelection() {
-            const periodButtons = document.querySelectorAll('.test-period-btn');
-            const confirmButton = document.getElementById('generate-test-data-confirm');
-            let selectedPeriod = null;
-            
-            periodButtons.forEach(button => {
-                button.onclick = () => {
-                    // Remove selection from all buttons
-                    periodButtons.forEach(btn => {
-                        btn.style.borderColor = '#e5e7eb';
-                        btn.style.background = 'white';
-                    });
-                    
-                    // Select clicked button
-                    button.style.borderColor = '#2563eb';
-                    button.style.background = '#eff6ff';
-                    
-                    selectedPeriod = button.dataset.period;
-                    confirmButton.disabled = false;
-                    confirmButton.style.opacity = '1';
-                };
-                
-                // Hover effects
-                button.onmouseenter = () => {
-                    if (button.dataset.period !== selectedPeriod) {
-                        button.style.borderColor = '#d1d5db';
-                        button.style.background = '#f9fafb';
-                    }
-                };
-                
-                button.onmouseleave = () => {
-                    if (button.dataset.period !== selectedPeriod) {
-                        button.style.borderColor = '#e5e7eb';
-                        button.style.background = 'white';
-                    }
-                };
-            });
-            
-            // Store selected period for later use
-            confirmButton.dataset.selectedPeriod = '';
-            confirmButton.onclick = () => {
-                if (selectedPeriod) {
-                    confirmButton.dataset.selectedPeriod = selectedPeriod;
-                    generateSelectedTestData();
-                }
-            };
-        }
-
-        async function generateSelectedTestData() {
-            const confirmButton = document.getElementById('generate-test-data-confirm');
-            const selectedPeriod = confirmButton.dataset.selectedPeriod;
-            
-            if (!selectedPeriod) {
-                showToast('يرجى اختيار فترة البيانات أولاً', 'error');
-                return;
-            }
-            
-            try {
-                // Close modal
-                document.getElementById('test-data-modal').classList.add('hidden');
-                
-                // Show progress
-                showToast('جاري إنشاء بيانات الاختبار...', 'info');
-                
-                // Generate test data
-                const result = await api.storage.generateTestData(selectedPeriod);
-                
-                if (result.success) {
-                    let message = 'تم إنشاء بيانات الاختبار بنجاح!';
-                    
-                    if (result.days) {
-                        message += `\n\nتم إنشاء:\n`;
-                        message += `• ${result.days} يوم من البيانات\n`;
-                        message += `• ${result.tickets} تذكرة\n`;
-                        message += `• ${result.expenses} مصروف\n`;
-                        message += `• ${result.collections} عملية تحصيل`;
-                    }
-                    
-                    showToast(message, 'success');
-                    
-                    // Refresh all displays
-                    await Promise.all([
-                        updateDisplays(),
-                        updateDailyLedger(),
-                        loadAdminData()
-                    ]);
-                    
-                    console.log('✅ Test data generated and displays refreshed');
-                } else {
-                    throw new Error(result.error || 'Test data generation failed');
-                }
-                
-            } catch (error) {
-                console.error('❌ Failed to generate test data:', error);
-                showToast(`فشل في إنشاء بيانات الاختبار: ${error.message}`, 'error');
             }
         }
 

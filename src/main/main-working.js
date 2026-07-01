@@ -890,21 +890,35 @@ ipcMain.handle('update:download', async () => {
 ipcMain.handle('update:apply', () => {
   if (!updateManager) throw new Error('Update manager not ready');
   const result = updateManager.applyAndRestart();
-  // PS1 script will kill us. Exit cleanly to release file handles.
-  setTimeout(() => process.exit(0), 200);
+  // VBS launcher is now running independently (outside Job Object).
+  // Give renderer time to acknowledge the response, then exit cleanly
+  // so the PS1 script can rename our install directory.
+  setTimeout(() => { app.quit(); }, 1000);
   return result;
 });
 
-ipcMain.handle('update:revert', () => {
+ipcMain.handle('update:revert', async (event, version) => {
   if (!updateManager) throw new Error('Update manager not ready');
+  if (version) {
+    // Download specific version from GitHub and install it
+    const result = await updateManager.downloadAndInstallVersion(version);
+    setTimeout(() => { app.quit(); }, 1000);
+    return result;
+  }
+  // Legacy: revert from local backup
   const result = updateManager.revertAndRestart();
-  setTimeout(() => process.exit(0), 200);
+  setTimeout(() => { app.quit(); }, 1000);
   return result;
 });
 
 ipcMain.handle('update:getProgress', () => {
   if (!updateManager) return 0;
   return updateManager.downloadProgress;
+});
+
+ipcMain.handle('update:getReleases', async () => {
+  if (!updateManager) return [];
+  return await updateManager.fetchAllReleases();
 });
 
 ipcMain.on('setup:finished', async () => {

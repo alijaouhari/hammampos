@@ -1,0 +1,41 @@
+HammamPOS Pipeline Report — 2026-06-29T12:40:09.452Z
+Version: 2.6.0
+
+[PASS] 1-SOURCE: Syntax OK: src/services/UpdateManager.js
+[PASS] 1-SOURCE: Syntax OK: src/main/main-working.js
+[PASS] 1-SOURCE: UpdateManager loads (v2.6.0)
+[PASS] 1-SOURCE: Version consistent: package.json = UpdateManager = 2.6.0
+[PASS] 1-SOURCE: Main entry point: src/main/main-working.js
+[PASS] 2-PACKAGE: HammamPOS.exe: 168.6 MB
+[PASS] 2-PACKAGE: resources/app.asar: 57.2 MB
+[PASS] 2-PACKAGE: UpdateManager source contains VBS launcher code
+[PASS] 2-PACKAGE: app.asar is newer than UpdateManager source (build is current)
+[PASS] 2-PACKAGE: Build config: requireAdministrator = true
+[PASS] 3-ZIP: ZIP size: 118.4 MB
+[PASS] 3-ZIP: ZIP SHA-256: 54e64e343afd2df2...
+[PASS] 3-ZIP: ZIP contains: HammamPOS.exe
+[PASS] 3-ZIP: ZIP contains: resources/app.asar
+[PASS] 3-ZIP: ZIP entry count: 77
+[PASS] 4-LOGIC: Version comparison logic correct
+[PASS] 4-LOGIC: VBS launcher generation correct
+[PASS] 4-LOGIC: PS1 update script contains all required sections
+[PASS] 4-LOGIC: Concurrent update lock works
+[PASS] 4-LOGIC: Handshake flag mechanism correct
+[PASS] 5-LAUNCHER: VBS → PS1 launch works (ShellExecuteEx confirmed)
+[PASS] 6-PS1: Update PS1: syntax valid
+[PASS] 6-PS1: Revert PS1: syntax valid
+[PASS] 7-RECOVERY: Staging dir cleaned on startup
+[PASS] 7-RECOVERY: Stale ZIPs cleaned (7-day policy)
+[PASS] 7-RECOVERY: Stale launcher files cleaned on startup
+[PASS] 7-RECOVERY: Log rotation works (512 KB after 1.2MB input)
+[PASS] 7-RECOVERY: Startup recovery does NOT write success flag (correct)
+[PASS] 8-PRODUCTION: AppData dir exists: C:\Users\alija\AppData\Roaming\HammamPOS
+[PASS] 8-PRODUCTION: Install dir exists: C:\HammamPOS
+[PASS] 8-PRODUCTION: Production EXE: 168.6 MB
+[PASS] 8-PRODUCTION: Database exists: 2400 KB
+[PASS] 8-PRODUCTION: Updater log: 2 lines, 512 KB
+[PASS] 8-PRODUCTION: No stale state file (clean)
+[PASS] 8-PRODUCTION: No backup dir (no previous update to revert to)
+[PASS] 8-PRODUCTION: No lock file (no active update)
+
+RESULTS: PASS=36 WARN=0 FAIL=0
