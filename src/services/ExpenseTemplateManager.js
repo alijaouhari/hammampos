@@ -66,48 +66,42 @@ class ExpenseTemplateManager {
   }
 
   /**
-   * Create default expense templates
+   * Create/migrate default expense templates.
+   * Removes all old default templates and ensures only the required 3 exist.
+   * Preserves any user-created templates (identified as those not in the known defaults list).
+   * Idempotent — safe to run multiple times.
    */
   createDefaultTemplates() {
-    const defaultTemplates = [
-      // Fixed amount expenses
-      { name: 'راتب موظف', category: 'رواتب', fixed_amount: 3000, description: 'راتب شهري للموظف' },
-      { name: 'راتب مدير', category: 'رواتب', fixed_amount: 5000, description: 'راتب شهري للمدير' },
-      { name: 'فواتير (ماء وكهرباء)', category: 'فواتير', fixed_amount: null, description: 'فاتورة الماء والكهرباء الشهرية' },
-      { name: 'إنترنت', category: 'فواتير', fixed_amount: null, description: 'فاتورة الإنترنت الشهرية' },
-      { name: 'إيجار', category: 'إيجار', fixed_amount: null, description: 'إيجار المحل الشهري' },
-      
-      // Unit-based expenses
-      { name: 'غاز', category: 'وقود', unit: 'قنينة', price_per_unit: 45, description: 'قنينة غاز للتدفئة' },
-      { name: 'فحم', category: 'وقود', unit: 'كيس', price_per_unit: 25, description: 'كيس فحم' },
-      { name: 'صابون', category: 'مستلزمات', unit: 'قطعة', price_per_unit: 15, description: 'صابون للحمام' },
-      { name: 'شامبو', category: 'مستلزمات', unit: 'قارورة', price_per_unit: 35, description: 'شامبو للزبائن' },
-      { name: 'مناشف', category: 'مستلزمات', unit: 'قطعة', price_per_unit: 50, description: 'مناشف جديدة' },
-      
-      // Cleaning
-      { name: 'تنظيف عميق', category: 'تنظيف', fixed_amount: 200, description: 'تنظيف عميق للحمام' },
-      
-      // Other
-      { name: 'مصروف متنوع', category: 'متنوع', fixed_amount: null, description: 'مصروفات أخرى' }
+    // The ONLY templates that should exist as defaults
+    const requiredTemplates = [
+      { name: 'فاتورة الماء والكهرباء', category: 'فواتير', fixed_amount: null, description: 'فاتورة الماء والكهرباء الشهرية' },
+      { name: 'أجر صاحب الصندوق', category: 'أجور', fixed_amount: null, description: 'أجر صاحب الصندوق' },
+      { name: 'أجر الفرناتشي', category: 'أجور', fixed_amount: null, description: 'أجر الفرناتشي' },
     ];
 
-    defaultTemplates.forEach(template => {
-      // Check if template already exists
-      const existing = this.storage.db.exec(`SELECT id FROM expense_templates WHERE name = '${template.name}'`);
+    // All known old default template names to remove
+    const oldDefaults = [
+      'راتب موظف', 'راتب مدير', 'فاتورة كهرباء', 'فاتورة ماء',
+      'فواتير (ماء وكهرباء)', 'إنترنت', 'إيجار', 'غاز', 'فحم',
+      'صابون', 'شامبو', 'مناشف', 'صيانة عامة', 'تنظيف عميق',
+      'مصروف متنوع'
+    ];
+
+    // Delete all old defaults
+    for (const name of oldDefaults) {
+      this.storage.db.run(`DELETE FROM expense_templates WHERE name = ?`, [name]);
+    }
+
+    // Insert required templates if they don't already exist
+    for (const t of requiredTemplates) {
+      const existing = this.storage.db.exec(`SELECT id FROM expense_templates WHERE name = '${t.name.replace(/'/g, "''")}'`);
       if (existing.length === 0 || existing[0].values.length === 0) {
         this.storage.db.run(`
           INSERT INTO expense_templates (name, category, fixed_amount, unit, price_per_unit, description)
           VALUES (?, ?, ?, ?, ?, ?)
-        `, [
-          template.name,
-          template.category,
-          template.fixed_amount || null,
-          template.unit || null,
-          template.price_per_unit || null,
-          template.description || ''
-        ]);
+        `, [t.name, t.category, t.fixed_amount || null, null, null, t.description || '']);
       }
-    });
+    }
 
     this.storage.save();
   }
