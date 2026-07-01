@@ -73,8 +73,8 @@ class ExpenseTemplateManager {
       // Fixed amount expenses
       { name: 'راتب موظف', category: 'رواتب', fixed_amount: 3000, description: 'راتب شهري للموظف' },
       { name: 'راتب مدير', category: 'رواتب', fixed_amount: 5000, description: 'راتب شهري للمدير' },
-      { name: 'فاتورة كهرباء', category: 'فواتير', fixed_amount: null, description: 'فاتورة الكهرباء الشهرية' },
-      { name: 'فاتورة ماء', category: 'فواتير', fixed_amount: null, description: 'فاتورة الماء الشهرية' },
+      { name: 'فواتير (ماء وكهرباء)', category: 'فواتير', fixed_amount: null, description: 'فاتورة الماء والكهرباء الشهرية' },
+      { name: 'إنترنت', category: 'فواتير', fixed_amount: null, description: 'فاتورة الإنترنت الشهرية' },
       { name: 'إيجار', category: 'إيجار', fixed_amount: null, description: 'إيجار المحل الشهري' },
       
       // Unit-based expenses
@@ -84,8 +84,7 @@ class ExpenseTemplateManager {
       { name: 'شامبو', category: 'مستلزمات', unit: 'قارورة', price_per_unit: 35, description: 'شامبو للزبائن' },
       { name: 'مناشف', category: 'مستلزمات', unit: 'قطعة', price_per_unit: 50, description: 'مناشف جديدة' },
       
-      // Maintenance
-      { name: 'صيانة عامة', category: 'صيانة', fixed_amount: null, description: 'أعمال صيانة متنوعة' },
+      // Cleaning
       { name: 'تنظيف عميق', category: 'تنظيف', fixed_amount: 200, description: 'تنظيف عميق للحمام' },
       
       // Other
