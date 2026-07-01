@@ -67,40 +67,26 @@ class ExpenseTemplateManager {
 
   /**
    * Create/migrate default expense templates.
-   * Removes all old default templates and ensures only the required 3 exist.
-   * Preserves any user-created templates (identified as those not in the known defaults list).
+   * Removes ALL existing templates and ensures only the 3 required ones exist.
    * Idempotent — safe to run multiple times.
    */
   createDefaultTemplates() {
-    // The ONLY templates that should exist as defaults
+    // The ONLY templates that should exist
     const requiredTemplates = [
-      { name: 'فاتورة الماء والكهرباء', category: 'فواتير', fixed_amount: null, description: 'فاتورة الماء والكهرباء الشهرية' },
-      { name: 'أجر صاحب الصندوق', category: 'أجور', fixed_amount: null, description: 'أجر صاحب الصندوق' },
-      { name: 'أجر الفرناتشي', category: 'أجور', fixed_amount: null, description: 'أجر الفرناتشي' },
+      { name: 'فاتورة الماء والكهرباء', category: 'عام', fixed_amount: null, description: 'فاتورة الماء والكهرباء الشهرية' },
+      { name: 'أجر صاحب الصندوق', category: 'عام', fixed_amount: null, description: 'أجر صاحب الصندوق' },
+      { name: 'أجر الفرناتشي', category: 'عام', fixed_amount: null, description: 'أجر الفرناتشي' },
     ];
 
-    // All known old default template names to remove
-    const oldDefaults = [
-      'راتب موظف', 'راتب مدير', 'فاتورة كهرباء', 'فاتورة ماء',
-      'فواتير (ماء وكهرباء)', 'إنترنت', 'إيجار', 'غاز', 'فحم',
-      'صابون', 'شامبو', 'مناشف', 'صيانة عامة', 'تنظيف عميق',
-      'مصروف متنوع'
-    ];
+    // Delete ALL existing templates
+    this.storage.db.run(`DELETE FROM expense_templates`);
 
-    // Delete all old defaults
-    for (const name of oldDefaults) {
-      this.storage.db.run(`DELETE FROM expense_templates WHERE name = ?`, [name]);
-    }
-
-    // Insert required templates if they don't already exist
+    // Insert only the 3 required
     for (const t of requiredTemplates) {
-      const existing = this.storage.db.exec(`SELECT id FROM expense_templates WHERE name = '${t.name.replace(/'/g, "''")}'`);
-      if (existing.length === 0 || existing[0].values.length === 0) {
-        this.storage.db.run(`
-          INSERT INTO expense_templates (name, category, fixed_amount, unit, price_per_unit, description)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `, [t.name, t.category, t.fixed_amount || null, null, null, t.description || '']);
-      }
+      this.storage.db.run(`
+        INSERT INTO expense_templates (name, category, fixed_amount, unit, price_per_unit, description)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [t.name, t.category, t.fixed_amount, null, null, t.description]);
     }
 
     this.storage.save();

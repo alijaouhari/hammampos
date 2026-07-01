@@ -2393,30 +2393,14 @@
                 currentExpenseTemplates = await api.expenseTemplates.getTemplates(true);
                 const templateSelect = document.getElementById('expense-template');
                 
-                // Group templates by category
-                const grouped = {};
-                currentExpenseTemplates.forEach(template => {
-                    if (!grouped[template.category]) {
-                        grouped[template.category] = [];
-                    }
-                    grouped[template.category].push(template);
-                });
-                
-                // Build select options
+                // Flat list — no categories
                 templateSelect.innerHTML = '<option value="">اختر مصروف...</option>';
-                Object.keys(grouped).forEach(category => {
-                    const optgroup = document.createElement('optgroup');
-                    optgroup.label = category;
-                    
-                    grouped[category].forEach(template => {
-                        const option = document.createElement('option');
-                        option.value = template.id;
-                        option.textContent = template.name;
-                        option.dataset.template = JSON.stringify(template);
-                        optgroup.appendChild(option);
-                    });
-                    
-                    templateSelect.appendChild(optgroup);
+                currentExpenseTemplates.forEach(template => {
+                    const option = document.createElement('option');
+                    option.value = template.id;
+                    option.textContent = template.name;
+                    option.dataset.template = JSON.stringify(template);
+                    templateSelect.appendChild(option);
                 });
                 
             } catch (error) {
