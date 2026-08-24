@@ -588,6 +588,15 @@ ipcMain.handle('storage:getCollections', (event, startDate, endDate) => {
   return storage.getCollections(startDate, endDate);
 });
 
+// Day status operations
+ipcMain.handle('dayStatus:set', (event, date, status) => {
+  return storage.setDayStatus(date, status);
+});
+
+ipcMain.handle('dayStatus:get', (event, date) => {
+  return storage.getDayStatus(date);
+});
+
 // Printer operations
 ipcMain.handle('printer:printTicket', async (event, ticket, hammamData) => {
   return await printer.printTicket(ticket, hammamData);

@@ -149,6 +149,13 @@ class StorageManager {
       last_sync TEXT, error TEXT, timestamp TEXT DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // Day status table — tracks status for days (working, holiday, repair)
+    this.db.run(`CREATE TABLE IF NOT EXISTS day_status (
+      date TEXT PRIMARY KEY,
+      status TEXT NOT NULL DEFAULT 'working',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_date ON tickets(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_year ON tickets(year)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`);
@@ -514,47 +521,69 @@ class StorageManager {
     const categoriesResult = this.db.exec('SELECT name FROM categories WHERE active = 1 ORDER BY id');
     const categoryNames = categoriesResult[0] ? categoriesResult[0].values.map(row => row[0]) : [];
     
+    // Today's date — always included so current day appears even with zero activity
+    const today = new Date().toISOString().split('T')[0];
+    
     // Build dynamic CASE statements for each category
     const categoryCases = categoryNames.map(name => 
-      `SUM(CASE WHEN t.category_name = '${name}' THEN 1 ELSE 0 END) as "${name}"`
+      `COALESCE(SUM(CASE WHEN t.category_name = '${name}' THEN 1 ELSE 0 END), 0) as "${name}"`
     ).join(', ');
     
-    // Build the query - handle case when no categories exist
+    // The date source is a UNION of:
+    //   1. All dates with tickets
+    //   2. All dates with expenses
+    //   3. Today (always)
+    // This ensures expense-only days and the current day always appear.
+    const datesSubquery = `
+      SELECT DISTINCT date FROM (
+        SELECT date FROM tickets
+        UNION
+        SELECT date FROM expenses
+        UNION
+        SELECT '${today}' as date
+      )
+    `;
+    
     let query;
     if (categoryNames.length > 0) {
       query = `
         SELECT 
-          t.date,
+          d.date,
           ${categoryCases},
-          COUNT(t.id) as total_tickets,
-          SUM(t.price) as revenue,
-          COALESCE(e.total_expenses, 0) as expenses
-        FROM tickets t
+          COALESCE(COUNT(t.id), 0) as total_tickets,
+          COALESCE(SUM(t.price), 0) as revenue,
+          COALESCE(e.total_expenses, 0) as expenses,
+          COALESCE(ds.status, 'working') as day_status
+        FROM (${datesSubquery}) d
+        LEFT JOIN tickets t ON t.date = d.date
         LEFT JOIN (
           SELECT date, SUM(amount) as total_expenses 
           FROM expenses 
           GROUP BY date
-        ) e ON t.date = e.date
-        GROUP BY t.date 
-        ORDER BY t.date DESC 
+        ) e ON d.date = e.date
+        LEFT JOIN day_status ds ON d.date = ds.date
+        GROUP BY d.date 
+        ORDER BY d.date DESC 
         LIMIT ${limit}
       `;
     } else {
-      // Fallback query when no categories exist
       query = `
         SELECT 
-          t.date,
-          COUNT(t.id) as total_tickets,
-          SUM(t.price) as revenue,
-          COALESCE(e.total_expenses, 0) as expenses
-        FROM tickets t
+          d.date,
+          COALESCE(COUNT(t.id), 0) as total_tickets,
+          COALESCE(SUM(t.price), 0) as revenue,
+          COALESCE(e.total_expenses, 0) as expenses,
+          COALESCE(ds.status, 'working') as day_status
+        FROM (${datesSubquery}) d
+        LEFT JOIN tickets t ON t.date = d.date
         LEFT JOIN (
           SELECT date, SUM(amount) as total_expenses 
           FROM expenses 
           GROUP BY date
-        ) e ON t.date = e.date
-        GROUP BY t.date 
-        ORDER BY t.date DESC 
+        ) e ON d.date = e.date
+        LEFT JOIN day_status ds ON d.date = ds.date
+        GROUP BY d.date 
+        ORDER BY d.date DESC 
         LIMIT ${limit}
       `;
     }
@@ -578,12 +607,35 @@ class StorageManager {
         summary.total_tickets = row[baseIndex] || 0;
         summary.revenue = row[baseIndex + 1] || 0;
         summary.expenses = row[baseIndex + 2] || 0;
+        summary.day_status = row[baseIndex + 3] || 'working';
         
         summaries.push(summary);
       });
     }
     
     return summaries;
+  }
+
+  /**
+   * Day Status Management
+   */
+  setDayStatus(date, status) {
+    // status: 'working' | 'holiday' | 'repair'
+    this.db.run(
+      `INSERT OR REPLACE INTO day_status (date, status) VALUES (?, ?)`,
+      [date, status]
+    );
+    this.logAudit('UPDATE', 'day_status', null, `${date} → ${status}`);
+    this.save();
+    return true;
+  }
+
+  getDayStatus(date) {
+    const result = this.db.exec(`SELECT status FROM day_status WHERE date = ?`, [date]);
+    if (result.length > 0 && result[0].values.length > 0) {
+      return result[0].values[0][0];
+    }
+    return 'working';
   }
 
   /**

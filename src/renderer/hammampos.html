@@ -2036,6 +2036,10 @@
                 revert: (version) => ipcRenderer.invoke('update:revert', version),
                 getProgress: () => ipcRenderer.invoke('update:getProgress'),
                 getReleases: () => ipcRenderer.invoke('update:getReleases')
+            },
+            dayStatus: {
+                set: (date, status) => ipcRenderer.invoke('dayStatus:set', date, status),
+                get: (date) => ipcRenderer.invoke('dayStatus:get', date)
             }
         };
         
@@ -2681,6 +2685,7 @@
                 if (tableHeader) {
                     const newHeaderHTML = `
                         <th>التاريخ</th>
+                        <th>الحالة</th>
                         ${allCategories.map(cat => `<th>${cat.name}</th>`).join('')}
                         <th>المجموع</th>
                         <th>الإيرادات</th>
@@ -2696,6 +2701,7 @@
                 if (tableFooter) {
                     const newFooterHTML = `
                         <td><strong>الإجمالي</strong></td>
+                        <td></td>
                         ${allCategories.map(cat => `<td id="total-${cat.name}">0</td>`).join('')}
                         <td id="total-tickets">0</td>
                         <td id="total-revenue">0</td>
@@ -2733,8 +2739,16 @@
                     const displayDate = new Date(summary.date).toLocaleDateString('ar-MA');
                     const balance = summary.revenue - summary.expenses;
                     
+                    // Day status display
+                    const statusLabels = { working: 'يوم عمل', holiday: 'عطلة', repair: 'إصلاح' };
+                    const statusColors = { working: '#059669', holiday: '#f59e0b', repair: '#6b7280' };
+                    const dayStatus = summary.day_status || 'working';
+                    const statusLabel = statusLabels[dayStatus] || 'يوم عمل';
+                    const statusColor = statusColors[dayStatus] || '#059669';
+                    
                     // Build row HTML with dynamic categories
                     let rowHTML = `<td style="font-weight: 600;">${displayDate}</td>`;
+                    rowHTML += `<td style="color: ${statusColor}; font-size: 0.8rem; font-weight: 600;">${statusLabel}</td>`;
                     
                     allCategories.forEach(cat => {
                         const count = summary[cat.name] || 0;
@@ -3009,6 +3023,7 @@
                 if (adminTableHeader) {
                     const newHeaderHTML = `
                         <th>التاريخ</th>
+                        <th>الحالة</th>
                         ${allCategories.map(cat => `<th>${cat.name}</th>`).join('')}
                         <th>المجموع</th>
                         <th>الإيرادات</th>
@@ -3024,6 +3039,7 @@
                 if (adminTableFooter) {
                     const newFooterHTML = `
                         <td><strong>الإجمالي</strong></td>
+                        <td></td>
                         ${allCategories.map(cat => `<td id="admin-total-${cat.name}">0</td>`).join('')}
                         <td id="admin-total-tickets">0</td>
                         <td id="admin-total-revenue">0</td>
@@ -3061,8 +3077,22 @@
                     const displayDate = new Date(summary.date).toLocaleDateString('ar-MA');
                     const balance = summary.revenue - summary.expenses;
                     
+                    // Day status display with clickable dropdown for admin
+                    const statusLabels = { working: 'يوم عمل', holiday: 'عطلة', repair: 'إصلاح' };
+                    const statusColors = { working: '#059669', holiday: '#f59e0b', repair: '#6b7280' };
+                    const dayStatus = summary.day_status || 'working';
+                    const statusColor = statusColors[dayStatus] || '#059669';
+                    
                     // Build row HTML with dynamic categories
                     let rowHTML = `<td style="font-weight: 600;">${displayDate}</td>`;
+                    rowHTML += `<td>
+                        <select onchange="changeDayStatus('${summary.date}', this.value)" 
+                                style="border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 4px; font-size: 0.8rem; font-family: inherit; color: ${statusColor}; background: white; cursor: pointer;">
+                            <option value="working" ${dayStatus === 'working' ? 'selected' : ''}>يوم عمل</option>
+                            <option value="holiday" ${dayStatus === 'holiday' ? 'selected' : ''}>عطلة</option>
+                            <option value="repair" ${dayStatus === 'repair' ? 'selected' : ''}>إصلاح</option>
+                        </select>
+                    </td>`;
                     
                     allCategories.forEach(cat => {
                         const count = summary[cat.name] || 0;
@@ -3080,7 +3110,9 @@
                     row.innerHTML = rowHTML;
                     
                     // Add click handler for admin day details
-                    row.addEventListener('click', () => {
+                    row.addEventListener('click', (e) => {
+                        // Don't trigger if clicking the status dropdown
+                        if (e.target.tagName === 'SELECT') return;
                         showAdminDayDetails(summary.date);
                     });
                     
@@ -3114,6 +3146,18 @@
 
             } catch (error) {
                 console.error('Failed to update admin daily ledger:', error);
+            }
+        }
+
+        async function changeDayStatus(date, status) {
+            try {
+                await api.dayStatus.set(date, status);
+                showToast(`تم تغيير حالة اليوم إلى: ${status === 'working' ? 'يوم عمل' : status === 'holiday' ? 'عطلة' : 'إصلاح'}`, 'success');
+                // Refresh main screen ledger too
+                await updateDailyLedger();
+            } catch (error) {
+                console.error('Failed to change day status:', error);
+                showToast('خطأ في تغيير حالة اليوم', 'error');
             }
         }
 
