@@ -521,28 +521,40 @@ class StorageManager {
     const categoriesResult = this.db.exec('SELECT name FROM categories WHERE active = 1 ORDER BY id');
     const categoryNames = categoriesResult[0] ? categoriesResult[0].values.map(row => row[0]) : [];
     
-    // Today's date — always included so current day appears even with zero activity
+    // Today's date
     const today = new Date().toISOString().split('T')[0];
+    
+    // Find the earliest date in the application's data (tickets, expenses, or collections)
+    const earliestResult = this.db.exec(`
+      SELECT MIN(date) FROM (
+        SELECT MIN(date) as date FROM tickets
+        UNION ALL
+        SELECT MIN(date) as date FROM expenses
+        UNION ALL
+        SELECT MIN(date) as date FROM collections
+      ) WHERE date IS NOT NULL
+    `);
+    let earliestDate = today; // Default to today if no data exists
+    if (earliestResult.length > 0 && earliestResult[0].values[0][0]) {
+      earliestDate = earliestResult[0].values[0][0];
+    }
+    
+    // Generate all calendar dates from earliestDate to today
+    const allDates = [];
+    const startDate = new Date(earliestDate + 'T00:00:00');
+    const endDate = new Date(today + 'T00:00:00');
+    for (let d = new Date(endDate); d >= startDate; d.setDate(d.getDate() - 1)) {
+      allDates.push(d.toISOString().split('T')[0]);
+      if (allDates.length >= limit) break; // Respect the limit parameter
+    }
+    
+    // Build a VALUES clause for all dates
+    const datesValues = allDates.map(d => `SELECT '${d}' as date`).join(' UNION ALL ');
     
     // Build dynamic CASE statements for each category
     const categoryCases = categoryNames.map(name => 
       `COALESCE(SUM(CASE WHEN t.category_name = '${name}' THEN 1 ELSE 0 END), 0) as "${name}"`
     ).join(', ');
-    
-    // The date source is a UNION of:
-    //   1. All dates with tickets
-    //   2. All dates with expenses
-    //   3. Today (always)
-    // This ensures expense-only days and the current day always appear.
-    const datesSubquery = `
-      SELECT DISTINCT date FROM (
-        SELECT date FROM tickets
-        UNION
-        SELECT date FROM expenses
-        UNION
-        SELECT '${today}' as date
-      )
-    `;
     
     let query;
     if (categoryNames.length > 0) {
@@ -554,7 +566,7 @@ class StorageManager {
           COALESCE(SUM(t.price), 0) as revenue,
           COALESCE(e.total_expenses, 0) as expenses,
           COALESCE(ds.status, 'working') as day_status
-        FROM (${datesSubquery}) d
+        FROM (${datesValues}) d
         LEFT JOIN tickets t ON t.date = d.date
         LEFT JOIN (
           SELECT date, SUM(amount) as total_expenses 
@@ -563,8 +575,7 @@ class StorageManager {
         ) e ON d.date = e.date
         LEFT JOIN day_status ds ON d.date = ds.date
         GROUP BY d.date 
-        ORDER BY d.date DESC 
-        LIMIT ${limit}
+        ORDER BY d.date DESC
       `;
     } else {
       query = `
@@ -574,7 +585,7 @@ class StorageManager {
           COALESCE(SUM(t.price), 0) as revenue,
           COALESCE(e.total_expenses, 0) as expenses,
           COALESCE(ds.status, 'working') as day_status
-        FROM (${datesSubquery}) d
+        FROM (${datesValues}) d
         LEFT JOIN tickets t ON t.date = d.date
         LEFT JOIN (
           SELECT date, SUM(amount) as total_expenses 
@@ -583,8 +594,7 @@ class StorageManager {
         ) e ON d.date = e.date
         LEFT JOIN day_status ds ON d.date = ds.date
         GROUP BY d.date 
-        ORDER BY d.date DESC 
-        LIMIT ${limit}
+        ORDER BY d.date DESC
       `;
     }
     
