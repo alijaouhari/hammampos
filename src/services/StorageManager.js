@@ -541,11 +541,14 @@ class StorageManager {
     
     // Generate all calendar dates from earliestDate to today
     const allDates = [];
-    const startDate = new Date(earliestDate + 'T00:00:00');
-    const endDate = new Date(today + 'T00:00:00');
+    const startDate = new Date(earliestDate + 'T12:00:00');
+    const endDate = new Date(today + 'T12:00:00');
     for (let d = new Date(endDate); d >= startDate; d.setDate(d.getDate() - 1)) {
-      allDates.push(d.toISOString().split('T')[0]);
-      if (allDates.length >= limit) break; // Respect the limit parameter
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      allDates.push(`${yyyy}-${mm}-${dd}`);
+      if (allDates.length >= limit) break;
     }
     
     // Build a VALUES clause for all dates
