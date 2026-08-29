@@ -128,10 +128,12 @@ class UpdateManager {
     this._log('INFO', 'Apply initiated', { currentVersion: this.currentVersion, targetVersion: this.latestRelease.version });
     this._setState('apply_initiated');
 
-    // Write PS1 updater
+    // Write PS1 updater. Prepend a UTF-8 BOM so Windows PowerShell 5.1 decodes the
+    // non-ASCII characters correctly (without a BOM, 5.1 mis-parses multi-byte chars
+    // and the brace matching breaks — a known historical failure mode).
     const ps1Path = path.join(this.updatesDir, 'hammampos-updater.ps1');
     const ps1Content = this._buildUpdatePS1(zipPath, lockPath);
-    fs.writeFileSync(ps1Path, ps1Content, 'utf8');
+    fs.writeFileSync(ps1Path, '\uFEFF' + ps1Content, 'utf8');
     this._log('INFO', 'PS1 written', { path: ps1Path, size: ps1Content.length });
 
     // Write VBS launcher (Job Object escape)
@@ -149,7 +151,8 @@ class UpdateManager {
     this._log('INFO', 'Revert initiated');
 
     const ps1Path = path.join(this.updatesDir, 'hammampos-revert.ps1');
-    fs.writeFileSync(ps1Path, this._buildRevertPS1(), 'utf8');
+    // UTF-8 BOM for PowerShell 5.1 correct decoding of non-ASCII characters.
+    fs.writeFileSync(ps1Path, '\uFEFF' + this._buildRevertPS1(), 'utf8');
 
     const vbsPath = path.join(this.updatesDir, 'launch-revert.vbs');
     fs.writeFileSync(vbsPath, this._buildVBS(ps1Path), 'utf8');
@@ -241,6 +244,7 @@ $handshakeTimeout = 90
 # child handle). We retry the ACTUAL rename with backoff instead of one fixed sleep.
 $renameMaxSeconds = 60   # hard upper bound for total retry time
 $renameDelayMs    = 1000 # wait between attempts
+$scriptPath      = $MyInvocation.MyCommand.Path
 
 function Write-Log($msg) {
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'
@@ -261,6 +265,46 @@ function Abort($msg) {
     Remove-Item $lockPath -Force -ErrorAction SilentlyContinue
     exit 1
 }
+
+# ─── Step 0: UAC elevation guard ─────────────────────────────────────
+# When HammamPOS is installed under a protected location (e.g. C:\Program Files),
+# extraction / rename operations require Administrator rights. The VBS/ShellExecuteEx
+# launcher escapes Electron's Job Object but does NOT grant elevation. Here we
+# self-elevate via ShellExecuteEx "RunAs" (the single unavoidable UAC prompt) BEFORE
+# any protected filesystem work. All paths are already baked into this script as
+# literals, so no argument marshalling is needed; we only pass an -Elevated marker
+# to prevent a re-elevation loop. This does NOT elevate the HammamPOS app itself.
+$isElevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$alreadyRelaunched = ($args -contains '-Elevated')
+
+if (-not $isElevated) {
+    if ($alreadyRelaunched) {
+        # We asked for elevation but still are not elevated — do not loop.
+        Write-Log "FATAL: Elevation requested but process is still not Administrator. Aborting update."
+        Write-State "elevation_failed"
+        $exe = Join-Path $installDir $exeName
+        if (Test-Path $exe) { Start-Process $exe -ErrorAction SilentlyContinue }
+        exit 1
+    }
+    Write-Log "Step 0: Not elevated — requesting Administrator elevation (UAC)..."
+    Write-State "requesting_elevation"
+    try {
+        $q = [char]34
+        $quotedScript = $q + $scriptPath + $q
+        $elevArgs = @('-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$quotedScript,'-Elevated')
+        Start-Process -FilePath 'powershell.exe' -ArgumentList $elevArgs -Verb RunAs
+        Write-Log "  Elevated instance launched. Non-elevated launcher exiting."
+        exit 0
+    } catch {
+        # User declined UAC or elevation failed. Leave installation intact, relaunch old app.
+        Write-Log "FATAL: Elevation was declined or failed: $($_.Exception.Message)"
+        Write-State "elevation_declined"
+        $exe = Join-Path $installDir $exeName
+        if (Test-Path $exe) { Start-Process $exe -ErrorAction SilentlyContinue }
+        exit 1
+    }
+}
+Write-Log "Step 0: Running elevated (Administrator). Proceeding with update."
 
 # Create lock file to prevent concurrent updates
 Set-Content -Path $lockPath -Value "$PID" -Encoding UTF8 -ErrorAction SilentlyContinue
@@ -468,11 +512,39 @@ $installDir = '${esc(this.installDir)}'
 $oldDir     = '${esc(this.oldDir)}'
 $logPath    = '${esc(logPath)}'
 $exeName    = 'HammamPOS.exe'
+$scriptPath = $MyInvocation.MyCommand.Path
 
 function Write-Log($msg) {
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'
     try { Add-Content -Path $logPath -Value "[$ts] $msg" -Encoding UTF8 } catch {}
 }
+
+# ─── UAC elevation guard (revert also modifies the install directory) ─
+$isElevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$alreadyRelaunched = ($args -contains '-Elevated')
+if (-not $isElevated) {
+    if ($alreadyRelaunched) {
+        Write-Log "FATAL: Elevation requested but still not Administrator. Aborting revert."
+        $exe = Join-Path $installDir $exeName
+        if (Test-Path $exe) { Start-Process $exe -ErrorAction SilentlyContinue }
+        exit 1
+    }
+    Write-Log "Not elevated — requesting Administrator elevation (UAC) for revert..."
+    try {
+        $q = [char]34
+        $quotedScript = $q + $scriptPath + $q
+        $elevArgs = @('-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$quotedScript,'-Elevated')
+        Start-Process -FilePath 'powershell.exe' -ArgumentList $elevArgs -Verb RunAs
+        Write-Log "  Elevated revert instance launched. Non-elevated launcher exiting."
+        exit 0
+    } catch {
+        Write-Log "FATAL: Revert elevation was declined or failed: $($_.Exception.Message)"
+        $exe = Join-Path $installDir $exeName
+        if (Test-Path $exe) { Start-Process $exe -ErrorAction SilentlyContinue }
+        exit 1
+    }
+}
+Write-Log "Running elevated (Administrator). Proceeding with revert."
 
 Write-Log "================================================================"
 Write-Log "=== HAMMAMPOS REVERT STARTED ==="
