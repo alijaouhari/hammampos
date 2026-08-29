@@ -236,6 +236,11 @@ $lockPath        = '${esc(lockPath)}'
 $exeName         = 'HammamPOS.exe'
 $processTimeout  = 60
 $handshakeTimeout = 90
+# Bounded retry for the install-dir rename (Step 6). Windows may briefly hold a
+# handle on the install directory after the app exits (AV scan, OneDrive, lingering
+# child handle). We retry the ACTUAL rename with backoff instead of one fixed sleep.
+$renameMaxSeconds = 60   # hard upper bound for total retry time
+$renameDelayMs    = 1000 # wait between attempts
 
 function Write-Log($msg) {
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'
@@ -358,21 +363,40 @@ if (Test-Path $oldDir) {
 if (Test-Path $oldDir) { Abort "Cannot clear old backup dir" }
 Write-Log "  Backup lifecycle OK."
 
-# ─── Step 6: Atomic swap — rename install -> old ─────────────────────
+# ─── Step 6: Atomic swap — rename install -> old (bounded retry) ─────
+# The rename is the operation that is actually locked, so we retry the rename
+# itself (not a blind fixed sleep) until it succeeds or the bounded time elapses.
 Write-Log "Step 6: Rename install -> old..."
 Write-State "swapping"
-try {
-    Rename-Item $installDir -NewName (Split-Path $oldDir -Leaf) -Force
-    Write-Log "  install -> old OK"
-} catch {
-    Write-Log "  First attempt failed: $($_.Exception.Message)"
-    Start-Sleep -Seconds 3
+$oldLeaf = Split-Path $oldDir -Leaf
+$renameDeadline = (Get-Date).AddSeconds($renameMaxSeconds)
+$renameAttempt = 0
+$renameStart = Get-Date
+$renamed = $false
+$lastRenameError = ''
+while ($true) {
+    $renameAttempt++
+    Write-Log "  Attempt $renameAttempt - renaming installation..."
     try {
-        Rename-Item $installDir -NewName (Split-Path $oldDir -Leaf) -Force
-        Write-Log "  Retry succeeded."
+        Rename-Item $installDir -NewName $oldLeaf -Force -ErrorAction Stop
+        $renamed = $true
+        $elapsedOk = [math]::Round(((Get-Date) - $renameStart).TotalSeconds, 1)
+        Write-Log "  Rename succeeded on attempt $renameAttempt after $elapsedOk sec."
+        break
     } catch {
-        Abort "Cannot rename install to old: $($_.Exception.Message)"
+        $lastRenameError = $_.Exception.Message
+        Write-Log "  Rename failed (attempt $renameAttempt): $lastRenameError"
+        if ((Get-Date) -ge $renameDeadline) { break }
+        Write-Log "  Directory in use — waiting before retry..."
+        Start-Sleep -Milliseconds $renameDelayMs
     }
+}
+if (-not $renamed) {
+    $elapsedFail = [math]::Round(((Get-Date) - $renameStart).TotalSeconds, 1)
+    Write-Log "  Giving up: $renameAttempt attempts over $elapsedFail sec (limit $renameMaxSeconds sec)."
+    # Installation directory was never renamed — it is still intact.
+    # Abort runs the existing rollback/relaunch path (installDir still present -> old app relaunched).
+    Abort "Cannot rename install to old after $renameAttempt attempts ($elapsedFail sec): $lastRenameError"
 }
 
 # ─── Step 7: Atomic swap — rename staging -> install ─────────────────
