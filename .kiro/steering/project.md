@@ -35,6 +35,24 @@
 - Resolves the prior production failure: `Access to the path 'HammamPOS-update' is denied`.
 - Relevant fixes: updater UAC self-elevation + UTF-8 BOM PS1 generation (commit `6efa875`); Step-6 bounded rename retry (commit `7937c6e`).
 
+## Features
+
+### Change Money / Float (صندوق الصرف) — COMPLETE
+
+- Status: COMPLETE (implemented, tested).
+- Dedicated table `change_float` (id, operation ADD/TAKE, amount, balance_after, note, date, time, timestamp) with index `idx_change_float_date`.
+- Financially independent: float never touches tickets/expenses/collections/daily-summary. `getCashInHand()` remains `SUM(tickets.price) - SUM(expenses.amount) - SUM(collections.amount)`.
+- StorageManager API: `addFloat(amount, notes)`, `takeFloat(amount, notes)`, `getFloatBalance()`, `getFloatHistory()`. Parameterized SQL; balance computed server-side from persisted state.
+- ADD/TAKE validation in the DB layer: amount must be finite and > 0; TAKE rejected if it exceeds the current balance (no negative balance, no silent clamping). `resulting_balance` stored per operation.
+- Negative-balance protection: enforced; TAKE beyond balance returns an error and writes nothing.
+- Persistence: stored in the existing SQLite DB, survives restart.
+- Audit: every ADD/TAKE writes an `audit_log` entry (entity `change_float`).
+- IPC: `float:add`, `float:take`, `float:getBalance`, `float:getHistory`; renderer bridge `api.float`.
+- UI: admin-stats card "صندوق الصرف" (balance) + admin-actions button opening a Change Money modal (ADD/TAKE + history table: التاريخ/الوقت/العملية/المبلغ/الرصيد بعد العملية/الملاحظات, newest first, إضافة/سحب labels).
+- Backups/Excel: float operations mirrored to BackupManager (change_float.csv/json/txt) and ExcelManager ("صندوق الصرف" sheet); included in rebuildFromDatabase.
+- clearAllData: clears `change_float` (resets float to 0) consistent with clearing all transactional financial history.
+- Testing: 22/22 checks passed (fresh=0; ADD 100→100, ADD 50→150, TAKE 30→120, TAKE 120→0, TAKE 1 rejected, zero/negative rejected, history + resulting_balance correct, persists across restart, audit entries created, getCashInHand/revenue/expenses/collections/ticket-count unchanged, clearAllData resets float). App startup regression verified.
+
 ## Technical Stack
 
 - Electron 28 + SQLite (sql.js) + Supabase cloud sync

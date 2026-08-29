@@ -174,6 +174,7 @@ class StorageManager {
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_year ON tickets(year)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_collections_date ON collections(date)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_change_float_date ON change_float(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)`);
   }
 
