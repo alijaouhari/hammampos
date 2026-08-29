@@ -156,6 +156,20 @@ class StorageManager {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // Change float table — teller change money held separately from sales/expenses/collections
+    // operation: 'add' (owner gives teller money) | 'take' (owner takes money back)
+    // This is NOT revenue, NOT an expense, NOT a collection. It never affects getCashInHand().
+    this.db.run(`CREATE TABLE IF NOT EXISTS change_float (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      operation TEXT NOT NULL,
+      amount REAL NOT NULL,
+      balance_after REAL NOT NULL,
+      note TEXT,
+      date TEXT NOT NULL,
+      time TEXT NOT NULL,
+      timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_date ON tickets(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_year ON tickets(year)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`);
@@ -652,6 +666,85 @@ class StorageManager {
   }
 
   /**
+   * Teller Change Float Management
+   * Kept completely separate from sales revenue, expenses, and collections.
+   * Never included in getCashInHand().
+   */
+  getFloatBalance() {
+    const result = this.db.exec(`
+      SELECT COALESCE(SUM(CASE WHEN operation = 'add' THEN amount ELSE 0 END), 0)
+           - COALESCE(SUM(CASE WHEN operation = 'take' THEN amount ELSE 0 END), 0) AS balance
+      FROM change_float
+    `);
+    if (result.length > 0 && result[0].values.length > 0) {
+      return result[0].values[0][0] || 0;
+    }
+    return 0;
+  }
+
+  addFloat(amount, note = '') {
+    const value = Number(amount);
+    if (!Number.isFinite(value) || value <= 0) {
+      return { success: false, error: 'المبلغ غير صالح' };
+    }
+
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const time = now.toTimeString().split(' ')[0];
+    const balanceAfter = this.getFloatBalance() + value;
+
+    this.db.run(
+      'INSERT INTO change_float (operation, amount, balance_after, note, date, time) VALUES (?, ?, ?, ?, ?, ?)',
+      ['add', value, balanceAfter, note || '', date, time]
+    );
+    const result = this.db.exec('SELECT last_insert_rowid()');
+    const id = result[0].values[0][0];
+
+    this.logAudit('CREATE', 'change_float', id, `add ${value}dh → balance ${balanceAfter}dh`);
+    this.save();
+    return { success: true, id, balance: balanceAfter, operation: 'add', amount: value, note: note || '', date, time };
+  }
+
+  takeFloat(amount, note = '') {
+    const value = Number(amount);
+    if (!Number.isFinite(value) || value <= 0) {
+      return { success: false, error: 'المبلغ غير صالح' };
+    }
+
+    const currentBalance = this.getFloatBalance();
+    if (value > currentBalance) {
+      return { success: false, error: 'المبلغ المطلوب أكبر من الرصيد المتوفر' };
+    }
+
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const time = now.toTimeString().split(' ')[0];
+    const balanceAfter = currentBalance - value;
+
+    this.db.run(
+      'INSERT INTO change_float (operation, amount, balance_after, note, date, time) VALUES (?, ?, ?, ?, ?, ?)',
+      ['take', value, balanceAfter, note || '', date, time]
+    );
+    const result = this.db.exec('SELECT last_insert_rowid()');
+    const id = result[0].values[0][0];
+
+    this.logAudit('CREATE', 'change_float', id, `take ${value}dh → balance ${balanceAfter}dh`);
+    this.save();
+    return { success: true, id, balance: balanceAfter, operation: 'take', amount: value, note: note || '', date, time };
+  }
+
+  getFloatHistory() {
+    const result = this.db.exec('SELECT * FROM change_float ORDER BY timestamp DESC, id DESC');
+    if (!result[0]) return [];
+    const cols = result[0].columns;
+    return result[0].values.map(row => {
+      const obj = {};
+      cols.forEach((col, i) => obj[col] = row[i]);
+      return obj;
+    });
+  }
+
+  /**
    * Delete Operations (Admin Only)
    */
   deleteTicket(ticketId) {
@@ -732,12 +825,14 @@ class StorageManager {
       const ticketsCount = this.db.exec('SELECT COUNT(*) FROM tickets')[0]?.values[0]?.[0] || 0;
       const expensesCount = this.db.exec('SELECT COUNT(*) FROM expenses')[0]?.values[0]?.[0] || 0;
       const collectionsCount = this.db.exec('SELECT COUNT(*) FROM collections')[0]?.values[0]?.[0] || 0;
+      const floatCount = this.db.exec('SELECT COUNT(*) FROM change_float')[0]?.values[0]?.[0] || 0;
       
       // Delete all transaction data
       this.db.run('DELETE FROM tickets');
       this.db.run('DELETE FROM expenses');
       this.db.run('DELETE FROM collections');
       this.db.run('DELETE FROM daily_summary');
+      this.db.run('DELETE FROM change_float'); // reset teller change float to 0
       try { this.db.run('DELETE FROM wood_purchases'); } catch (_) {} // Table may not exist on fresh installs
       
       // Reset category serial counters
@@ -745,7 +840,7 @@ class StorageManager {
       
       // Log the clear operation
       this.logAudit('CLEAR_ALL_DATA', 'system', null, 
-        `Cleared: ${ticketsCount} tickets, ${expensesCount} expenses, ${collectionsCount} collections`);
+        `Cleared: ${ticketsCount} tickets, ${expensesCount} expenses, ${collectionsCount} collections, ${floatCount} float operations`);
       
       this.save();
       

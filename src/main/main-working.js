@@ -597,6 +597,85 @@ ipcMain.handle('dayStatus:get', (event, date) => {
   return storage.getDayStatus(date);
 });
 
+// Teller change float operations (kept separate from sales/expenses/collections)
+ipcMain.handle('float:add', async (event, amount, note) => {
+  const result = storage.addFloat(amount, note);
+  if (!result.success) return result;
+
+  const operation = {
+    id: result.id,
+    operation: 'add',
+    amount: result.amount,
+    balance_after: result.balance,
+    note: result.note,
+    date: result.date,
+    time: result.time
+  };
+
+  if (backupManager) {
+    try {
+      await backupManager.addFloatOperation(operation);
+      console.log('✅ Float operation added to backups successfully');
+    } catch (error) {
+      console.error('❌ Failed to add float operation to backups:', error);
+    }
+  }
+
+  if (excelManager) {
+    try {
+      await excelManager.addFloatOperation(operation);
+      console.log('✅ Float operation added to Excel successfully');
+    } catch (error) {
+      console.error('❌ Failed to add float operation to Excel:', error);
+    }
+  }
+
+  return result;
+});
+
+ipcMain.handle('float:take', async (event, amount, note) => {
+  const result = storage.takeFloat(amount, note);
+  if (!result.success) return result;
+
+  const operation = {
+    id: result.id,
+    operation: 'take',
+    amount: result.amount,
+    balance_after: result.balance,
+    note: result.note,
+    date: result.date,
+    time: result.time
+  };
+
+  if (backupManager) {
+    try {
+      await backupManager.addFloatOperation(operation);
+      console.log('✅ Float operation added to backups successfully');
+    } catch (error) {
+      console.error('❌ Failed to add float operation to backups:', error);
+    }
+  }
+
+  if (excelManager) {
+    try {
+      await excelManager.addFloatOperation(operation);
+      console.log('✅ Float operation added to Excel successfully');
+    } catch (error) {
+      console.error('❌ Failed to add float operation to Excel:', error);
+    }
+  }
+
+  return result;
+});
+
+ipcMain.handle('float:getBalance', (event) => {
+  return storage.getFloatBalance();
+});
+
+ipcMain.handle('float:getHistory', (event) => {
+  return storage.getFloatHistory();
+});
+
 // Printer operations
 ipcMain.handle('printer:printTicket', async (event, ticket, hammamData) => {
   return await printer.printTicket(ticket, hammamData);

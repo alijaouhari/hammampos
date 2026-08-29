@@ -43,6 +43,7 @@ class ExcelManager {
       await this.createTicketsSheet();
       await this.createExpensesSheet();
       await this.createCollectionsSheet();
+      await this.createChangeFloatSheet();
       await this.createDailySummarySheet();
       await this.createAuditLogSheet();
       await this.createSerialResetsSheet();
@@ -218,6 +219,40 @@ class ExcelManager {
       { width: 20 }  // timestamp
     ];
     
+    // Freeze header row
+    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+  }
+
+  /**
+   * Create Change Float sheet - exact mirror of change_float table
+   */
+  async createChangeFloatSheet() {
+    const sheet = this.workbook.addWorksheet('صندوق الصرف', {
+      properties: { rightToLeft: true }
+    });
+
+    // Headers matching database columns exactly
+    const headers = ['المعرف', 'العملية', 'المبلغ', 'الرصيد بعد العملية', 'الملاحظة', 'التاريخ', 'الوقت', 'الطابع الزمني'];
+    sheet.addRow(headers);
+
+    // Style headers
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2563EB' } };
+    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Set column widths
+    sheet.columns = [
+      { width: 8 },  // id
+      { width: 12 }, // operation
+      { width: 12 }, // amount
+      { width: 18 }, // balance_after
+      { width: 25 }, // note
+      { width: 12 }, // date
+      { width: 10 }, // time
+      { width: 20 }  // timestamp
+    ];
+
     // Freeze header row
     sheet.views = [{ state: 'frozen', ySplit: 1 }];
   }
@@ -477,6 +512,44 @@ class ExcelManager {
   }
 
   /**
+   * Add change float operation to Excel - exact database mirror
+   */
+  async addFloatOperation(operation) {
+    if (!this.isInitialized) {
+      console.warn('⚠️ Excel Manager not initialized, skipping float operation add');
+      return;
+    }
+
+    try {
+      let sheet = this.workbook.getWorksheet('صندوق الصرف');
+      if (!sheet) {
+        // Sheet may be missing on workbooks created before this feature existed
+        await this.createChangeFloatSheet();
+        sheet = this.workbook.getWorksheet('صندوق الصرف');
+      }
+
+      const opLabel = operation.operation === 'add' ? 'إضافة' : 'استرجاع';
+      const row = [
+        operation.id,
+        opLabel,
+        operation.amount,
+        operation.balance_after,
+        operation.note || '',
+        operation.date,
+        operation.time,
+        operation.timestamp || new Date().toISOString()
+      ];
+
+      sheet.addRow(row);
+      await this.save();
+
+      console.log('📊 Float operation added to Excel');
+    } catch (error) {
+      console.error('❌ Failed to add float operation to Excel:', error);
+    }
+  }
+
+  /**
    * Add setting to Excel
    */
   async addSetting(setting) {
@@ -640,9 +713,14 @@ class ExcelManager {
       // Clear existing data (keep headers)
       const sheets = [
         'الإعدادات', 'الفئات', 'التذاكر', 'المصروفات', 
-        'عمليات التحصيل', 'الملخص اليومي', 'سجل المراجعة',
+        'عمليات التحصيل', 'صندوق الصرف', 'الملخص اليومي', 'سجل المراجعة',
         'إعادة تعيين التسلسل', 'سجل البريد الإلكتروني', 'حالة المزامنة'
       ];
+
+      // Ensure the change float sheet exists on workbooks created before this feature
+      if (!this.workbook.getWorksheet('صندوق الصرف')) {
+        await this.createChangeFloatSheet();
+      }
       
       sheets.forEach(sheetName => {
         const sheet = this.workbook.getWorksheet(sheetName);
@@ -660,6 +738,7 @@ class ExcelManager {
       await this.rebuildTickets(storage);
       await this.rebuildExpenses(storage);
       await this.rebuildCollections(storage);
+      await this.rebuildChangeFloat(storage);
       // Note: Other tables (audit_log, daily_summary, etc.) would need similar methods
       
       console.log('✅ Excel rebuilt from database');
@@ -762,6 +841,31 @@ class ExcelManager {
         collection.time,
         collection.notes || '',
         collection.timestamp
+      ];
+      sheet.addRow(row);
+    });
+  }
+
+  /**
+   * Rebuild change float sheet from database (chronological order)
+   */
+  async rebuildChangeFloat(storage) {
+    if (typeof storage.getFloatHistory !== 'function') return;
+    const history = storage.getFloatHistory(); // newest first
+    const sheet = this.workbook.getWorksheet('صندوق الصرف');
+    if (!sheet) return;
+
+    history.slice().reverse().forEach(op => {
+      const opLabel = op.operation === 'add' ? 'إضافة' : 'استرجاع';
+      const row = [
+        op.id,
+        opLabel,
+        op.amount,
+        op.balance_after,
+        op.note || '',
+        op.date,
+        op.time,
+        op.timestamp
       ];
       sheet.addRow(row);
     });

@@ -1376,11 +1376,16 @@
                     <h3>مصروفات اليوم</h3>
                     <div class="admin-stat-value" id="admin-today-expenses" style="color: #dc2626;">0 درهم</div>
                 </div>
+                <div class="admin-stat-card">
+                    <h3>صندوق الصرف</h3>
+                    <div class="admin-stat-value" id="admin-change-float" style="color: #2563eb;">0 درهم</div>
+                </div>
             </div>
 
             <!-- Admin Actions -->
             <div class="admin-actions">
                 <button id="admin-collect-money" class="btn btn-success">💰 تحصيل المال</button>
+                <button id="admin-change-float-btn" class="btn btn-primary" style="background:#2563eb;">💵 صندوق الصرف</button>
                 <button id="admin-manage-categories" class="btn btn-primary">📋 إدارة الفئات</button>
                 <button id="admin-settings" class="btn btn-warning">⚙️ الإعدادات</button>
                 <button id="toggle-charts" class="btn btn-secondary">📈 إظهار/إخفاء الرسوم البيانية</button>
@@ -1651,6 +1656,72 @@
                     تحصيل المال
                 </button>
                 <button type="button" id="cancel-money-collection" class="btn btn-secondary">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Float Modal -->
+    <div id="change-float-modal" class="modal hidden">
+        <div class="modal-content category-modal-content">
+            <h3>💵 صندوق الصرف</h3>
+            <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 1rem;">
+                هذا المبلغ منفصل تماماً عن المبيعات والمصاريف والتحصيل. يُستعمل فقط لإعطاء الصرف للزبناء.
+            </p>
+
+            <div style="background: #eff6ff; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; text-align: center;">
+                <strong style="color: #374151;">الرصيد الحالي في صندوق الصرف:</strong><br>
+                <span id="float-current-balance" style="color: #2563eb; font-weight: 700; font-size: 1.4rem;">0 درهم</span>
+            </div>
+
+            <div class="category-section">
+                <h4>➕ إضافة مال للصندوق</h4>
+                <div class="form-group">
+                    <label>المبلغ (درهم):</label>
+                    <input type="number" id="float-add-amount" min="0" step="0.01" placeholder="مثال: 1000">
+                </div>
+                <div class="form-group">
+                    <label>ملاحظة (اختياري):</label>
+                    <input type="text" id="float-add-note" placeholder="سبب الإضافة...">
+                </div>
+                <button type="button" id="float-add-btn" class="btn btn-success">إضافة</button>
+            </div>
+
+            <div class="category-section">
+                <h4>➖ استرجاع مال من الصندوق</h4>
+                <div class="form-group">
+                    <label>المبلغ (درهم):</label>
+                    <input type="number" id="float-take-amount" min="0" step="0.01" placeholder="مثال: 500">
+                </div>
+                <div class="form-group">
+                    <label>ملاحظة (اختياري):</label>
+                    <input type="text" id="float-take-note" placeholder="سبب الاسترجاع...">
+                </div>
+                <button type="button" id="float-take-btn" class="btn btn-warning">استرجاع</button>
+            </div>
+
+            <div class="category-section">
+                <h4>📜 سجل العمليات</h4>
+                <div style="max-height: 260px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="background: #f9fafb; position: sticky; top: 0;">
+                                <th style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">التاريخ</th>
+                                <th style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">الوقت</th>
+                                <th style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">العملية</th>
+                                <th style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">المبلغ</th>
+                                <th style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">الرصيد بعد العملية</th>
+                                <th style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">ملاحظة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="float-history-body">
+                            <tr><td colspan="6" style="text-align: center; padding: 1rem; color: #6b7280;">لا توجد عمليات</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="cancel-change-float" class="btn btn-secondary">إغلاق</button>
             </div>
         </div>
     </div>
@@ -2050,6 +2121,12 @@
             dayStatus: {
                 set: (date, status) => ipcRenderer.invoke('dayStatus:set', date, status),
                 get: (date) => ipcRenderer.invoke('dayStatus:get', date)
+            },
+            float: {
+                add: (amount, note) => ipcRenderer.invoke('float:add', amount, note),
+                take: (amount, note) => ipcRenderer.invoke('float:take', amount, note),
+                getBalance: () => ipcRenderer.invoke('float:getBalance'),
+                getHistory: () => ipcRenderer.invoke('float:getHistory')
             }
         };
         
@@ -2944,6 +3021,14 @@
                 console.log('Admin collect money handler set');
             }
 
+            const adminChangeFloatBtn = document.getElementById('admin-change-float-btn');
+            if (adminChangeFloatBtn) {
+                adminChangeFloatBtn.onclick = () => {
+                    showChangeFloatModal();
+                };
+                console.log('Admin change float handler set');
+            }
+
             if (adminManageCategories) {
                 adminManageCategories.onclick = () => {
                     console.log('Category management button clicked');
@@ -2983,10 +3068,11 @@
         async function loadAdminData() {
             try {
                 // Load statistics
-                const [cashInHand, todayTickets, todayExpenses] = await Promise.all([
+                const [cashInHand, todayTickets, todayExpenses, floatBalance] = await Promise.all([
                     api.storage.getCashInHand(),
                     api.storage.getTodayTickets(),
-                    api.storage.getExpenses(new Date().toISOString().split('T')[0]) // Today's expenses
+                    api.storage.getExpenses(new Date().toISOString().split('T')[0]), // Today's expenses
+                    api.float.getBalance()
                 ]);
 
                 const todaySales = todayTickets.reduce((sum, ticket) => sum + ticket.price, 0);
@@ -2997,6 +3083,8 @@
                 document.getElementById('admin-today-sales').textContent = `${todaySales} درهم`;
                 document.getElementById('admin-today-tickets').textContent = todayTickets.length;
                 document.getElementById('admin-today-expenses').textContent = `${todayExpensesTotal} درهم`;
+                const floatCard = document.getElementById('admin-change-float');
+                if (floatCard) floatCard.textContent = `${floatBalance} درهم`;
 
                 // Load admin daily summary table
                 await loadAdminDailyLedger();
@@ -4304,6 +4392,113 @@
                 await showAdminDayDetails(currentAdminViewedDate);
             }
         }
+
+        // ===== Change Float Functions =====
+        function floatOperationLabel(op) {
+            return op === 'add' ? 'إضافة' : 'استرجاع';
+        }
+
+        async function refreshFloatModal() {
+            const [balance, history] = await Promise.all([
+                api.float.getBalance(),
+                api.float.getHistory()
+            ]);
+
+            const balEl = document.getElementById('float-current-balance');
+            if (balEl) balEl.textContent = `${balance} درهم`;
+
+            const body = document.getElementById('float-history-body');
+            if (body) {
+                if (!history || history.length === 0) {
+                    body.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 1rem; color: #6b7280;">لا توجد عمليات</td></tr>';
+                } else {
+                    body.innerHTML = history.map(op => `
+                        <tr>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center;">${op.date}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center;">${op.time}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center; color: ${op.operation === 'add' ? '#059669' : '#dc2626'}; font-weight: 600;">${floatOperationLabel(op.operation)}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center;">${op.amount} درهم</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 600;">${op.balance_after} درهم</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center;">${op.note || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+            }
+        }
+
+        async function showChangeFloatModal() {
+            try {
+                document.getElementById('float-add-amount').value = '';
+                document.getElementById('float-add-note').value = '';
+                document.getElementById('float-take-amount').value = '';
+                document.getElementById('float-take-note').value = '';
+                await refreshFloatModal();
+                document.getElementById('change-float-modal').classList.remove('hidden');
+            } catch (error) {
+                console.error('Failed to open change float modal:', error);
+                showToast('خطأ في فتح صندوق الصرف', 'error');
+            }
+        }
+
+        async function handleFloatAdd() {
+            const amount = parseFloat(document.getElementById('float-add-amount').value);
+            const note = document.getElementById('float-add-note').value.trim();
+            if (!Number.isFinite(amount) || amount <= 0) {
+                showToast('يرجى إدخال مبلغ صحيح', 'error');
+                return;
+            }
+            try {
+                const result = await api.float.add(amount, note);
+                if (!result || !result.success) {
+                    showToast(result && result.error ? result.error : 'فشلت العملية', 'error');
+                    return;
+                }
+                showToast('تمت إضافة المال لصندوق الصرف', 'success');
+                document.getElementById('float-add-amount').value = '';
+                document.getElementById('float-add-note').value = '';
+                await refreshFloatModal();
+                await loadAdminData();
+            } catch (error) {
+                console.error('Float add failed:', error);
+                showToast('خطأ في إضافة المال', 'error');
+            }
+        }
+
+        async function handleFloatTake() {
+            const amount = parseFloat(document.getElementById('float-take-amount').value);
+            const note = document.getElementById('float-take-note').value.trim();
+            if (!Number.isFinite(amount) || amount <= 0) {
+                showToast('يرجى إدخال مبلغ صحيح', 'error');
+                return;
+            }
+            try {
+                const result = await api.float.take(amount, note);
+                if (!result || !result.success) {
+                    showToast(result && result.error ? result.error : 'فشلت العملية', 'error');
+                    return;
+                }
+                showToast('تم استرجاع المال من صندوق الصرف', 'success');
+                document.getElementById('float-take-amount').value = '';
+                document.getElementById('float-take-note').value = '';
+                await refreshFloatModal();
+                await loadAdminData();
+            } catch (error) {
+                console.error('Float take failed:', error);
+                showToast('خطأ في استرجاع المال', 'error');
+            }
+        }
+
+        // Wire up change float modal controls
+        (function setupChangeFloatControls() {
+            const addBtn = document.getElementById('float-add-btn');
+            const takeBtn = document.getElementById('float-take-btn');
+            const cancelBtn = document.getElementById('cancel-change-float');
+            if (addBtn) addBtn.onclick = handleFloatAdd;
+            if (takeBtn) takeBtn.onclick = handleFloatTake;
+            if (cancelBtn) cancelBtn.onclick = () => {
+                document.getElementById('change-float-modal').classList.add('hidden');
+            };
+        })();
 
         // Money Collection Functions
         let selectedDays = new Set();

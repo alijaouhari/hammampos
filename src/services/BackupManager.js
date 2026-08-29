@@ -199,6 +199,35 @@ class BackupManager {
   }
 
   /**
+   * Add teller change float operation to all backup formats
+   */
+  async addFloatOperation(operation) {
+    try {
+      console.log('💵 Adding float operation to backups:', operation);
+
+      const floatData = {
+        operation: operation.operation, // 'add' | 'take'
+        amount: operation.amount,
+        balance_after: operation.balance_after,
+        note: operation.note || '',
+        date: operation.date || new Date().toISOString().split('T')[0],
+        time: operation.time || new Date().toTimeString().split(' ')[0]
+      };
+
+      const opLabel = floatData.operation === 'add' ? 'إضافة' : 'استرجاع';
+
+      await this.appendToCSV('change_float.csv', floatData, ['operation', 'amount', 'balance_after', 'note', 'date', 'time']);
+      await this.appendToJSON('change_float.json', floatData);
+      await this.updateHTML();
+      await this.appendToTXT('change_float.txt', `${floatData.date} ${floatData.time} - صندوق الصرف (${opLabel}): ${floatData.amount} درهم → الرصيد: ${floatData.balance_after} درهم ${floatData.note ? '(' + floatData.note + ')' : ''}`);
+
+      console.log('✅ Float operation added to all backup formats');
+    } catch (error) {
+      console.error('❌ Failed to add float operation to backups:', error);
+    }
+  }
+
+  /**
    * Append data to CSV file
    */
   async appendToCSV(filename, data, headers) {
@@ -652,6 +681,7 @@ class BackupManager {
       const tickets = storage.getTickets('2000-01-01', '2099-12-31');
       const expenses = storage.getExpenses('2000-01-01', '2099-12-31');
       const collections = storage.getCollections('2000-01-01', '2099-12-31');
+      const floatOps = typeof storage.getFloatHistory === 'function' ? storage.getFloatHistory() : [];
       
       // Add all tickets
       for (const ticket of tickets) {
@@ -667,13 +697,19 @@ class BackupManager {
       for (const collection of collections) {
         await this.addCollection(collection);
       }
+
+      // Add all change float operations (oldest first for chronological history)
+      for (const op of floatOps.slice().reverse()) {
+        await this.addFloatOperation(op);
+      }
       
       console.log('✅ Backups rebuilt from database');
       return { 
         success: true, 
         tickets: tickets.length, 
         expenses: expenses.length, 
-        collections: collections.length 
+        collections: collections.length,
+        floatOperations: floatOps.length
       };
       
     } catch (error) {
