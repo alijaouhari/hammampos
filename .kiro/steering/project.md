@@ -20,6 +20,21 @@
 - Updates must never touch the database (`%APPDATA%\HammamPOS\hammampos.db`)
 - Two repos may exist: one for Ali (testing/dev), one for clients (stable releases)
 
+### Updater Validation Status — END-TO-END PASS
+
+- Status: COMPLETE / PASS (real production update validated)
+- Tested transition: **2.8.7 → 2.8.8** (published GitHub release)
+- Production install path tested: `C:\Program Files\HammamPOS`
+- Download verified: ZIP size 124,159,203 bytes
+- UAC `Start-Process -Verb RunAs` self-elevation was exercised: updater started non-elevated, Step 0 requested Administrator elevation, and the elevated instance continued.
+- Protected Program Files operations succeeded: Step 3 extraction, Step 4 staging verification, Step 5 backup lifecycle, Step 6 install→old rename (succeeded on attempt 1), Step 7 staging→install swap.
+- New process launched (Step 8) and Step 9 startup handshake received for version 2.8.8.
+- Final installed version independently verified from packaged `app.asar` = **2.8.8**.
+- No ACL manipulation, no manual file replacement, no workaround used.
+- Rollback backup: `C:\Program Files\HammamPOS-old` contains the previous **2.8.7** copy and MUST remain untouched.
+- Resolves the prior production failure: `Access to the path 'HammamPOS-update' is denied`.
+- Relevant fixes: updater UAC self-elevation + UTF-8 BOM PS1 generation (commit `6efa875`); Step-6 bounded rename retry (commit `7937c6e`).
+
 ## Technical Stack
 
 - Electron 28 + SQLite (sql.js) + Supabase cloud sync
