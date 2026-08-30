@@ -399,3 +399,268 @@ Only decisions that cannot be established from the existing repository/business 
 - Specification: COMPLETE.
 - Blocking: 10 OPEN PRODUCT DECISIONS (D1–D10) — chiefly D1 (expense coupling), D9 (schema ownership), and D10 (IPC/mirroring location). Once these are decided, this spec is directly implementable following the Float feature as the reference pattern.
 - Not implemented: no source code, no schema, no version bump, no release created by this task.
+
+## Add-Ons — Planning (Employees, Deferred Expenses)
+
+Two features are being specified together as ADD-ONS. Beyond their own value, they are the deliberate test of whether the HammamPOS add-on architecture is production-ready. Neither is implemented by this task; no source code, `package.json`, version, or release was changed. Terminology follows existing conventions (صندوق الصرف / expenses / collections / cash-in-hand / audit_log / mirror pattern).
+
+Legend used below:
+- **FACT** = verified from the current repository.
+- **USER** = explicitly stated by the user.
+- **NECESSARY** = logically required to deliver the USER behavior given the FACTS.
+- **OPEN DECISION** = a product choice the user has not made; must not be invented.
+- **UNDEFINED** = neither defined in the repo nor stated by the user; must not be filled with assumptions.
+
+### Shared Add-On Architecture Findings
+
+- **FACT — the add-on system is partial scaffolding, wired but unproven.** `PluginManager` and `LicenseManager` are instantiated in `main-working.js:initializeServices()` and `loadAllPlugins()` runs at startup. But `src/plugins/features/` is empty, so the loader has **never actually loaded a real plugin in production**. The Inventory spec already recorded this. The two aspirational docs are inaccurate: no `PluginLoader.js`, no `registry/` dir; real core files are `PluginManager.js`, `LicenseManager.js`, `interfaces/Plugin.js`.
+- **FACT — gating is by file presence, not license enforcement.** `loadPlugin()` loads any folder present; it does not call `LicenseManager.validateLicense()`. The base `hammampos-core` check is bypassed for testing. So "add-on = ship the folder"; `licenseRequired` in `plugin.json` is currently metadata only.
+- **FACT — the plugin context is thin and cannot reach key core services.** Context passed to plugins is `{ database, ui: null, licensing, events, config, logger, storage, excel }`. It **does NOT include BackupManager**, and `ui` is `null`. Meanwhile every existing feature registers its IPC handlers AND its BackupManager/ExcelManager/CloudSync mirroring **directly in `main-working.js`** (see tickets, expenses, collections, float). The renderer is a single `hammampos.html` with no build step and no plugin UI-injection mechanism.
+- **FACT — there is no IPC bridge from a plugin to the renderer.** All `ipcMain.handle('ns:action', …)` handlers live in `main-working.js`; the renderer calls them via `api.<ns>.<action>`. A plugin's `main.js` class has no established way to register IPC or add DOM.
+- **CONCLUSION — can the current add-on architecture support these two features without core changes?** Partially. A plugin can create its own tables via `context.database` and hold business logic. But to match every existing convention (teller/admin UI in `hammampos.html`, IPC handlers, and Backup+Excel+Cloud mirroring), **core files must still be edited** because: (1) BackupManager is not in the plugin context; (2) the renderer has no plugin-UI hook; (3) `clearAllData()` and `rebuildFromDatabase()` live in core and must know the new tables. So the honest finding is: **the add-on system is production-ready enough to isolate a plugin's data/logic, but NOT yet production-ready for a self-contained UI+mirroring add-on.** This is the central architecture decision the two features exist to force — see OPEN DECISION A1–A4 below.
+
+Shared add-on OPEN DECISIONS (apply to BOTH features):
+- **A1 — What does "add-on" mean operationally?** Options: (a) a real loaded plugin under `src/plugins/features/<id>/` with `initialize(context)`; (b) a feature-flag/settings toggle inside core (like everything shipped so far), delivered by file presence of its module; (c) hybrid — plugin owns schema+logic, core owns IPC+UI+mirroring. Consequence: (a) truly tests the plugin system but hits the context/UI gaps above; (b) is the proven pattern but does not test the add-on system the user wants to validate; (c) tests the system while staying shippable. Recommended: (c). Decide before implementation: yes — this is the whole point of the experiment.
+- **A2 — Should the plugin context be extended to include BackupManager (and a UI-registration hook)?** Options: (a) yes, extend context (a real core change enabling self-contained add-ons); (b) no, keep mirroring in `main-working.js`. Consequence: (a) is the investment that makes future add-ons self-contained; (b) keeps add-ons dependent on core edits. Recommended: decide alongside A1. This is a genuine core-architecture change and must be an explicit decision, not assumed.
+- **A3 — How is an add-on enabled/disabled/uninstalled, and what happens to its data?** Options: (a) folder present = enabled, remove folder = disabled but tables/data remain (safe, matches file-presence gating); (b) explicit enable/disable setting; (c) uninstall also drops tables (destructive). Consequence: base UI must degrade gracefully when the add-on is absent (buttons hidden, no broken IPC calls). Recommended: (a) — disabling hides UI and stops new writes but preserves data and audit trail; never auto-drop tables. Decide before implementation: yes.
+- **A4 — Licensing.** Use the EXISTING mechanism only (file presence; optional `licenseRequired: true` metadata; per-feature `.license` + `featureId` if global gating is later switched on). Do NOT invent a new licensing mechanism. `featureId` values proposed: `employees`, `deferred-expenses`.
+
+---
+
+### Employees Add-On (الموظفون / العمال) — SPECIFICATION REQUIRED
+
+Status: **SPECIFICATION REQUIRED**. Blocked on OPEN DECISIONS below. Purpose: track employees, their working days, sick days, vacation days, and weekly pay (paid weekly, typically Sunday). Also serves as the first real test of the add-on architecture.
+
+#### Employees — Facts, Requirements, Necessities
+
+- **FACT** — No employee/attendance/payroll concept exists anywhere in the repo today (no tables, IPC, or UI). Nearest financial precedent: expenses (wages `أجر صاحب الصندوق`, `أجر الفرناتشي` exist only as expense templates — free-text payroll today).
+- **USER** — Create employees to track them.
+- **USER** — Track working days, sick days, vacation days.
+- **USER** — Employees are usually paid weekly, every Sunday (weekly pay cycle anchored on Sunday).
+- **USER** — Explicitly an add-on and a test of the add-on system.
+- **NECESSARY** — An employee record with a stable id and a display name (needed to attach attendance and payments).
+- **NECESSARY** — Active/inactive flag (mirrors `categories.active`) so ex-employees stop appearing without deleting history.
+- **NECESSARY** — A day-level attendance record keyed by (employee, date) with a status among at least {worked, sick, vacation} — the three the user named. A per-day record is required to count working/sick/vacation days.
+- **NECESSARY** — A payment record (employee, pay period, amount, paid date) with history, because the user wants pay weeks tracked and payments are events distinct from attendance.
+- **NECESSARY** — A defined pay-week boundary because "every Sunday" only has meaning against a fixed week definition (see OPEN DECISION E4).
+- **NECESSARY** — Audit entries for create/update/delete of employees, attendance, and payments (existing `logAudit` convention).
+
+#### Employees — Data Model (proposed, only after rules)
+
+```sql
+CREATE TABLE IF NOT EXISTS employees (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  role TEXT,                         -- optional free text (e.g. فرناتشي); NOT a managed role system
+  active INTEGER DEFAULT 1,
+  notes TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS employee_attendance (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  employee_id INTEGER NOT NULL,
+  date TEXT NOT NULL,                -- YYYY-MM-DD
+  status TEXT NOT NULL,              -- 'worked' | 'sick' | 'vacation' (see E1)
+  note TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id)
+);
+
+CREATE TABLE IF NOT EXISTS employee_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  employee_id INTEGER NOT NULL,
+  period_start TEXT NOT NULL,        -- YYYY-MM-DD (week start)
+  period_end TEXT NOT NULL,          -- YYYY-MM-DD (week end / Sunday)
+  amount REAL NOT NULL,
+  paid_date TEXT NOT NULL,           -- YYYY-MM-DD actually paid
+  expense_id INTEGER,               -- set only if payment also posts an expense (see E5)
+  note TEXT,
+  date TEXT NOT NULL, time TEXT NOT NULL,
+  timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES employees(id),
+  FOREIGN KEY (expense_id) REFERENCES expenses(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_employee_attendance_date ON employee_attendance(date);
+CREATE INDEX IF NOT EXISTS idx_employee_payments_paid_date ON employee_payments(paid_date);
+-- Uniqueness of (employee_id, date) for attendance is enforced in the write layer (see E2).
+```
+
+#### Employees — Relationship between attendance and payment
+
+- **UNDEFINED / OPEN DECISION E3** — Whether the weekly `amount` is computed from attendance (e.g. worked-days × daily rate) or entered manually. The user did NOT state a rate, a salary, or that pay depends on attendance. Attendance and payment are therefore modeled as **independent records** unless the user decides otherwise. The amount is entered by the admin at payment time by default; any automatic computation is E3.
+
+#### Employees — Permissions
+
+- **FACT** — The app has exactly two levels: unauthenticated teller (header) and admin (password-gated dashboard).
+- **NECESSARY/RECOMMENDED** — Employee management (create/edit/deactivate, record payment) is **admin-only** (payments are money movements, consistent with collections/float being admin-only). Attendance entry placement is OPEN DECISION E6 (admin-only vs teller daily check-in).
+
+#### Employees — Audit / Backup / Excel / IPC / UI
+
+- **Audit**: `logAudit('CREATE'|'UPDATE'|'DELETE', 'employees'|'employee_attendance'|'employee_payments', id, details)`.
+- **Backup/Excel**: follow the mirror pattern — `backupManager.addEmployee/addAttendance/addPayment` (CSV/JSON/TXT + `updateHTML`) and ExcelManager Arabic RTL sheets (proposed `الموظفون`, `الحضور`, `أجور الموظفين`), included in `rebuildFromDatabase`. Wired in `main-working.js` unless A2 changes the context.
+- **IPC/API**: namespace `employees:` — e.g. `employees:list`, `employees:create`, `employees:update`, `employees:setActive`, `employees:setAttendance`, `employees:getAttendance`, `employees:recordPayment`, `employees:getPayments`, `employees:getWeekSummary`. Exposed as `api.employees.*`.
+- **UI placement**: an admin-dashboard button "👷 الموظفون" opening an employees modal/section (list + add/edit, weekly attendance grid, record-payment form, payment history). Follows the Float/admin pattern. `context.ui` is null, so UI is added into `hammampos.html` directly (see A1/A2).
+- **If add-on disabled/uninstalled**: the "الموظفون" button and IPC are absent; base app is unaffected; tables/data and audit remain (per A3). Base UI must not call employee IPC when the add-on is absent.
+
+#### Employees — Must NOT be invented
+
+Per the user: do NOT invent salaries, hourly/daily rates, overtime, deductions, bonuses, advances, Moroccan labor-law rules, CNSS, contracts, payroll taxes, or end-of-service. None exist in the repo or the user's statement. Each is an OPEN DECISION or UNDEFINED, never a silent requirement.
+
+#### Employees — OPEN PRODUCT DECISIONS
+
+- **E1 — Attendance status set.** User named worked/sick/vacation. Are those the only statuses, or also {absent (unexcused), holiday, half-day}? Options: (a) exactly the three named (recommended MVP); (b) add absent/holiday. Consequence: affects reporting and any attendance-based pay. Decide before implementation: yes.
+- **E2 — One record per employee per day?** Options: (a) yes, `setAttendance` upserts (recommended); (b) allow multiple. Consequence: (a) needs upsert + uniqueness enforcement. Decide: yes.
+- **E3 — Is weekly pay computed from attendance or entered manually?** Options: (a) manual amount entered at payment (recommended — no rate exists); (b) computed from a per-employee rate × worked days (requires inventing a rate → also E7). Consequence: (b) pulls in rate/salary which the user said not to invent. Decide: yes.
+- **E4 — Pay-week definition.** "Every Sunday" — is the week Mon–Sun paid on Sunday, or Sun–Sat, and is Sunday the period_end or the paid_date? Options: (a) week = Monday–Sunday, paid on/after the Sunday (recommended, matches "paid every Sunday"); (b) other boundary. Consequence: drives `period_start/period_end` and week grouping. Decide: yes.
+- **E5 — Does a payment post to `expenses` (and thus cash-in-hand)?** Options: (a) yes, create a linked `expenses` row (`expense_id`), consistent with wages being expenses today (recommended); (b) no, payments tracked only in `employee_payments`. Consequence: (a) keeps wages in the ledger/cash-in-hand and daily summary; (b) hides wages from cash-in-hand. **This also intersects Deferred Expenses** (a wage owed-but-unpaid is itself a deferred expense). Decide: yes.
+- **E6 — Who records attendance?** Options: (a) admin-only (recommended MVP); (b) teller daily check-in from the header. Consequence: teller access widens the surface but eases daily use. Decide: yes.
+- **E7 — Required employee fields beyond name.** Is `role`/phone/hire-date required or optional? Options: (a) name required, role/notes optional (recommended); (b) more required fields. Consequence: form + validation. Decide: yes.
+- **E8 — Partial weeks / mid-week hire or leave, and editing past attendance.** How far back can attendance be edited, and by whom? Options: (a) admin may edit any date, audited (recommended); (b) lock past weeks once paid. Decide: yes.
+
+#### Employees — Acceptance Criteria (implementation-ready, testable)
+
+1. Creating an employee persists a row and a CREATE audit entry; survives restart.
+2. Deactivating an employee hides them from active lists but preserves attendance/payment history.
+3. Setting attendance for (employee, date) with status worked/sick/vacation persists exactly one record per day (upsert per E2) and is audited.
+4. A week summary returns correct counts of worked/sick/vacation days for the defined pay week (E4).
+5. Recording a payment persists period_start/period_end/amount/paid_date and appears in payment history newest-first.
+6. If E5=(a): the payment inserts a linked `expenses` row, appears in the daily ledger, and reduces cash-in-hand exactly once; if E5=(b): cash-in-hand is unaffected and no expense is created.
+7. Employee/attendance/payment records are mirrored to BackupManager and ExcelManager; `rebuildFromDatabase` reconstructs them.
+8. `clearAllData()` clears employee tables (guarded) and logs the clear.
+9. Employee management actions are reachable only after admin-password verification (attendance per E6).
+10. With the add-on folder absent, the base app runs unchanged, exposes no employee UI, and makes no employee IPC calls.
+
+---
+
+### Unpaid / Deferred Expenses Add-On (المصاريف المؤجلة) — SPECIFICATION REQUIRED
+
+Status: **SPECIFICATION REQUIRED**. Blocked on OPEN DECISIONS below. Purpose: let an expense be recorded (the obligation exists) without reducing cash-in-hand until it is actually paid, while still tracking it as an outstanding obligation. The user wants to determine if this solves a real operational problem or is unnecessary complexity.
+
+#### Deferred Expenses — Current behavior (FACTS to change)
+
+- **FACT** — `StorageManager.addExpense(description, amount)` writes to `expenses(description, amount, date, time, timestamp)` immediately. There is no payment status and no payment date; **date = the day it was entered = treated as paid**.
+- **FACT** — `getCashInHand() = SUM(tickets.price) − SUM(expenses.amount) − SUM(collections.amount)`. **Every expense reduces cash-in-hand the instant it is created.**
+- **FACT** — `getDailySummariesWithDetails()` groups `expenses` by `date` and feeds the per-day amounts shown in the admin Money-Collection modal (revenue − expenses per day). So expenses also affect what appears collectible per day.
+- **FACT** — The expense modal ("إضافة مصروف") is a **teller-facing header button** (not admin-gated) with types template/custom/wood. There is **no** same-day checkbox or payment-date field today.
+- **FACT** — Deletions are admin-only and audited; deleted rows are kept in backups for the audit trail. There is no "edit expense" path today.
+
+#### Deferred Expenses — State model (the core of this feature)
+
+The user's requirement is operational accuracy: distinguish **"we owe this"** from **"we already paid this."** The minimum model separates the following states for a single expense:
+
+1. **Incurred / obligation created** — the expense is entered; description + amount + the date it was incurred are recorded. This does NOT necessarily mean cash left.
+2. **Unpaid (outstanding)** — obligation exists, `paid = 0`, no cash movement yet. Must NOT reduce cash-in-hand. Must appear in an "outstanding obligations" view and in expense reporting as incurred-but-unpaid.
+3. **Paid** — `paid = 1` with a `paid_date`; at this moment (and only this moment) the amount reduces cash-in-hand.
+4. **Cash actually leaving the business** — equals the sum of PAID expenses (plus collections). This is what cash-in-hand and the "money actually paid out" review must reflect.
+
+Minimum fields required to represent this (added to expenses via the add-on; ownership per DX8):
+- `paid` (INTEGER 0/1, default 1 for backward compatibility — existing rows are paid).
+- `paid_date` (TEXT YYYY-MM-DD, nullable; set when paid).
+- `due_date` (TEXT YYYY-MM-DD, nullable; the intended future payment date, optional).
+- `same_day` (INTEGER 0/1) — the teller's at-entry decision that this was paid the same day; immutable by the teller (see immutability analysis).
+
+Distinctions the model MUST preserve (and must NOT collapse):
+- **expense/invoice date ≠ payment date.** `date` (incurred) is independent of `paid_date`.
+- **amount in expense reporting** = all incurred expenses (paid + unpaid), so the owner sees total obligations.
+- **amount affecting cash-in-hand** = only PAID expenses. This requires changing `getCashInHand()` and the daily-summary/collection amounts to subtract only `WHERE paid = 1` (see DX1 for exactly which surfaces change).
+- **outstanding obligations** = `SUM(amount) WHERE paid = 0`, shown separately.
+
+#### Deferred Expenses — Worked example (user's plumber scenario)
+
+- **Day 1** — Plumber starts; expense incurred (`date = Day1`, `amount`, `paid = 0`, `due_date` optional). Hammam stays open. Cash-in-hand is **unchanged** (unpaid). The obligation shows in the outstanding list.
+- **Day 2** — Plumber still working, still unpaid. State unchanged: `paid = 0`, cash-in-hand still unchanged. It is one obligation, not two (no double counting).
+- **Payment day** — Admin marks it paid: `paid = 1`, `paid_date = payment day`. **Now** cash-in-hand decreases by `amount`; the obligation moves from outstanding to paid; expense reporting still shows the original incurred date, and the cash movement is dated `paid_date`.
+
+Same-day path: if the teller checks "نفس اليوم / Same Day" at entry, the expense is created `paid = 1`, `paid_date = date`, `same_day = 1` — identical to today's behavior, immediately reducing cash-in-hand.
+
+#### Deferred Expenses — Immutability analysis (teller cannot change the same-day decision)
+
+- **USER** — After entry, the teller must NOT be able to modify the same-day/paid decision.
+- **NECESSARY** — Since expenses are teller-created and there is no edit path today, the add-on must treat `same_day`/`paid` as **immutable at the teller level** once written. The teller UI provides no control to flip it.
+- **NECESSARY (admin correction without destroying the audit trail)** — An authorized admin may need to correct a mistake (e.g. marked paid by error). This must be **non-destructive**: do NOT silently overwrite. Options for the mechanism are DX4; the recommended approach is an audited state transition — admin action writes `paid`/`paid_date` change AND a full `logAudit('UPDATE', 'expenses', id, 'marked paid: <before>→<after> by admin')`, preserving the original incurred record. Marking an unpaid expense as paid (the normal happy path) is itself an admin state transition, always audited. Reversing a payment (paid→unpaid) is the sensitive correction and must be admin-only + audited (DX4).
+
+#### Deferred Expenses — Permissions, Audit, Backup/Excel, IPC, UI
+
+- **Permissions**: teller may CREATE an expense (paid or deferred) — matches today's teller-facing modal. Marking an outstanding expense as **paid** is a money movement → **admin-only** (recommended, consistent with collections/float). Reversing a payment → admin-only + audited.
+- **Audit**: creation logs CREATE as today; each pay/unpay transition logs UPDATE with before→after and actor.
+- **Backup/Excel**: the new expense fields (`paid`, `paid_date`, `due_date`, `same_day`) must be added to the existing expenses CSV/JSON/TXT columns and the ExpensesExcel sheet, and honored by `rebuildFromDatabase`. A dedicated "outstanding/deferred" view may be added to `summary.html`.
+- **IPC/API**: extend the expenses surface — e.g. `expenses:addDeferred` (or extend `storage:addExpense` with paid/due params), `expenses:markPaid`, `expenses:getOutstanding`, `expenses:reversePayment` (admin). Exposed as `api.storage.*` / `api.expenses.*`.
+- **UI**:
+  - Expense modal gains a "نفس اليوم" (Same Day) checkbox (default checked = paid today) and, when unchecked, an optional payment/due date field.
+  - Admin dashboard gains an "outstanding expenses" list with a per-item "تم الدفع اليوم / Mark Paid Today" action (sets `paid=1`, `paid_date=today`).
+  - Cash-in-hand and the Money-Collection day amounts reflect only paid expenses (DX1).
+- **If add-on disabled/uninstalled**: base behavior must remain correct. Because existing rows default `paid=1`, cash-in-hand math is unchanged when the add-on is off. If the add-on is removed while unpaid rows exist, those rows are `paid=0` and would be excluded from cash-in-hand by core only if the core query was changed — hence DX8 (who owns the schema/query change) is pivotal: a pure plugin cannot alter core `getCashInHand()`.
+
+#### Deferred Expenses — Must NOT be invented
+
+Do NOT invent: accrual accounting, accounts-payable ledgers, supplier credit terms, partial payments, interest, aging buckets beyond a simple outstanding list, or multi-installment schedules — unless the user asks. Partial payment in particular is UNDEFINED (see DX5).
+
+#### Deferred Expenses — OPEN PRODUCT DECISIONS
+
+- **DX1 — Which surfaces must exclude unpaid expenses?** At minimum `getCashInHand()`. Also the Money-Collection per-day amounts and the daily-summary "expenses" column? Options: (a) cash-in-hand counts only paid; daily-summary shows incurred (reporting truth) but collection amounts use paid (recommended); (b) everything uses paid; (c) everything uses incurred (defeats the purpose). Consequence: determines exactly which queries change. Decide: yes (this is the crux).
+- **DX2 — What date drives the cash movement and the day it is "collected"?** When an expense is paid later, does it reduce the box on `paid_date` (recommended) or retroactively on the incurred `date`? Consequence: retroactive changes historical days and collection amounts. Decide: yes.
+- **DX3 — Default of the Same Day checkbox.** Options: (a) checked/paid by default (recommended — preserves current behavior and avoids accidental deferrals); (b) unchecked. Decide: yes.
+- **DX4 — Admin correction mechanism for a wrong same-day/paid decision.** Options: (a) audited state transition that flips `paid`/`paid_date` in place with a mandatory audit note (recommended, non-destructive because the row and its history remain); (b) reversing entry (a compensating record); (c) no reversal allowed. Consequence: (a) is simplest and keeps one row; (b) is more ledger-pure but adds records. Decide: yes.
+- **DX5 — Partial payments.** Can an obligation be paid partially? Options: (a) no — paid is all-or-nothing (recommended MVP); (b) yes — needs paid_amount and a payments child table. Consequence: (b) is materially more complex. Decide: yes.
+- **DX6 — Backdating / due dates in the past, and reminders.** Is a `due_date` merely informational, or does the system prompt when it arrives ("mark Paid Today")? Options: (a) informational + an outstanding list the admin reviews (recommended MVP); (b) active reminders/notifications. Decide: yes.
+- **DX7 — Do deferred wages (Employees E5) use this same mechanism?** A wage owed-but-unpaid is a deferred expense. Options: (a) yes, unify — employee payment marks a deferred expense paid (recommended if both ship); (b) keep separate. Consequence: unification avoids two parallel "owed vs paid" models. Decide: yes (cross-feature).
+- **DX8 — Schema/query ownership (core vs plugin).** Because `getCashInHand()`, the daily-summary query, `clearAllData()`, and Backup/Excel mirroring are all in core, the deferred-expense fields and query changes **cannot be delivered by a pure plugin**. Options: (a) implement as core changes gated by a setting/file-presence (recommended, and the honest answer to "is this a real add-on"); (b) extend the plugin context so a plugin can override financial queries (large core change). Consequence: this feature, more than Employees, proves the add-on system's limits. Decide: yes.
+
+#### Deferred Expenses — Acceptance Criteria (implementation-ready, testable)
+
+1. Existing expenses (pre-migration) are treated as paid (`paid = 1`); cash-in-hand is byte-for-byte unchanged versus current behavior when no deferred expenses exist.
+2. Creating a same-day expense (checkbox on) sets `paid=1, paid_date=date, same_day=1` and reduces cash-in-hand immediately, exactly as today.
+3. Creating a deferred expense (checkbox off) sets `paid=0`, does NOT reduce cash-in-hand, and appears in the outstanding list.
+4. Marking a deferred expense paid (admin) sets `paid=1, paid_date=today` and reduces cash-in-hand by exactly the amount, once.
+5. Outstanding total = `SUM(amount) WHERE paid=0`, shown separately from cash-in-hand.
+6. Expense reporting shows incurred expenses (paid + unpaid) with their incurred date; cash-in-hand and collection amounts reflect only paid (per DX1/DX2).
+7. The teller has no control to change `same_day`/`paid` after entry; attempting it is impossible in the teller UI.
+8. An admin correction of a paid/unpaid decision writes an `audit_log` UPDATE with before→after and actor, and never deletes the original row (per DX4).
+9. New expense fields are mirrored to BackupManager and ExcelManager and reconstructed by `rebuildFromDatabase`.
+10. The plumber scenario reproduces exactly: unchanged cash-in-hand on Day 1–2, and a single amount reduction on the payment day.
+11. With the deferred-expense capability disabled, all existing expense flows and cash-in-hand math are unchanged.
+
+---
+
+### Add-Ons — Decisions Required Before Implementation (summary)
+
+Must be answered by the user first:
+- **A1** (what "add-on" means) and **A2** (extend plugin context / UI hook) — gate BOTH features and are the architecture experiment itself.
+- **A3** (enable/disable/uninstall + data retention), **A4** (licensing = existing only).
+- Employees: **E1** statuses, **E3** manual vs computed pay, **E4** pay-week definition, **E5** payment→expense coupling, **E6** who records attendance.
+- Deferred Expenses: **DX1** which surfaces exclude unpaid (crux), **DX2** cash-movement date, **DX4** admin-correction mechanism, **DX8** core-vs-plugin ownership.
+- Cross-feature: **DX7 / E5** — whether deferred wages reuse the deferred-expense mechanism.
+
+### Add-Ons — Recommended Implementation Order
+
+1. **Resolve A1–A4 first** (the add-on architecture decision). Everything else depends on it.
+2. **Deferred Expenses before Employees.** Rationale: it is smaller, touches the already-understood expense/cash-in-hand core, directly answers the user's "is this useful or just complexity" question, and (via DX7/E5) provides the "owed vs paid" primitive that employee wage payments can reuse. It also most sharply tests whether the add-on system can support a core-touching feature (DX8).
+3. **Employees second**, reusing the deferred mechanism for unpaid wages if DX7=(a).
+
+### Add-Ons — Files That Would Eventually Change (planning only — nothing changed now)
+
+Employees (assuming hybrid A1=(c)):
+- New: `src/plugins/features/employees/` (`plugin.json`, `main.js`, `database/`, `services/`).
+- `src/services/StorageManager.js` — employee tables (or plugin-owned per DX8), `clearAllData()` guard.
+- `src/services/BackupManager.js` — `addEmployee/addAttendance/addPayment` + `rebuildFromDatabase`.
+- `src/services/ExcelManager.js` — `الموظفون`/`الحضور`/`أجور الموظفين` sheets + `rebuildFromDatabase`.
+- `src/main/main-working.js` — `employees:*` IPC + mirroring wiring.
+- `src/renderer/hammampos.html` — admin "الموظفون" button, modals, `api.employees.*`.
+
+Deferred Expenses:
+- `src/services/StorageManager.js` — add `paid`/`paid_date`/`due_date`/`same_day` to `expenses`; migration defaulting existing rows to paid; update `getCashInHand()` and `getDailySummariesWithDetails()` (per DX1/DX2); `markExpensePaid`/`getOutstandingExpenses`/`reverseExpensePayment`.
+- `src/services/BackupManager.js` and `ExcelManager.js` — new expense columns + `rebuildFromDatabase`.
+- `src/main/main-working.js` — `expenses:markPaid`/`getOutstanding`/`reversePayment` IPC (+ extend addExpense params) and mirroring.
+- `src/renderer/hammampos.html` — Same Day checkbox + optional date in expense modal; admin outstanding-expenses list with Mark-Paid; cash-in-hand/collection displays honoring paid-only.
+
+### Add-Ons — Can the current architecture support these without core changes?
+
+- **No, not fully.** Both features need renderer UI and, for Deferred Expenses, changes to core financial queries (`getCashInHand`, daily summary) and Backup/Excel — none reachable from the current plugin context (no BackupManager, `ui: null`, no IPC/UI registration hook). Employees could keep its data/logic in a plugin but still needs core edits for UI, IPC, and mirroring.
+- **Therefore the realistic delivery is the hybrid (A1=c):** plugin owns schema + business logic where possible; core is edited for IPC, renderer UI, and Backup/Excel mirroring. If the user wants truly self-contained add-ons in future, that requires the deliberate core investment in A2 (extend context + a UI-registration mechanism). This is the concrete outcome the two-feature experiment was designed to surface.
+
+#### Implementation Readiness
+
+- Specifications: COMPLETE for both add-ons.
+- Blocking: shared A1–A4 (architecture) plus per-feature decisions above. No source code, schema, version bump, or release was produced by this task.
