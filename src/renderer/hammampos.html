@@ -4569,7 +4569,7 @@
                     dayItem.dataset.date = day.date;
                     
                     dayItem.innerHTML = `
-                        <input type="checkbox" id="day-${index}" onchange="toggleDaySelection('${day.date}')">
+                        <input type="checkbox" id="day-${index}" onchange="setDaySelection('${day.date}', this.checked)">
                         <div class="day-item-content">
                             <div>
                                 <div class="day-item-date">${displayDate}</div>
@@ -4596,23 +4596,25 @@
             }
         }
 
-        function toggleDaySelection(date) {
-            if (selectedDays.has(date)) {
-                selectedDays.delete(date);
-            } else {
+        // Source of truth: the checkbox's actual checked state drives selectedDays.
+        // Checked -> the date is selected; unchecked -> it is removed. This keeps the
+        // visible checkbox, the selectedDays set, and the total always in agreement.
+        function setDaySelection(date, isChecked) {
+            if (isChecked) {
                 selectedDays.add(date);
+            } else {
+                selectedDays.delete(date);
             }
-            
-            // Update visual selection
+
             const dayItem = document.querySelector(`[data-date="${date}"]`);
             if (dayItem) {
-                if (selectedDays.has(date)) {
+                if (isChecked) {
                     dayItem.classList.add('selected');
                 } else {
                     dayItem.classList.remove('selected');
                 }
             }
-            
+
             updateCollectionTotals();
         }
 
