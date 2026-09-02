@@ -1,11 +1,89 @@
 {
   "name": "hammampos-desktop",
-  "version": "2.8.9",
+  "version": "2.8.10",
   "description": "HammamPOS Desktop - Professional Point-of-Sale system for Moroccan hammams",
   "main": "src/main/main-working.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:installer": "npm run build:win && build-installer.bat",
+    "dist": "npm run build:installer",
+    "pack": "electron-builder --dir",
+    "test": "node tests/run-base.js"
+  },
+  "keywords": [
+    "pos",
+    "hammam",
+    "point-of-sale",
+    "morocco",
+    "thermal-printer",
+    "professional",
+    "premium"
+  ],
   "author": "Ali Jaouhari",
   "license": "Proprietary",
   "homepage": "https://hammampos.com",
+  "build": {
+    "appId": "com.hammampos.desktop",
+    "productName": "HammamPOS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "data/**/*",
+      "!data/hammampos.db",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "data",
+        "to": "data",
+        "filter": [
+          "**/*",
+          "!hammampos.db"
+        ]
+      },
+      {
+        "from": "src/services/raw-print.ps1",
+        "to": "raw-print.ps1"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator",
+      "signAndEditExecutable": false,
+      "signingHashAlgorithms": []
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "HammamPOS"
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.13.3"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
     "bcryptjs": "^3.0.3",

@@ -2073,7 +2073,10 @@
                 getExpensesForDate: (date) => ipcRenderer.invoke('storage:getExpensesForDate', date),
                 getExpenses: (startDate, endDate) => ipcRenderer.invoke('storage:getExpenses', startDate, endDate),
                 collectMoney: (amount, notes) => ipcRenderer.invoke('storage:collectMoney', amount, notes),
+                collectMoneyForDays: (amount, notes, days) => ipcRenderer.invoke('storage:collectMoneyForDays', amount, notes, days),
                 getCollections: (startDate, endDate) => ipcRenderer.invoke('storage:getCollections', startDate, endDate),
+                getCollectedDays: () => ipcRenderer.invoke('storage:getCollectedDays'),
+                getCollectionDays: (collectionId) => ipcRenderer.invoke('storage:getCollectionDays', collectionId),
                 addCategory: (name, price) => ipcRenderer.invoke('storage:addCategory', name, price),
                 updateCategory: (id, name, price) => ipcRenderer.invoke('storage:updateCategory', id, name, price),
                 toggleCategory: (id, active) => ipcRenderer.invoke('storage:toggleCategory', id, active),
@@ -4537,11 +4540,17 @@
                 
                 // Get daily summaries for last 30 days
                 const summaries = await api.storage.getDailySummariesWithDetails(30);
-                
+
+                // Get the set of days already collected (persisted in the database).
+                // A day is available only if it has NOT already been collected.
+                const collectedDays = await api.storage.getCollectedDays();
+                const collectedSet = new Set(collectedDays || []);
+
                 // Filter days that have positive net revenue (revenue > expenses)
+                // AND have not already been collected.
                 uncollectedDaysData = summaries.filter(day => {
                     const netAmount = (day.revenue || 0) - (day.expenses || 0);
-                    return netAmount > 0;
+                    return netAmount > 0 && !collectedSet.has(day.date);
                 });
                 
                 if (uncollectedDaysData.length === 0) {
@@ -4775,8 +4784,9 @@
                 const notes = document.getElementById('collection-notes').value.trim() || 
                     `تحصيل ${selectedDaysArray.length} أيام: ${selectedDaysArray.join(', ')}`;
                 
-                // Add collection to database
-                await api.storage.collectMoney(totalAmount, notes);
+                // Add collection to database, persisting the exact selected days
+                // so they are excluded from future available-days lists.
+                await api.storage.collectMoneyForDays(totalAmount, notes, selectedDaysArray);
                 
                 // Show success feedback
                 showToast(`تم تحصيل ${totalAmount} درهم من الصندوق (${selectedDaysArray.length} أيام)`, 'success');
@@ -5055,6 +5065,8 @@
 
                 collections.forEach(collection => {
                     const row = document.createElement('tr');
+                    row.style.cursor = 'pointer';
+                    row.title = 'اضغط لعرض الأيام المحصّلة';
                     const date = new Date(collection.timestamp).toLocaleDateString('ar-MA');
                     const time = collection.time || new Date(collection.timestamp).toLocaleTimeString('ar-MA', { 
                         hour: '2-digit', 
@@ -5066,8 +5078,10 @@
                         <td>${time}</td>
                         <td style="color: #dc2626; font-weight: 600;">${collection.amount} درهم</td>
                         <td>${collection.notes || '-'}</td>
-                        <td><button class="delete-btn" onclick="deleteCollection(${collection.id})">حذف</button></td>
+                        <td><button class="delete-btn" onclick="event.stopPropagation(); deleteCollection(${collection.id})">حذف</button></td>
                     `;
+                    // Clicking the row (except the delete button) shows the days included in this collection.
+                    row.addEventListener('click', () => showCollectionDetails(collection.id, collection.amount, date, time, collection.notes || ''));
                     tbody.appendChild(row);
                 });
 
@@ -5080,6 +5094,59 @@
                 console.log(`Loaded ${collections.length} collections`);
             } catch (error) {
                 console.error('Failed to load admin collections:', error);
+            }
+        }
+
+        // Show the days included in a specific collection (Part E).
+        // Reuses the existing .modal / .modal-content Arabic UI style.
+        async function showCollectionDetails(collectionId, amount, date, time, notes) {
+            try {
+                const days = await api.storage.getCollectionDays(collectionId);
+
+                let daysHtml;
+                if (days && days.length > 0) {
+                    const items = days.map(d => {
+                        let disp = d;
+                        try { disp = new Date(d).toLocaleDateString('ar-MA'); } catch (_) {}
+                        return `<li style="padding: 0.35rem 0; border-bottom: 1px solid #e5e7eb;">${disp}</li>`;
+                    }).join('');
+                    daysHtml = `<ul style="list-style: none; padding: 0; margin: 0;">${items}</ul>`;
+                } else {
+                    daysHtml = '<p style="color: #6b7280;">لا توجد أيام مسجّلة لهذه العملية (عملية قديمة قبل تفعيل تتبّع الأيام).</p>';
+                }
+
+                let modal = document.getElementById('collection-details-modal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'collection-details-modal';
+                    modal.className = 'modal';
+                    document.body.appendChild(modal);
+                }
+                modal.innerHTML = `
+                    <div class="modal-content category-modal-content">
+                        <h3>💰 تفاصيل عملية التحصيل</h3>
+                        <div style="background: #f3f4f6; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+                            <div><strong>التاريخ:</strong> ${date}</div>
+                            <div><strong>الوقت:</strong> ${time}</div>
+                            <div><strong>المبلغ:</strong> <span style="color: #dc2626; font-weight: 700;">${amount} درهم</span></div>
+                            <div><strong>الملاحظات:</strong> ${notes || '-'}</div>
+                        </div>
+                        <div class="category-section">
+                            <h4>الأيام المحصّلة</h4>
+                            ${daysHtml}
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="collection-details-close">إغلاق</button>
+                        </div>
+                    </div>
+                `;
+                modal.classList.remove('hidden');
+                document.getElementById('collection-details-close').onclick = () => {
+                    modal.classList.add('hidden');
+                };
+            } catch (error) {
+                console.error('Failed to load collection details:', error);
+                showToast('خطأ في تحميل تفاصيل التحصيل', 'error');
             }
         }
 

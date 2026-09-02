@@ -135,6 +135,14 @@ function createWindow() {
   // Debug events
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('HammamPOS page loaded');
+    // Readability: the app pins the whole renderer to device-scale-factor=1
+    // (required for 1:1 thermal-printer bitmaps). On high-DPI Windows displays
+    // that makes the entire UI render at 100% and appear small. Compensate by
+    // zooming the MAIN window only. This does NOT affect thermal printing, which
+    // renders in its own separate hidden BrowserWindow (see PrintManager).
+    try {
+      mainWindow.webContents.setZoomFactor(1.25);
+    } catch (_) {}
     // Signal successful startup for the updater handshake
     if (updateManager) {
       updateManager.signalStartupSuccess();
@@ -584,8 +592,47 @@ ipcMain.handle('storage:collectMoney', async (event, amount, notes) => {
   return id;
 });
 
+// Collect money for a specific set of days (persists day associations atomically)
+ipcMain.handle('storage:collectMoneyForDays', async (event, amount, notes, days) => {
+  const result = storage.collectMoneyForDays(amount, notes, days);
+  const collection = { id: result.id, amount: result.amount, notes: result.notes, date: result.date, time: result.time };
+
+  // Add to backup files (mirror pattern, best-effort — must not fail the DB write)
+  if (backupManager) {
+    try {
+      await backupManager.addCollection(collection);
+      console.log('✅ Collection added to backups successfully');
+    } catch (error) {
+      console.error('❌ Failed to add collection to backups:', error);
+    }
+  }
+
+  // Add to Excel (best-effort)
+  if (excelManager) {
+    try {
+      await excelManager.addCollection(collection);
+      console.log('✅ Collection added to Excel successfully');
+    } catch (error) {
+      console.error('❌ Failed to add collection to Excel:', error);
+    }
+  }
+
+  // Sync to cloud (non-blocking)
+  if (cloudSync) cloudSync.syncCollection(collection).catch(() => {});
+
+  return result;
+});
+
 ipcMain.handle('storage:getCollections', (event, startDate, endDate) => {
   return storage.getCollections(startDate, endDate);
+});
+
+ipcMain.handle('storage:getCollectedDays', () => {
+  return storage.getCollectedDays();
+});
+
+ipcMain.handle('storage:getCollectionDays', (event, collectionId) => {
+  return storage.getCollectionDays(collectionId);
 });
 
 // Day status operations

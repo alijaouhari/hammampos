@@ -122,6 +122,16 @@ class StorageManager {
       time TEXT NOT NULL, notes TEXT, timestamp TEXT DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // Days included in a money collection. A collection can cover multiple days;
+    // a day that appears here has already been collected and must not be offered again.
+    this.db.run(`CREATE TABLE IF NOT EXISTS collection_days (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      collection_id INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (collection_id) REFERENCES collections(id)
+    )`);
+
     this.db.run(`CREATE TABLE IF NOT EXISTS daily_summary (
       id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL UNIQUE,
       total_tickets INTEGER NOT NULL, total_revenue REAL NOT NULL, total_expenses REAL NOT NULL,
@@ -174,6 +184,8 @@ class StorageManager {
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_year ON tickets(year)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_collections_date ON collections(date)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_collection_days_date ON collection_days(date)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_collection_days_collection ON collection_days(collection_id)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_change_float_date ON change_float(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)`);
   }
@@ -460,6 +472,75 @@ class StorageManager {
     this.logAudit('CREATE', 'collections', id, `${amount}dh`);
     this.save();
     return id;
+  }
+
+  /**
+   * Collect money for a specific set of days, persisting the day associations
+   * atomically with the collection. The collection row and its collection_days
+   * rows are written together; nothing is persisted to disk (save()) unless all
+   * inserts succeed. On failure the in-memory rows are rolled back and the error
+   * is rethrown, so no partial collection is ever recorded.
+   * @param {number} amount
+   * @param {string} notes
+   * @param {string[]} days - array of 'YYYY-MM-DD' dates included in this collection
+   * @returns {{id:number, amount:number, notes:string, date:string, time:string, days:string[]}}
+   */
+  collectMoneyForDays(amount, notes = '', days = []) {
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const time = now.toTimeString().split(' ')[0];
+
+    // Normalize + de-duplicate the incoming days; ignore empties.
+    const uniqueDays = Array.from(new Set((days || [])
+      .map(d => (d == null ? '' : String(d).trim()))
+      .filter(d => d.length > 0)));
+
+    let id = null;
+    try {
+      this.db.run('INSERT INTO collections (amount, date, time, notes) VALUES (?, ?, ?, ?)',
+        [amount, date, time, notes || '']);
+      id = this.db.exec('SELECT last_insert_rowid()')[0].values[0][0];
+
+      for (const d of uniqueDays) {
+        this.db.run('INSERT INTO collection_days (collection_id, date) VALUES (?, ?)', [id, d]);
+      }
+
+      this.logAudit('CREATE', 'collections', id, `${amount}dh (${uniqueDays.length} days: ${uniqueDays.join(', ')})`);
+      this.save();
+    } catch (error) {
+      // Roll back in-memory rows so no partial collection remains, then rethrow.
+      try {
+        if (id !== null) {
+          this.db.run('DELETE FROM collection_days WHERE collection_id = ?', [id]);
+          this.db.run('DELETE FROM collections WHERE id = ?', [id]);
+        }
+      } catch (_) {}
+      throw error;
+    }
+
+    return { id, amount, notes: notes || '', date, time, days: uniqueDays };
+  }
+
+  /**
+   * Return the set of dates that have already been collected (persisted in
+   * collection_days). Used to exclude already-collected days from availability.
+   * @returns {string[]} distinct collected dates
+   */
+  getCollectedDays() {
+    const result = this.db.exec('SELECT DISTINCT date FROM collection_days ORDER BY date');
+    if (!result[0]) return [];
+    return result[0].values.map(row => row[0]);
+  }
+
+  /**
+   * Return the days included in a specific collection.
+   * @param {number} collectionId
+   * @returns {string[]} dates for that collection (empty for legacy collections)
+   */
+  getCollectionDays(collectionId) {
+    const result = this.db.exec('SELECT date FROM collection_days WHERE collection_id = ? ORDER BY date', [collectionId]);
+    if (!result[0]) return [];
+    return result[0].values.map(row => row[0]);
   }
 
   getCollections(startDate = null, endDate = null) {
@@ -815,8 +896,10 @@ class StorageManager {
     const collection = {};
     cols.forEach((col, i) => collection[col] = row[i]);
     
-    // Delete the collection
+    // Delete the collection and its day associations (so those days become
+    // available again). Guarded in case the table does not exist on older installs.
     this.db.run('DELETE FROM collections WHERE id = ?', [collectionId]);
+    try { this.db.run('DELETE FROM collection_days WHERE collection_id = ?', [collectionId]); } catch (_) {}
     
     // Log the deletion
     this.logAudit('DELETE', 'collections', collectionId, `${collection.amount}dh - ${collection.notes || 'No notes'}`);
@@ -843,6 +926,7 @@ class StorageManager {
       this.db.run('DELETE FROM tickets');
       this.db.run('DELETE FROM expenses');
       this.db.run('DELETE FROM collections');
+      try { this.db.run('DELETE FROM collection_days'); } catch (_) {} // Table may not exist on older installs
       this.db.run('DELETE FROM daily_summary');
       this.db.run('DELETE FROM change_float'); // reset teller change float to 0
       try { this.db.run('DELETE FROM wood_purchases'); } catch (_) {} // Table may not exist on fresh installs
