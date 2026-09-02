@@ -94,9 +94,9 @@ class StorageManager {
     ];
     
     defaultSettings.forEach(([key, value]) => {
-      const existing = this.db.exec(`SELECT value FROM settings WHERE key = '${key}'`);
+      const existing = this.db.exec('SELECT value FROM settings WHERE key = ?', [key]);
       if (existing.length === 0 || existing[0].values.length === 0) {
-        this.db.run(`INSERT INTO settings (key, value) VALUES ('${key}', '${value}')`);
+        this.db.run('INSERT INTO settings (key, value) VALUES (?, ?)', [key, value]);
       }
     });
 
@@ -182,7 +182,7 @@ class StorageManager {
    * Settings Management
    */
   getSetting(key, defaultValue = null) {
-    const result = this.db.exec(`SELECT value FROM settings WHERE key = '${key}'`);
+    const result = this.db.exec('SELECT value FROM settings WHERE key = ?', [key]);
     if (result.length > 0 && result[0].values.length > 0) {
       return result[0].values[0][0];
     }
@@ -190,7 +190,7 @@ class StorageManager {
   }
 
   setSetting(key, value) {
-    this.db.run(`INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('${key}', '${value}', datetime('now'))`);
+    this.db.run("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))", [key, value]);
     this.save();
   }
 
@@ -255,7 +255,7 @@ class StorageManager {
       cols.forEach((col, i) => obj[col] = row[i]);
       
       // Get today's count for this category
-      const countResult = this.db.exec(`SELECT COUNT(*) as count FROM tickets WHERE category_id = ${obj.id} AND date = '${today}'`);
+      const countResult = this.db.exec('SELECT COUNT(*) as count FROM tickets WHERE category_id = ? AND date = ?', [obj.id, today]);
       obj.today_count = countResult[0]?.values[0]?.[0] || 0;
       
       return obj;
@@ -359,9 +359,9 @@ class StorageManager {
     const result = this.db.exec(`
       SELECT id, serial_number, year, category_name, price, time, timestamp
       FROM tickets 
-      WHERE date = '${date}' 
+      WHERE date = ? 
       ORDER BY time ASC
-    `);
+    `, [date]);
     
     const tickets = [];
     if (result.length > 0) {
@@ -422,9 +422,9 @@ class StorageManager {
     const result = this.db.exec(`
       SELECT id, description, amount, time, timestamp
       FROM expenses 
-      WHERE date = '${date}' 
+      WHERE date = ? 
       ORDER BY time ASC
-    `);
+    `, [date]);
     
     const expenses = [];
     if (result.length > 0) {
@@ -566,15 +566,24 @@ class StorageManager {
       if (allDates.length >= limit) break;
     }
     
-    // Build a VALUES clause for all dates
-    const datesValues = allDates.map(d => `SELECT '${d}' as date`).join(' UNION ALL ');
-    
-    // Build dynamic CASE statements for each category
-    const categoryCases = categoryNames.map(name => 
-      `COALESCE(SUM(CASE WHEN t.category_name = '${name}' THEN 1 ELSE 0 END), 0) as "${name}"`
+    // Build a VALUES clause for all dates using bound parameters (one '?' per date).
+    // Dates are internally generated, but parameterized for consistency and safety.
+    const datesValues = allDates.map(() => 'SELECT ? as date').join(' UNION ALL ');
+
+    // Build dynamic CASE statements for each category.
+    // - The compared category_name is a bound VALUE parameter ('?').
+    // - The output column ALIAS is a SQL identifier (cannot be a parameter), so it is
+    //   safely double-quoted with any embedded double-quote escaped ("" per SQLite rules).
+    const quoteIdent = (name) => '"' + String(name).replace(/"/g, '""') + '"';
+    const categoryCases = categoryNames.map(name =>
+      `COALESCE(SUM(CASE WHEN t.category_name = ? THEN 1 ELSE 0 END), 0) as ${quoteIdent(name)}`
     ).join(', ');
-    
+
+    // Parameter order MUST match placeholder order in the SQL text below:
+    // the category CASE '?' placeholders appear in the SELECT (before FROM),
+    // followed by the date '?' placeholders in the FROM subquery.
     let query;
+    let params;
     if (categoryNames.length > 0) {
       query = `
         SELECT 
@@ -595,6 +604,7 @@ class StorageManager {
         GROUP BY d.date 
         ORDER BY d.date DESC
       `;
+      params = [...categoryNames, ...allDates];
     } else {
       query = `
         SELECT 
@@ -614,9 +624,10 @@ class StorageManager {
         GROUP BY d.date 
         ORDER BY d.date DESC
       `;
+      params = [...allDates];
     }
     
-    const result = this.db.exec(query);
+    const result = this.db.exec(query, params);
     
     const summaries = [];
     if (result.length > 0 && result[0].values) {

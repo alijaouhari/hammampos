@@ -222,11 +222,13 @@ class ExpenseTemplateManager {
    * Get wood purchases history
    */
   getWoodPurchases(limit = 50) {
+    // Coerce to a safe non-negative integer; bind as a parameter (no interpolation).
+    const safeLimit = Number.isFinite(Number(limit)) ? Math.max(0, Math.trunc(Number(limit))) : 50;
     const result = this.storage.db.exec(`
       SELECT * FROM wood_purchases 
       ORDER BY delivery_date DESC, created_at DESC 
-      LIMIT ${limit}
-    `);
+      LIMIT ?
+    `, [safeLimit]);
     
     if (!result[0]) return [];
     
@@ -243,7 +245,7 @@ class ExpenseTemplateManager {
    */
   createExpenseFromTemplate(templateId, quantity = 1, customAmount = null, notes = '') {
     // Get template
-    const templateResult = this.storage.db.exec(`SELECT * FROM expense_templates WHERE id = ${templateId}`);
+    const templateResult = this.storage.db.exec('SELECT * FROM expense_templates WHERE id = ?', [templateId]);
     if (!templateResult[0] || templateResult[0].values.length === 0) {
       throw new Error('Template not found');
     }

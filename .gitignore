@@ -6,3 +6,7 @@ HammamPOS Installer/
 *.log
 .env
 .DS_Store
+
+# Developer/runtime database — must not be tracked or shipped (P0-2).
+# Fresh installs create their own DB via StorageManager.createTables().
+data/hammampos.db
