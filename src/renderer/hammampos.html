@@ -559,6 +559,61 @@
             color: #059669;
         }
 
+        /* Clickable stat cards (النقد في الصندوق / صندوق الصرف) */
+        .admin-stat-card-clickable {
+            cursor: pointer;
+            transition: box-shadow 0.15s ease, transform 0.15s ease;
+        }
+        .admin-stat-card-clickable:hover {
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        /* Combined daily statistics box (مبيعات/تذاكر/مصروفات اليوم) */
+        .admin-daily-combined {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .admin-daily-combined-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.35rem;
+            flex: 1 1 30%;
+        }
+        .admin-daily-combined-label {
+            color: #6b7280;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        .admin-daily-combined .admin-stat-value {
+            font-size: 1.4rem;
+        }
+
+        /* Chart show/hide icon in the daily-summary heading */
+        .charts-toggle-icon {
+            cursor: pointer;
+            margin-right: 0.5rem;
+            user-select: none;
+        }
+        .charts-toggle-icon:hover {
+            opacity: 0.7;
+        }
+
+        /* Settings modal section wrapper for the moved controls */
+        .settings-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        .settings-section h4 {
+            margin: 0 0 0.75rem 0;
+            color: #374151;
+        }
+
         .admin-actions {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1360,23 +1415,31 @@
         <div class="admin-content">
             <!-- Admin Stats -->
             <div class="admin-stats">
-                <div class="admin-stat-card">
+                <!-- النقد في الصندوق: clickable card opens the money-collection modal -->
+                <div class="admin-stat-card admin-stat-card-clickable" id="admin-cash-card" title="اضغط لتحصيل المال" role="button" tabindex="0">
                     <h3>النقد في الصندوق</h3>
                     <div class="admin-stat-value" id="admin-cash-in-hand">0 درهم</div>
                 </div>
+                <!-- Combined daily statistics box -->
                 <div class="admin-stat-card">
-                    <h3>مبيعات اليوم</h3>
-                    <div class="admin-stat-value" id="admin-today-sales">0 درهم</div>
+                    <h3>إحصائيات اليوم</h3>
+                    <div class="admin-daily-combined">
+                        <div class="admin-daily-combined-item">
+                            <span class="admin-daily-combined-label">مبيعات اليوم</span>
+                            <span class="admin-stat-value" id="admin-today-sales">0 درهم</span>
+                        </div>
+                        <div class="admin-daily-combined-item">
+                            <span class="admin-daily-combined-label">تذاكر اليوم</span>
+                            <span class="admin-stat-value" id="admin-today-tickets">0</span>
+                        </div>
+                        <div class="admin-daily-combined-item">
+                            <span class="admin-daily-combined-label">مصروفات اليوم</span>
+                            <span class="admin-stat-value" id="admin-today-expenses" style="color: #dc2626;">0 درهم</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="admin-stat-card">
-                    <h3>تذاكر اليوم</h3>
-                    <div class="admin-stat-value" id="admin-today-tickets">0</div>
-                </div>
-                <div class="admin-stat-card">
-                    <h3>مصروفات اليوم</h3>
-                    <div class="admin-stat-value" id="admin-today-expenses" style="color: #dc2626;">0 درهم</div>
-                </div>
-                <div class="admin-stat-card">
+                <!-- صندوق الصرف: clickable card opens the change-float modal -->
+                <div class="admin-stat-card admin-stat-card-clickable" id="admin-change-float-card" title="اضغط لإدارة صندوق الصرف" role="button" tabindex="0">
                     <h3>صندوق الصرف</h3>
                     <div class="admin-stat-value" id="admin-change-float" style="color: #2563eb;">0 درهم</div>
                 </div>
@@ -1384,12 +1447,7 @@
 
             <!-- Admin Actions -->
             <div class="admin-actions">
-                <button id="admin-collect-money" class="btn btn-success">💰 تحصيل المال</button>
-                <button id="admin-change-float-btn" class="btn btn-primary" style="background:#2563eb;">💵 صندوق الصرف</button>
-                <button id="admin-manage-categories" class="btn btn-primary">📋 إدارة الفئات</button>
                 <button id="admin-settings" class="btn btn-warning">⚙️ الإعدادات</button>
-                <button id="toggle-charts" class="btn btn-secondary">📈 إظهار/إخفاء الرسوم البيانية</button>
-                <button id="admin-clear-all-data" class="btn" style="background: #dc2626; color: white;">🗑️ مسح جميع البيانات</button>
             </div>
 
             <!-- Growth Charts Section -->
@@ -1411,7 +1469,9 @@
 
             <!-- Admin Daily Summary Table (Same as main screen but with delete buttons) -->
             <div class="admin-daily-summary">
-                <h3>📊 الملخص اليومي - إدارة المعاملات</h3>
+                <h3>📊 الملخص اليومي - إدارة المعاملات
+                    <span id="toggle-charts" class="charts-toggle-icon" role="button" tabindex="0" title="إظهار/إخفاء الرسوم البيانية">📈</span>
+                </h3>
                 <div class="summary-table-container">
                     <table class="summary-table" id="admin-daily-ledger-table">
                         <thead>
@@ -1608,11 +1668,8 @@
                 
                 <div style="margin-top: 1rem; padding: 1rem; background: #f9fafb; border-radius: 6px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <button type="button" id="select-all-days" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                        <button type="button" id="toggle-select-all-days" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
                             تحديد الكل
-                        </button>
-                        <button type="button" id="clear-all-days" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
-                            إلغاء التحديد
                         </button>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1891,6 +1948,14 @@
                             اضغط "تحميل القائمة" لعرض الإصدارات المتاحة
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>الفئات والبيانات</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                    <button type="button" id="admin-manage-categories" class="btn btn-primary">📋 إدارة الفئات</button>
+                    <button type="button" id="admin-clear-all-data" class="btn" style="background: #dc2626; color: white;">🗑️ مسح جميع البيانات</button>
                 </div>
             </div>
 
@@ -2341,10 +2406,14 @@
             }
 
             // Toggle charts button
+            // Graph show/hide is now the chart icon in the daily-summary heading (same id).
             const toggleCharts = document.getElementById('toggle-charts');
             if (toggleCharts) {
                 toggleCharts.onclick = () => {
                     toggleChartsSection();
+                };
+                toggleCharts.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleChartsSection(); }
                 };
             }
 
@@ -3011,25 +3080,25 @@
         function setupAdminButtonHandlers() {
             console.log('Setting up admin button handlers');
             
-            // Admin action buttons
-            const adminCollectMoney = document.getElementById('admin-collect-money');
+            // Admin action buttons / clickable stat cards
             const adminManageCategories = document.getElementById('admin-manage-categories');
             const adminSettings = document.getElementById('admin-settings');
             const adminClearAllData = document.getElementById('admin-clear-all-data');
 
-            if (adminCollectMoney) {
-                adminCollectMoney.onclick = () => {
-                    showMoneyCollectionModal();
-                };
-                console.log('Admin collect money handler set');
+            // النقد في الصندوق card opens the money-collection modal (replaces the old "تحصيل المال" button)
+            const adminCashCard = document.getElementById('admin-cash-card');
+            if (adminCashCard) {
+                adminCashCard.onclick = () => { showMoneyCollectionModal(); };
+                adminCashCard.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showMoneyCollectionModal(); } };
+                console.log('Admin cash card handler set');
             }
 
-            const adminChangeFloatBtn = document.getElementById('admin-change-float-btn');
-            if (adminChangeFloatBtn) {
-                adminChangeFloatBtn.onclick = () => {
-                    showChangeFloatModal();
-                };
-                console.log('Admin change float handler set');
+            // صندوق الصرف card opens the change-float modal (replaces the old float button)
+            const adminChangeFloatCard = document.getElementById('admin-change-float-card');
+            if (adminChangeFloatCard) {
+                adminChangeFloatCard.onclick = () => { showChangeFloatModal(); };
+                adminChangeFloatCard.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showChangeFloatModal(); } };
+                console.log('Admin change float card handler set');
             }
 
             if (adminManageCategories) {
@@ -4584,10 +4653,11 @@
                     container.appendChild(dayItem);
                 });
                 
-                // Setup select all / clear all buttons
-                document.getElementById('select-all-days').onclick = selectAllDays;
-                document.getElementById('clear-all-days').onclick = clearAllDays;
+                // Setup single select-all/clear toggle + collect button
+                document.getElementById('toggle-select-all-days').onclick = toggleSelectAllDays;
                 document.getElementById('collect-money-btn').onclick = submitMoneyCollection;
+                // Initialize the toggle label for the freshly loaded list
+                updateSelectAllToggleLabel();
                 
             } catch (error) {
                 console.error('Failed to load uncollected days:', error);
@@ -4651,6 +4721,30 @@
             updateCollectionTotals();
         }
 
+        // True when every currently available day is selected (and there is at least one).
+        function areAllDaysSelected() {
+            return uncollectedDaysData.length > 0 &&
+                   uncollectedDaysData.every(day => selectedDays.has(day.date));
+        }
+
+        // Single toggle: if all available days are selected -> clear; otherwise -> select all.
+        function toggleSelectAllDays() {
+            if (areAllDaysSelected()) {
+                clearAllDays();
+            } else {
+                selectAllDays();
+            }
+        }
+
+        // Keep the single toggle button's label in sync with the actual selection.
+        // "إلغاء التحديد" only when ALL available days are selected; otherwise "تحديد الكل".
+        function updateSelectAllToggleLabel() {
+            const btn = document.getElementById('toggle-select-all-days');
+            if (btn) {
+                btn.textContent = areAllDaysSelected() ? 'إلغاء التحديد' : 'تحديد الكل';
+            }
+        }
+
         function updateCollectionTotals() {
             let totalAmount = 0;
             let selectedCount = 0;
@@ -4678,6 +4772,9 @@
             // Enable/disable collect button
             const collectBtn = document.getElementById('collect-money-btn');
             collectBtn.disabled = selectedCount === 0 || totalAmount <= 0;
+
+            // Keep the single select-all/clear toggle label in sync with selection.
+            updateSelectAllToggleLabel();
         }
 
         // Clear All Data Functions (Testing Only)
