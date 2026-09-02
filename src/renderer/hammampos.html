@@ -4606,7 +4606,12 @@
                 selectedDays.delete(date);
             }
 
-            const dayItem = document.querySelector(`[data-date="${date}"]`);
+            // Scope the lookup to the collection modal container. A plain
+            // document.querySelector('[data-date=...]') would match a daily-ledger
+            // table row (which also uses data-date) that appears earlier in the DOM,
+            // not the modal's .day-item checkbox row.
+            const container = document.getElementById('uncollected-days-container');
+            const dayItem = container ? container.querySelector(`[data-date="${date}"]`) : null;
             if (dayItem) {
                 if (isChecked) {
                     dayItem.classList.add('selected');
@@ -4619,9 +4624,12 @@
         }
 
         function selectAllDays() {
+            // Scope to the collection modal container so we target the .day-item
+            // checkbox rows, NOT the daily-ledger table rows that also use data-date.
+            const container = document.getElementById('uncollected-days-container');
             uncollectedDaysData.forEach(day => {
                 selectedDays.add(day.date);
-                const dayItem = document.querySelector(`[data-date="${day.date}"]`);
+                const dayItem = container ? container.querySelector(`[data-date="${day.date}"]`) : null;
                 if (dayItem) {
                     dayItem.classList.add('selected');
                     const checkbox = dayItem.querySelector('input[type="checkbox"]');
@@ -4633,7 +4641,9 @@
 
         function clearAllDays() {
             selectedDays.clear();
-            document.querySelectorAll('.day-item').forEach(item => {
+            const container = document.getElementById('uncollected-days-container');
+            const items = container ? container.querySelectorAll('.day-item') : document.querySelectorAll('.day-item');
+            items.forEach(item => {
                 item.classList.remove('selected');
                 const checkbox = item.querySelector('input[type="checkbox"]');
                 if (checkbox) checkbox.checked = false;
