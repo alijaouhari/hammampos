@@ -353,3 +353,201 @@ test('reports: by-seller and by-type aggregate purchases and outstanding', async
     assert.equal(arz.total_amount, 1000);
   } finally { cleanup(s); }
 });
+
+
+/* ══════════════════════════════════════════════════════════════════════
+ * v2.8.16 — Wood buying flow fixes + seller/wood-type corrections
+ * Covers behaviors A–L from the task spec.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+// This mirrors the renderer helper formatMoroccoPhone() in hammampos.html
+// (kept identical). Duplicated here because the renderer is not requireable
+// from the node:test process. If the renderer helper changes, update this too.
+function formatMoroccoPhone(value) {
+  const digits = String(value == null ? '' : value).replace(/\D/g, '').slice(0, 10);
+  const groups = [];
+  for (let i = 0; i < digits.length; i += 2) groups.push(digits.slice(i, i + 2));
+  return groups.join(' ');
+}
+
+// B. Seller phone formatting: XX XX XX XX XX (2 digits x 5 groups).
+test('phone format: groups digits into XX XX XX XX XX', () => {
+  assert.equal(formatMoroccoPhone('0612345678'), '06 12 34 56 78');
+  assert.equal(formatMoroccoPhone('06 12 34 56 78'), '06 12 34 56 78'); // idempotent
+  assert.equal(formatMoroccoPhone('06-12-34-56-78'), '06 12 34 56 78'); // strips separators
+  assert.equal(formatMoroccoPhone('061234567890'), '06 12 34 56 78');   // caps at 10 digits
+  assert.equal(formatMoroccoPhone(''), '');
+  assert.equal(formatMoroccoPhone('061'), '06 1'); // partial while typing
+});
+
+// C. A seller can have MULTIPLE wood types (array input).
+test('multi-type seller: create with several wood types', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const { id } = et.addWoodSeller('صالح', '06 11 22 33 44', ['أوكاليبتوس', 'ليج'], 2);
+    const seller = et.getWoodSeller(id);
+    assert.deepEqual(seller.types.sort(), ['أوكاليبتوس', 'ليج'].sort());
+    // A comma-separated string is also accepted and split.
+    const { id: id2 } = et.addWoodSeller('مراد', '', 'مدري جدرة، دشيش');
+    assert.deepEqual(et.getWoodSeller(id2).types.sort(), ['دشيش', 'مدري جدرة'].sort());
+  } finally { cleanup(s); }
+});
+
+// D. Selecting a seller limits the wood-type list to THAT seller's types.
+test('seller-scoped types: each seller returns only its own types', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const saleh = et.addWoodSeller('صالح', '', ['أوكاليبتوس', 'ليج']).id;
+    const mourad = et.addWoodSeller('مراد', '', ['مدري جدرة', 'دشيش']).id;
+    assert.deepEqual(et.getWoodSellerTypes(saleh).sort(), ['أوكاليبتوس', 'ليج'].sort());
+    assert.deepEqual(et.getWoodSellerTypes(mourad).sort(), ['دشيش', 'مدري جدرة'].sort());
+    // Seller with no types returns an empty list (handled clearly in UI).
+    const noTypes = et.addWoodSeller('بدون أنواع', '', []).id;
+    assert.deepEqual(et.getWoodSellerTypes(noTypes), []);
+  } finally { cleanup(s); }
+});
+
+// Updating a seller's types does not restrict the seller identity.
+test('editing seller types keeps identity and replaces types', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const { id } = et.addWoodSeller('صالح', '', ['أوكاليبتوس']);
+    et.updateWoodSeller(id, 'صالح', '', ['أوكاليبتوس', 'ليج', 'أرز'], 3);
+    const seller = et.getWoodSeller(id);
+    assert.equal(seller.name, 'صالح');
+    assert.equal(seller.types.length, 3);
+  } finally { cleanup(s); }
+});
+
+// A + K. Recording a purchase persists it and it is retrievable via getWoodPurchases.
+test('purchase persists and is retrievable from the wood table query', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    const res = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_load',
+      netWeight: 1200, totalAmount: 900, deliveryDate: daysAgo(1), paid: true
+    });
+    assert.equal(res.success, true);
+    const rows = et.getWoodPurchases(50);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].wood_type, 'ليج');
+    assert.equal(rows[0].supplier_name, 'صالح');
+    assert.equal(rows[0].total_amount, 900);
+  } finally { cleanup(s); }
+});
+
+// F. Per-load records wood type + total weight + total price (no per-kg calc).
+test('per_load: records type, total weight, and agreed price (no per-kg calc)', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const sellerId = et.addWoodSeller('صالح', '', ['أوكاليبتوس'], 2).id; // default 2 d/kg
+    const res = et.recordWoodPurchase({
+      sellerId, woodType: 'أوكاليبتوس', pricingMethod: 'per_load',
+      netWeight: 1500, totalAmount: 1000, deliveryDate: daysAgo(1), paid: true
+    });
+    assert.equal(res.success, true);
+    // Price is the agreed 1000, NOT 1500*2=3000 from the default per-kg rate.
+    assert.equal(res.totalAmount, 1000);
+    const row = et.getWoodPurchases(10)[0];
+    assert.equal(row.wood_type, 'أوكاليبتوس');
+    assert.equal(row.net_wood_weight, 1500);
+    assert.equal(row.total_amount, 1000);
+    assert.equal(row.pricing_method, 'per_load');
+  } finally { cleanup(s); }
+});
+
+// G + H + I. Paid affects cash; unpaid does not; paying later affects cash exactly once.
+test('cash model: paid drops cash, unpaid does not, pay-later drops exactly once', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const c = s.addCategory('رجال', 5000);
+    s.createTicket(c); // +5000
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+
+    // Paid now: cash drops immediately.
+    const paidBefore = s.getCashInHand();
+    et.recordWoodPurchase({ sellerId, woodType: 'ليج', pricingMethod: 'per_load', netWeight: 100, totalAmount: 500, deliveryDate: daysAgo(3), paid: true });
+    assert.equal(s.getCashInHand(), paidBefore - 500);
+
+    // Unpaid: no cash change at delivery.
+    const unpaidBefore = s.getCashInHand();
+    const rec = et.recordWoodPurchase({ sellerId, woodType: 'ليج', pricingMethod: 'per_load', netWeight: 100, totalAmount: 700, deliveryDate: daysAgo(2), paid: false });
+    assert.equal(s.getCashInHand(), unpaidBefore);
+
+    // Pay later: cash drops by exactly the amount, once.
+    et.payWoodPurchase(rec.woodId, daysAgo(1));
+    assert.equal(s.getCashInHand(), unpaidBefore - 700);
+    // Paying again is rejected — no double charge.
+    const again = et.payWoodPurchase(rec.woodId, daysAgo(1));
+    assert.equal(again.success, false);
+    assert.equal(s.getCashInHand(), unpaidBefore - 700);
+  } finally { cleanup(s); }
+});
+
+// J. Purchase history preserves seller/type/weight/price/status/pay-date.
+test('history integrity: purchase snapshot survives seller edits', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    const rec = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_kg',
+      netWeight: 100, unitPrice: 2, deliveryDate: daysAgo(5), paid: true
+    });
+    // Owner later renames the seller, changes its types and default price.
+    et.updateWoodSeller(sellerId, 'صالح المحدث', '', ['نوع آخر'], 9);
+
+    const row = et.getWoodPurchases(10).find(r => r.id === rec.woodId);
+    assert.equal(row.supplier_name, 'صالح');   // snapshot name preserved
+    assert.equal(row.wood_type, 'ليج');         // snapshot type preserved
+    assert.equal(row.unit_price, 2);            // snapshot price preserved
+    assert.equal(row.total_amount, 200);        // 100*2, not 100*9
+    assert.equal(row.paid, 1);
+  } finally { cleanup(s); }
+});
+
+// Historical single-type sellers are backfilled into the multi-type table.
+test('legacy backfill: initialize copies old single wood_type into types table', async () => {
+  const s = await newStorage();
+  const dbPath = s.dbPath;
+  try {
+    const et = etFor(s);
+    // Simulate a legacy row: seller with only the old wood_type column populated
+    // and no rows in wood_seller_types.
+    s.db.run("INSERT INTO wood_sellers (name, phone, wood_type, active) VALUES ('قديم', '', 'خشب قديم', 1)");
+    const id = s.db.exec('SELECT last_insert_rowid()')[0].values[0][0];
+    s.db.run('DELETE FROM wood_seller_types WHERE seller_id = ?', [id]);
+    s.save();
+    cleanup(s);
+
+    // Reopen -> initialize() runs the guarded backfill.
+    const s2 = new StorageManager(dbPath);
+    s2.dbPath = dbPath;
+    await s2.initialize();
+    try {
+      const et2 = etFor(s2);
+      assert.deepEqual(et2.getWoodSellerTypes(id), ['خشب قديم']);
+    } finally { cleanup(s2); }
+  } catch (e) { cleanup(s); throw e; }
+});
+
+// L (regression companion). clearAllData wipes wood_seller_types too.
+test('clearAllData removes wood sellers, purchases, and seller types', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج', 'أرز'], 2).id;
+    et.recordWoodPurchase({ sellerId, woodType: 'ليج', pricingMethod: 'per_load', totalAmount: 500, netWeight: 100, deliveryDate: daysAgo(1), paid: false });
+    s.clearAllData();
+    assert.equal(et.getWoodSellers(false).length, 0);
+    assert.equal(et.getWoodPurchases(10).length, 0);
+    assert.equal(et.getWoodSellerTypes(sellerId).length, 0);
+  } finally { cleanup(s); }
+});

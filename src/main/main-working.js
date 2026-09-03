@@ -949,6 +949,16 @@ ipcMain.handle('wood:payPurchase', async (event, woodId, paidDate) => {
   return result;
 });
 
+ipcMain.handle('wood:getPurchases', (event, limit) => {
+  if (!expenseTemplates) return [];
+  return expenseTemplates.getWoodPurchases(limit || 50);
+});
+
+ipcMain.handle('wood:getSellerTypes', (event, sellerId) => {
+  if (!expenseTemplates) return [];
+  return expenseTemplates.getWoodSellerTypes(sellerId);
+});
+
 ipcMain.handle('wood:getOutstanding', (event) => {
   if (!expenseTemplates) return [];
   return expenseTemplates.getOutstandingWoodPurchases();

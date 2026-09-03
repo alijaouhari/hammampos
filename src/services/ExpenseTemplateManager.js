@@ -85,6 +85,31 @@ class ExpenseTemplateManager {
       this.storage.db.run(`CREATE INDEX IF NOT EXISTS idx_wood_purchases_seller ON wood_purchases(seller_id)`);
       this.storage.db.run(`CREATE INDEX IF NOT EXISTS idx_wood_purchases_paid ON wood_purchases(paid)`);
 
+      // A seller can supply MULTIPLE wood types. This join table holds the wood
+      // types registered for each seller. The legacy wood_sellers.wood_type column
+      // is kept for back-compat and treated as a single default/first type.
+      this.storage.db.run(`CREATE TABLE IF NOT EXISTS wood_seller_types (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        seller_id INTEGER NOT NULL,
+        wood_type TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (seller_id) REFERENCES wood_sellers(id)
+      )`);
+      this.storage.db.run(`CREATE INDEX IF NOT EXISTS idx_wood_seller_types_seller ON wood_seller_types(seller_id)`);
+
+      // One-time backfill: existing sellers created before this table had a single
+      // wood_type stored on wood_sellers. Copy it into the join table if the seller
+      // has no rows there yet. Idempotent (guarded by the NOT EXISTS check).
+      try {
+        this.storage.db.run(`
+          INSERT INTO wood_seller_types (seller_id, wood_type)
+          SELECT s.id, s.wood_type
+          FROM wood_sellers s
+          WHERE s.wood_type IS NOT NULL AND TRIM(s.wood_type) <> ''
+            AND NOT EXISTS (SELECT 1 FROM wood_seller_types t WHERE t.seller_id = s.id)
+        `);
+      } catch (_) { /* best-effort backfill */ }
+
       this.storage.save();
       
       // Create default templates if none exist
@@ -295,14 +320,70 @@ class ExpenseTemplateManager {
       if (!Number.isFinite(p) || p < 0) return { success: false, error: 'سعر الكيلو الافتراضي غير صالح' };
       price = p;
     }
+    // woodType may be a single string (legacy) or an array of types (new).
+    const types = this._normalizeWoodTypes(woodType);
+    const primaryType = types[0] || '';
     this.storage.db.run(
       'INSERT INTO wood_sellers (name, phone, wood_type, default_price_per_kg, active, notes) VALUES (?, ?, ?, ?, 1, ?)',
-      [cleanName, phone || '', woodType || '', price, notes || '']
+      [cleanName, phone || '', primaryType, price, notes || '']
     );
     const id = this.storage.db.exec('SELECT last_insert_rowid()')[0].values[0][0];
-    this.storage.logAudit('CREATE', 'wood_sellers', id, `${cleanName} - ${woodType || ''}`);
+    this._setWoodSellerTypes(id, types);
+    this.storage.logAudit('CREATE', 'wood_sellers', id, `${cleanName} - ${types.join(', ')}`);
     this.storage.save();
     return { success: true, id };
+  }
+
+  /**
+   * Normalize a wood-type argument (string, comma/newline-separated string, or
+   * array) into a de-duplicated array of trimmed non-empty type names.
+   */
+  _normalizeWoodTypes(woodType) {
+    let raw = [];
+    if (Array.isArray(woodType)) {
+      raw = woodType;
+    } else if (woodType != null && String(woodType).trim() !== '') {
+      // split on comma / Arabic comma / newline so a legacy single field still works
+      raw = String(woodType).split(/[,،\n]/);
+    }
+    const seen = new Set();
+    const out = [];
+    for (const t of raw) {
+      const clean = String(t).trim();
+      if (clean && !seen.has(clean)) { seen.add(clean); out.push(clean); }
+    }
+    return out;
+  }
+
+  /**
+   * Replace the registered wood types for a seller with the given list.
+   * Historical wood_purchases snapshot their own wood_type, so editing a
+   * seller's types never rewrites past purchases.
+   */
+  _setWoodSellerTypes(sellerId, types) {
+    try { this.storage.db.run('DELETE FROM wood_seller_types WHERE seller_id = ?', [sellerId]); } catch (_) {}
+    for (const t of types) {
+      this.storage.db.run('INSERT INTO wood_seller_types (seller_id, wood_type) VALUES (?, ?)', [sellerId, t]);
+    }
+  }
+
+  /**
+   * Wood types registered for a seller (array of strings). Falls back to the
+   * legacy wood_sellers.wood_type column if the join table has no rows.
+   */
+  getWoodSellerTypes(sellerId) {
+    const result = this.storage.db.exec(
+      'SELECT wood_type FROM wood_seller_types WHERE seller_id = ? ORDER BY id', [sellerId]
+    );
+    if (result[0] && result[0].values.length) {
+      return result[0].values.map(r => r[0]);
+    }
+    const seller = this.storage.db.exec('SELECT wood_type FROM wood_sellers WHERE id = ?', [sellerId]);
+    if (seller[0] && seller[0].values.length) {
+      const t = seller[0].values[0][0];
+      if (t && String(t).trim() !== '') return [String(t).trim()];
+    }
+    return [];
   }
 
   /**
@@ -318,6 +399,7 @@ class ExpenseTemplateManager {
     return result[0].values.map(row => {
       const obj = {};
       cols.forEach((col, i) => obj[col] = row[i]);
+      obj.types = this.getWoodSellerTypes(obj.id); // multiple wood types per seller
       return obj;
     });
   }
@@ -328,6 +410,7 @@ class ExpenseTemplateManager {
     const cols = result[0].columns;
     const obj = {};
     cols.forEach((col, i) => obj[col] = result[0].values[0][i]);
+    obj.types = this.getWoodSellerTypes(id);
     return obj;
   }
 
@@ -344,11 +427,14 @@ class ExpenseTemplateManager {
       if (!Number.isFinite(p) || p < 0) return { success: false, error: 'سعر الكيلو الافتراضي غير صالح' };
       price = p;
     }
+    const types = this._normalizeWoodTypes(woodType);
+    const primaryType = types[0] || '';
     this.storage.db.run(
       'UPDATE wood_sellers SET name = ?, phone = ?, wood_type = ?, default_price_per_kg = ?, notes = ? WHERE id = ?',
-      [cleanName, phone || '', woodType || '', price, notes || '', id]
+      [cleanName, phone || '', primaryType, price, notes || '', id]
     );
-    this.storage.logAudit('UPDATE', 'wood_sellers', id, `${cleanName} - ${woodType || ''}`);
+    this._setWoodSellerTypes(id, types);
+    this.storage.logAudit('UPDATE', 'wood_sellers', id, `${cleanName} - ${types.join(', ')}`);
     this.storage.save();
     return { success: true };
   }
@@ -367,8 +453,10 @@ class ExpenseTemplateManager {
    *
    * pricingMethod:
    *   'per_kg'      -> requires netWeight (>0) and unitPrice (>=0); total = netWeight*unitPrice
-   *   'per_load'    -> requires totalAmount (>0); no kg required
-   *   'agreement'   -> requires totalAmount (>0); no kg required
+   *   'per_load'    -> requires totalAmount (>0); records total weight (netWeight) too;
+   *                    the price is the agreed load price and is NOT computed from a
+   *                    per-kg default.
+   *   'agreement'   -> requires totalAmount (>0); optional weight; no per-kg calc.
    *
    * Payment model (wood-specific; does NOT change getCashInHand):
    *   - If paid === true: an expenses row is created NOW (cash-in-hand drops now),
@@ -424,8 +512,13 @@ class ExpenseTemplateManager {
       if (!Number.isFinite(unit) || unit < 0) return { success: false, error: 'سعر الكيلو غير صالح' };
       total = net * unit;
     } else {
+      // per_load / agreement: the price is the agreed amount (NOT derived from a
+      // per-kg default). A total weight may also be recorded (required for per_load).
       total = Number(totalAmount);
       if (!Number.isFinite(total) || total <= 0) return { success: false, error: 'المبلغ غير صالح' };
+      if (netWeight != null && netWeight !== '' && Number.isFinite(Number(netWeight)) && Number(netWeight) > 0) {
+        net = Number(netWeight);
+      }
     }
 
     const isPaid = paid === true || paid === 1 || paid === '1';
