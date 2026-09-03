@@ -1951,6 +1951,21 @@
                 </div>
             </div>
 
+            <!-- Reusable expense types management -->
+            <div class="settings-section">
+                <h4>أنواع المصاريف</h4>
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0;">
+                    أنشئ أنواع المصاريف المتكررة لتظهر في قائمة "من القائمة المحفوظة" عند إضافة مصروف.
+                </p>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                    <input type="text" id="new-expense-type-name" placeholder="اسم نوع المصروف الجديد..." style="flex: 1;">
+                    <button type="button" id="add-expense-type-btn" class="btn btn-primary" style="padding: 0.5rem 1rem;">➕ إضافة</button>
+                </div>
+                <div id="expense-types-list" style="max-height: 220px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px;">
+                    <div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">جاري التحميل...</div>
+                </div>
+            </div>
+
             <div class="settings-section">
                 <h4>الفئات والبيانات</h4>
                 <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
@@ -2175,7 +2190,10 @@
                 getTemplatesByCategory: (activeOnly) => ipcRenderer.invoke('expenseTemplates:getTemplatesByCategory', activeOnly),
                 createFromTemplate: (templateId, quantity, customAmount, notes) => ipcRenderer.invoke('expenseTemplates:createFromTemplate', templateId, quantity, customAmount, notes),
                 addWoodPurchase: (supplierName, grossWeight, emptyWeight, pricePerKg, deliveryDate, notes) => ipcRenderer.invoke('expenseTemplates:addWoodPurchase', supplierName, grossWeight, emptyWeight, pricePerKg, deliveryDate, notes),
-                getWoodPurchases: (limit) => ipcRenderer.invoke('expenseTemplates:getWoodPurchases', limit)
+                getWoodPurchases: (limit) => ipcRenderer.invoke('expenseTemplates:getWoodPurchases', limit),
+                addTemplate: (name, category, description) => ipcRenderer.invoke('expenseTemplates:addTemplate', name, category, description),
+                updateTemplate: (id, name, category, description) => ipcRenderer.invoke('expenseTemplates:updateTemplate', id, name, category, description),
+                toggleTemplate: (id, active) => ipcRenderer.invoke('expenseTemplates:toggleTemplate', id, active)
             },
             update: {
                 getStatus: () => ipcRenderer.invoke('update:getStatus'),
@@ -2498,6 +2516,18 @@
                 };
             }
 
+            // Expense-type management (inside Settings)
+            const addExpenseTypeBtn = document.getElementById('add-expense-type-btn');
+            if (addExpenseTypeBtn) {
+                addExpenseTypeBtn.onclick = () => { addExpenseType(); };
+            }
+            const newExpenseTypeInput = document.getElementById('new-expense-type-name');
+            if (newExpenseTypeInput) {
+                newExpenseTypeInput.onkeydown = (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); addExpenseType(); }
+                };
+            }
+
             // Data Export Modal handlers
             const cancelExport = document.getElementById('cancel-export');
             const startExport = document.getElementById('start-export');
@@ -2548,6 +2578,76 @@
             } catch (error) {
                 console.error('Failed to show expense modal:', error);
                 showToast('خطأ في فتح نافذة المصروفات', 'error');
+            }
+        }
+
+        // ── Reusable expense-type management (Settings) ──────────────────
+        // Lists ALL expense types (active + inactive) with an enable/disable toggle.
+        // Deactivating a type only hides it from the expense dropdown; it never alters
+        // historical expense records (expenses store their own description text).
+        async function loadExpenseTypesList() {
+            const listEl = document.getElementById('expense-types-list');
+            if (!listEl) return;
+            try {
+                const types = await api.expenseTemplates.getTemplates(false); // include inactive
+                if (!types || types.length === 0) {
+                    listEl.innerHTML = '<div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">لا توجد أنواع مصاريف</div>';
+                    return;
+                }
+                listEl.innerHTML = '';
+                types.forEach(t => {
+                    const active = Number(t.active) === 1;
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.75rem; border-bottom:1px solid #f0f0f0;';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = t.name;
+                    nameSpan.style.cssText = active ? 'color:#1f2937;' : 'color:#9ca3af; text-decoration:line-through;';
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-secondary';
+                    btn.style.cssText = 'padding:0.25rem 0.75rem; font-size:0.8rem;';
+                    btn.textContent = active ? 'تعطيل' : 'تفعيل';
+                    btn.onclick = () => toggleExpenseTypeActive(t.id, !active);
+                    row.appendChild(nameSpan);
+                    row.appendChild(btn);
+                    listEl.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Failed to load expense types:', error);
+                listEl.innerHTML = '<div style="padding: 1rem; text-align: center; color: #dc2626; font-size: 0.85rem;">خطأ في تحميل الأنواع</div>';
+            }
+        }
+
+        async function addExpenseType() {
+            const input = document.getElementById('new-expense-type-name');
+            const name = input ? input.value.trim() : '';
+            if (!name) {
+                showToast('يرجى إدخال اسم نوع المصروف', 'error');
+                return;
+            }
+            try {
+                const res = await api.expenseTemplates.addTemplate(name, 'عام', '');
+                if (res && res.success === false) {
+                    showToast(res.error || 'تعذّر إضافة النوع', 'error');
+                    return;
+                }
+                if (input) input.value = '';
+                showToast('تمت إضافة نوع المصروف', 'success');
+                await loadExpenseTypesList();
+            } catch (error) {
+                console.error('Failed to add expense type:', error);
+                showToast('خطأ في إضافة نوع المصروف', 'error');
+            }
+        }
+
+        async function toggleExpenseTypeActive(id, active) {
+            try {
+                await api.expenseTemplates.toggleTemplate(id, active);
+                showToast(active ? 'تم تفعيل النوع' : 'تم تعطيل النوع', 'success');
+                await loadExpenseTypesList();
+            } catch (error) {
+                console.error('Failed to toggle expense type:', error);
+                showToast('خطأ في تحديث النوع', 'error');
             }
         }
 
@@ -3900,6 +4000,9 @@
                 document.getElementById('check-update-btn').onclick = checkForUpdateUI;
                 document.getElementById('download-update-btn').onclick = downloadAndApplyUpdate;
                 document.getElementById('load-releases-btn').onclick = loadReleasesListUI;
+
+                // Load reusable expense types list
+                await loadExpenseTypesList();
                 
                 // Show modal
                 const modal = document.getElementById('settings-modal');

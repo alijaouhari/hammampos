@@ -66,22 +66,28 @@ class ExpenseTemplateManager {
   }
 
   /**
-   * Create/migrate default expense templates.
-   * Removes ALL existing templates and ensures only the 3 required ones exist.
-   * Idempotent — safe to run multiple times.
+   * Seed the default expense templates ONLY on a brand-new (empty) table.
+   *
+   * IMPORTANT: this must NOT delete existing rows. Owner-created expense types are
+   * persistent data; wiping and re-seeding on every startup (the previous behavior)
+   * would destroy them on the next launch. We therefore seed the built-in defaults
+   * exactly once — when the table has no rows — and otherwise leave all existing
+   * templates (defaults + owner-created) untouched.
    */
   createDefaultTemplates() {
-    // The ONLY templates that should exist
+    // Only seed when the table is completely empty (first run / fresh DB).
+    const countResult = this.storage.db.exec('SELECT COUNT(*) FROM expense_templates');
+    const existingCount = (countResult[0] && countResult[0].values[0][0]) || 0;
+    if (existingCount > 0) {
+      return; // Preserve existing templates (defaults and any owner-created types).
+    }
+
     const requiredTemplates = [
       { name: 'فاتورة الماء والكهرباء', category: 'عام', fixed_amount: null, description: 'فاتورة الماء والكهرباء الشهرية' },
       { name: 'أجر صاحب الصندوق', category: 'عام', fixed_amount: null, description: 'أجر صاحب الصندوق' },
       { name: 'أجر الفرناتشي', category: 'عام', fixed_amount: null, description: 'أجر الفرناتشي' },
     ];
 
-    // Delete ALL existing templates
-    this.storage.db.run(`DELETE FROM expense_templates`);
-
-    // Insert only the 3 required
     for (const t of requiredTemplates) {
       this.storage.db.run(`
         INSERT INTO expense_templates (name, category, fixed_amount, unit, price_per_unit, description)

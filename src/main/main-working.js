@@ -867,6 +867,40 @@ ipcMain.handle('expenseTemplates:getWoodPurchases', (event, limit) => {
   return expenseTemplates.getWoodPurchases(limit);
 });
 
+// Reusable expense-type management (create / rename / enable-disable).
+// Reuses the existing ExpenseTemplateManager. Types are persistent expense_templates rows.
+ipcMain.handle('expenseTemplates:addTemplate', (event, name, category, description) => {
+  if (!expenseTemplates) {
+    return { success: false, error: 'Expense templates not available' };
+  }
+  const cleanName = (name == null ? '' : String(name).trim());
+  if (!cleanName) {
+    return { success: false, error: 'الاسم مطلوب' };
+  }
+  const id = expenseTemplates.addTemplate(cleanName, (category && String(category).trim()) || 'عام', null, null, null, description || '');
+  return { success: true, id };
+});
+
+ipcMain.handle('expenseTemplates:updateTemplate', (event, id, name, category, description) => {
+  if (!expenseTemplates) {
+    return { success: false, error: 'Expense templates not available' };
+  }
+  const cleanName = (name == null ? '' : String(name).trim());
+  if (!cleanName) {
+    return { success: false, error: 'الاسم مطلوب' };
+  }
+  expenseTemplates.updateTemplate(id, cleanName, (category && String(category).trim()) || 'عام', null, null, null, description || '');
+  return { success: true };
+});
+
+ipcMain.handle('expenseTemplates:toggleTemplate', (event, id, active) => {
+  if (!expenseTemplates) {
+    return { success: false, error: 'Expense templates not available' };
+  }
+  expenseTemplates.toggleTemplate(id, active);
+  return { success: true };
+});
+
 // Clear all data handler (Testing only)
 ipcMain.handle('storage:clearAllData', async () => {
   // Clear data from database
