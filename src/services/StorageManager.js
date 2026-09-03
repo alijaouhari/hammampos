@@ -930,6 +930,7 @@ class StorageManager {
       this.db.run('DELETE FROM daily_summary');
       this.db.run('DELETE FROM change_float'); // reset teller change float to 0
       try { this.db.run('DELETE FROM wood_purchases'); } catch (_) {} // Table may not exist on fresh installs
+      try { this.db.run('DELETE FROM wood_sellers'); } catch (_) {} // Table may not exist on older installs
       
       // Reset category serial counters
       this.db.run('UPDATE categories SET serial_counter = 0');

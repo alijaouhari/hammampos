@@ -1327,63 +1327,97 @@
     <div id="wood-modal" class="modal hidden">
         <div class="modal-content category-modal-content">
             <h3>🪵 شراء خشب</h3>
-            
+
             <div class="category-section">
-                <h4>معلومات المورد والشحنة</h4>
+                <h4>المورد والشحنة</h4>
                 <div class="form-group">
-                    <label for="wood-supplier">اسم المورد:</label>
-                    <input type="text" id="wood-supplier" placeholder="اسم المورد" required>
+                    <label for="wood-seller-select">المورد:</label>
+                    <select id="wood-seller-select" required>
+                        <option value="">اختر المورد...</option>
+                    </select>
+                    <small id="wood-no-sellers-hint" style="color:#dc2626; display:none;">لا يوجد موردون. أضف موردًا من الإعدادات → موردو الخشب.</small>
+                </div>
+                <div class="form-group">
+                    <label for="wood-type-input">نوع الخشب:</label>
+                    <input type="text" id="wood-type-input" placeholder="نوع الخشب">
                 </div>
                 <div class="form-group">
                     <label for="wood-delivery-date">تاريخ التسليم:</label>
                     <input type="date" id="wood-delivery-date" required>
                 </div>
             </div>
-            
+
             <div class="category-section">
-                <h4>أوزان الشاحنة</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label for="wood-gross-weight">الوزن الإجمالي (كغ):</label>
-                        <input type="number" id="wood-gross-weight" step="0.1" min="0" placeholder="الوزن مع الخشب" required>
+                <h4>طريقة التسعير</h4>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                    <label style="display:flex; align-items:center; cursor:pointer;">
+                        <input type="radio" name="wood-pricing-method" value="per_kg" checked style="margin-left:0.5rem;"> بالكيلوغرام
+                    </label>
+                    <label style="display:flex; align-items:center; cursor:pointer;">
+                        <input type="radio" name="wood-pricing-method" value="per_load" style="margin-left:0.5rem;"> بالحمولة
+                    </label>
+                    <label style="display:flex; align-items:center; cursor:pointer;">
+                        <input type="radio" name="wood-pricing-method" value="agreement" style="margin-left:0.5rem;"> بالاتفاق
+                    </label>
+                </div>
+
+                <!-- Per-kg fields -->
+                <div id="wood-perkg-fields">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="wood-gross-weight">الوزن الإجمالي (كغ):</label>
+                            <input type="number" id="wood-gross-weight" step="0.1" min="0" placeholder="الوزن مع الخشب">
+                        </div>
+                        <div class="form-group">
+                            <label for="wood-empty-weight">وزن الشاحنة فارغة (كغ):</label>
+                            <input type="number" id="wood-empty-weight" step="0.1" min="0" placeholder="وزن الشاحنة فقط">
+                        </div>
+                    </div>
+                    <div style="background: #f0fdf4; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; color: #374151;">صافي وزن الخشب:</span>
+                            <span id="wood-net-weight" style="font-weight: 700; color: #059669;">0 كغ</span>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="wood-empty-weight">وزن الشاحنة فارغة (كغ):</label>
-                        <input type="number" id="wood-empty-weight" step="0.1" min="0" placeholder="وزن الشاحنة فقط" required>
+                        <label for="wood-price-per-kg">سعر الكيلو (درهم):</label>
+                        <input type="number" id="wood-price-per-kg" step="0.01" min="0" placeholder="سعر الكيلو الواحد">
+                        <small style="color:#6b7280;">يُملأ تلقائياً من سعر المورد الافتراضي، ويمكن تغييره لهذه العملية.</small>
                     </div>
                 </div>
-                
-                <div style="background: #f0fdf4; padding: 1rem; border-radius: 6px; margin: 1rem 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 600; color: #374151;">صافي وزن الخشب:</span>
-                        <span id="wood-net-weight" style="font-weight: 700; color: #059669; font-size: 1.1rem;">0 كغ</span>
-                    </div>
+
+                <!-- Per-load / agreement amount field -->
+                <div id="wood-amount-field" class="form-group" style="display:none;">
+                    <label for="wood-total-input">المبلغ الإجمالي المتفق عليه (درهم):</label>
+                    <input type="number" id="wood-total-input" step="0.01" min="0" placeholder="المبلغ الإجمالي">
                 </div>
-            </div>
-            
-            <div class="category-section">
-                <h4>التسعير والحساب</h4>
-                <div class="form-group">
-                    <label for="wood-price-per-kg">سعر الكيلو (درهم):</label>
-                    <input type="number" id="wood-price-per-kg" step="0.01" min="0" placeholder="سعر الكيلو الواحد" required>
-                </div>
-                
+
                 <div style="background: #eff6ff; padding: 1rem; border-radius: 6px; margin: 1rem 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: 600; color: #374151;">إجمالي المبلغ:</span>
                         <span id="wood-total-amount" style="font-weight: 700; color: #2563eb; font-size: 1.2rem;">0 درهم</span>
                     </div>
-                    <div style="font-size: 0.9rem; color: #6b7280;">
-                        <span id="wood-calculation-details">الحساب: 0 كغ × 0 درهم = 0 درهم</span>
-                    </div>
+                    <div style="font-size: 0.85rem; color: #6b7280;" id="wood-calculation-details"></div>
                 </div>
-                
-                <div class="form-group">
+            </div>
+
+            <div class="category-section">
+                <h4>حالة الدفع</h4>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <label style="display:flex; align-items:center; cursor:pointer;">
+                        <input type="radio" name="wood-payment-status" value="paid" checked style="margin-left:0.5rem;"> مدفوع الآن
+                    </label>
+                    <label style="display:flex; align-items:center; cursor:pointer;">
+                        <input type="radio" name="wood-payment-status" value="unpaid" style="margin-left:0.5rem;"> غير مدفوع (آجل)
+                    </label>
+                </div>
+                <small style="color:#6b7280;">غير المدفوع لا يخصم من النقد في الصندوق حتى يتم الدفع لاحقاً.</small>
+                <div class="form-group" style="margin-top:0.75rem;">
                     <label for="wood-notes">ملاحظات (اختياري):</label>
                     <input type="text" id="wood-notes" placeholder="ملاحظات حول الشحنة...">
                 </div>
             </div>
-            
+
             <div class="modal-actions">
                 <button type="button" id="submit-wood-purchase" class="btn btn-success">تسجيل شراء الخشب</button>
                 <button type="button" id="cancel-wood-purchase" class="btn btn-secondary">إلغاء</button>
@@ -1966,6 +2000,35 @@
                 </div>
             </div>
 
+            <!-- Wood sellers management -->
+            <div class="settings-section">
+                <h4>موردو الخشب</h4>
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0;">
+                    أنشئ موردي الخشب ليختارهم البائع عند تسجيل شراء الخشب. السعر الافتراضي للكيلو اختياري ويمكن تغييره في كل عملية.
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <input type="text" id="new-wood-seller-name" placeholder="اسم المورد">
+                    <input type="text" id="new-wood-seller-phone" placeholder="رقم الهاتف">
+                    <input type="text" id="new-wood-seller-type" placeholder="نوع الخشب">
+                    <input type="number" id="new-wood-seller-price" step="0.01" min="0" placeholder="سعر الكيلو الافتراضي (اختياري)">
+                </div>
+                <button type="button" id="add-wood-seller-btn" class="btn btn-primary" style="padding: 0.5rem 1rem;">➕ إضافة مورد</button>
+                <div id="wood-sellers-list" style="max-height: 220px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; margin-top: 0.75rem;">
+                    <div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">جاري التحميل...</div>
+                </div>
+            </div>
+
+            <!-- Outstanding (unpaid) wood purchases -->
+            <div class="settings-section">
+                <h4>خشب غير مدفوع (آجل)</h4>
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0;">
+                    مشتريات الخشب التي لم تُدفع بعد. لا تُخصم من النقد حتى تضغط "تم الدفع".
+                </p>
+                <div id="outstanding-wood-list" style="max-height: 240px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px;">
+                    <div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">جاري التحميل...</div>
+                </div>
+            </div>
+
             <div class="settings-section">
                 <h4>الفئات والبيانات</h4>
                 <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
@@ -2194,6 +2257,17 @@
                 addTemplate: (name, category, description) => ipcRenderer.invoke('expenseTemplates:addTemplate', name, category, description),
                 updateTemplate: (id, name, category, description) => ipcRenderer.invoke('expenseTemplates:updateTemplate', id, name, category, description),
                 toggleTemplate: (id, active) => ipcRenderer.invoke('expenseTemplates:toggleTemplate', id, active)
+            },
+            wood: {
+                addSeller: (name, phone, woodType, defaultPricePerKg, notes) => ipcRenderer.invoke('wood:addSeller', name, phone, woodType, defaultPricePerKg, notes),
+                getSellers: (activeOnly) => ipcRenderer.invoke('wood:getSellers', activeOnly),
+                updateSeller: (id, name, phone, woodType, defaultPricePerKg, notes) => ipcRenderer.invoke('wood:updateSeller', id, name, phone, woodType, defaultPricePerKg, notes),
+                toggleSeller: (id, active) => ipcRenderer.invoke('wood:toggleSeller', id, active),
+                recordPurchase: (opts) => ipcRenderer.invoke('wood:recordPurchase', opts),
+                payPurchase: (woodId, paidDate) => ipcRenderer.invoke('wood:payPurchase', woodId, paidDate),
+                getOutstanding: () => ipcRenderer.invoke('wood:getOutstanding'),
+                getBySeller: () => ipcRenderer.invoke('wood:getBySeller'),
+                getByType: () => ipcRenderer.invoke('wood:getByType')
             },
             update: {
                 getStatus: () => ipcRenderer.invoke('update:getStatus'),
@@ -2528,6 +2602,12 @@
                 };
             }
 
+            // Wood seller management (inside Settings)
+            const addWoodSellerBtn = document.getElementById('add-wood-seller-btn');
+            if (addWoodSellerBtn) {
+                addWoodSellerBtn.onclick = () => { addWoodSellerFromSettings(); };
+            }
+
             // Data Export Modal handlers
             const cancelExport = document.getElementById('cancel-export');
             const startExport = document.getElementById('start-export');
@@ -2651,6 +2731,137 @@
             }
         }
 
+        // ── Wood sellers management (Settings) ───────────────────────────
+        async function loadWoodSellersList() {
+            const listEl = document.getElementById('wood-sellers-list');
+            if (!listEl) return;
+            try {
+                const sellers = await api.wood.getSellers(false);
+                if (!sellers || sellers.length === 0) {
+                    listEl.innerHTML = '<div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">لا يوجد موردون</div>';
+                    return;
+                }
+                listEl.innerHTML = '';
+                sellers.forEach(s => {
+                    const active = Number(s.active) === 1;
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.75rem; border-bottom:1px solid #f0f0f0;';
+                    const info = document.createElement('div');
+                    const priceTxt = (s.default_price_per_kg != null && s.default_price_per_kg !== '') ? ` — ${s.default_price_per_kg} د/كغ` : '';
+                    info.innerHTML = `<span style="${active ? 'color:#1f2937;' : 'color:#9ca3af; text-decoration:line-through;'}">${s.name}${s.wood_type ? ' — ' + s.wood_type : ''}${priceTxt}</span>` +
+                        (s.phone ? `<br><span style="color:#6b7280; font-size:0.8rem;">${s.phone}</span>` : '');
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-secondary';
+                    btn.style.cssText = 'padding:0.25rem 0.75rem; font-size:0.8rem;';
+                    btn.textContent = active ? 'تعطيل' : 'تفعيل';
+                    btn.onclick = () => toggleWoodSellerActive(s.id, !active);
+                    row.appendChild(info);
+                    row.appendChild(btn);
+                    listEl.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Failed to load wood sellers list:', error);
+                listEl.innerHTML = '<div style="padding: 1rem; text-align: center; color: #dc2626; font-size: 0.85rem;">خطأ في تحميل الموردين</div>';
+            }
+        }
+
+        async function addWoodSellerFromSettings() {
+            const name = document.getElementById('new-wood-seller-name').value.trim();
+            const phone = document.getElementById('new-wood-seller-phone').value.trim();
+            const woodType = document.getElementById('new-wood-seller-type').value.trim();
+            const priceRaw = document.getElementById('new-wood-seller-price').value.trim();
+            if (!name) {
+                showToast('يرجى إدخال اسم المورد', 'error');
+                return;
+            }
+            const price = priceRaw === '' ? null : parseFloat(priceRaw);
+            try {
+                const res = await api.wood.addSeller(name, phone, woodType, price, '');
+                if (res && res.success === false) {
+                    showToast(res.error || 'تعذّر إضافة المورد', 'error');
+                    return;
+                }
+                document.getElementById('new-wood-seller-name').value = '';
+                document.getElementById('new-wood-seller-phone').value = '';
+                document.getElementById('new-wood-seller-type').value = '';
+                document.getElementById('new-wood-seller-price').value = '';
+                showToast('تمت إضافة المورد', 'success');
+                await loadWoodSellersList();
+            } catch (error) {
+                console.error('Failed to add wood seller:', error);
+                showToast('خطأ في إضافة المورد', 'error');
+            }
+        }
+
+        async function toggleWoodSellerActive(id, active) {
+            try {
+                await api.wood.toggleSeller(id, active);
+                showToast(active ? 'تم تفعيل المورد' : 'تم تعطيل المورد', 'success');
+                await loadWoodSellersList();
+            } catch (error) {
+                console.error('Failed to toggle wood seller:', error);
+                showToast('خطأ في تحديث المورد', 'error');
+            }
+        }
+
+        // ── Outstanding (unpaid) wood purchases (Settings) ───────────────
+        async function loadOutstandingWood() {
+            const listEl = document.getElementById('outstanding-wood-list');
+            if (!listEl) return;
+            try {
+                const items = await api.wood.getOutstanding();
+                if (!items || items.length === 0) {
+                    listEl.innerHTML = '<div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">لا يوجد خشب غير مدفوع</div>';
+                    return;
+                }
+                listEl.innerHTML = '';
+                items.forEach(w => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.75rem; border-bottom:1px solid #f0f0f0;';
+                    let dispDate = w.delivery_date;
+                    try { dispDate = new Date(w.delivery_date).toLocaleDateString('ar-MA'); } catch (_) {}
+                    const info = document.createElement('div');
+                    info.innerHTML = `<span style="color:#1f2937; font-weight:600;">${w.supplier_name}${w.wood_type ? ' — ' + w.wood_type : ''}</span>` +
+                        `<br><span style="color:#6b7280; font-size:0.8rem;">${dispDate} — <span style="color:#dc2626; font-weight:700;">${w.total_amount} درهم</span></span>`;
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-success';
+                    btn.style.cssText = 'padding:0.25rem 0.75rem; font-size:0.8rem;';
+                    btn.textContent = 'تم الدفع';
+                    btn.onclick = () => payWoodPurchaseUI(w.id, w.total_amount);
+                    row.appendChild(info);
+                    row.appendChild(btn);
+                    listEl.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Failed to load outstanding wood:', error);
+                listEl.innerHTML = '<div style="padding: 1rem; text-align: center; color: #dc2626; font-size: 0.85rem;">خطأ في التحميل</div>';
+            }
+        }
+
+        async function payWoodPurchaseUI(woodId, amount) {
+            const confirmed = await showConfirm(`تأكيد دفع ${amount} درهم لهذا الشراء؟\nسيُخصم المبلغ من النقد في الصندوق الآن.`);
+            if (!confirmed) return;
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const res = await api.wood.payPurchase(woodId, today);
+                if (res && res.success === false) {
+                    showToast(res.error || 'تعذّر تسجيل الدفع', 'error');
+                    return;
+                }
+                showToast('تم تسجيل الدفع', 'success');
+                await Promise.all([
+                    loadOutstandingWood(),
+                    updateDisplays(),
+                    updateDailyLedger()
+                ]);
+            } catch (error) {
+                console.error('Failed to pay wood purchase:', error);
+                showToast('خطأ في تسجيل الدفع', 'error');
+            }
+        }
+
         async function loadExpenseTemplates() {
             try {
                 currentExpenseTemplates = await api.expenseTemplates.getTemplates(true);
@@ -2685,6 +2896,15 @@
             document.getElementById('wood-gross-weight').oninput = calculateWoodAmount;
             document.getElementById('wood-empty-weight').oninput = calculateWoodAmount;
             document.getElementById('wood-price-per-kg').oninput = calculateWoodAmount;
+            const woodTotalInput = document.getElementById('wood-total-input');
+            if (woodTotalInput) woodTotalInput.oninput = calculateWoodAmount;
+            // Pricing method radios: switch visible fields + recompute
+            document.querySelectorAll('input[name="wood-pricing-method"]').forEach(radio => {
+                radio.onchange = onWoodPricingMethodChange;
+            });
+            // Seller selection: prefill default price/wood type
+            const woodSellerSelect = document.getElementById('wood-seller-select');
+            if (woodSellerSelect) woodSellerSelect.onchange = onWoodSellerSelected;
             
             // Set today's date for wood delivery
             document.getElementById('wood-delivery-date').value = new Date().toISOString().split('T')[0];
@@ -2717,7 +2937,60 @@
                 document.getElementById('expense-modal').classList.remove('hidden');
             } else if (selectedType === 'wood') {
                 document.getElementById('wood-modal').classList.remove('hidden');
+                loadWoodSellersIntoModal();
+                onWoodPricingMethodChange();
             }
+        }
+
+        // Load active wood sellers into the wood-modal dropdown.
+        let currentWoodSellers = [];
+        async function loadWoodSellersIntoModal() {
+            try {
+                currentWoodSellers = await api.wood.getSellers(true);
+                const select = document.getElementById('wood-seller-select');
+                const hint = document.getElementById('wood-no-sellers-hint');
+                select.innerHTML = '<option value="">اختر المورد...</option>';
+                currentWoodSellers.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.wood_type ? `${s.name} — ${s.wood_type}` : s.name;
+                    opt.dataset.seller = JSON.stringify(s);
+                    select.appendChild(opt);
+                });
+                if (hint) hint.style.display = currentWoodSellers.length === 0 ? 'block' : 'none';
+            } catch (error) {
+                console.error('Failed to load wood sellers:', error);
+            }
+        }
+
+        // When a seller is picked: prefill wood type + default per-kg price (editable).
+        function onWoodSellerSelected() {
+            const select = document.getElementById('wood-seller-select');
+            const opt = select.selectedOptions[0];
+            if (!opt || !opt.dataset.seller) return;
+            const seller = JSON.parse(opt.dataset.seller);
+            const typeInput = document.getElementById('wood-type-input');
+            if (typeInput && !typeInput.value.trim()) typeInput.value = seller.wood_type || '';
+            const priceInput = document.getElementById('wood-price-per-kg');
+            if (priceInput && seller.default_price_per_kg != null && priceInput.value.trim() === '') {
+                priceInput.value = seller.default_price_per_kg;
+            }
+            calculateWoodAmount();
+        }
+
+        // Show/hide fields per pricing method.
+        function onWoodPricingMethodChange() {
+            const method = (document.querySelector('input[name="wood-pricing-method"]:checked') || {}).value || 'per_kg';
+            const perkg = document.getElementById('wood-perkg-fields');
+            const amountField = document.getElementById('wood-amount-field');
+            if (method === 'per_kg') {
+                perkg.style.display = 'block';
+                amountField.style.display = 'none';
+            } else {
+                perkg.style.display = 'none';
+                amountField.style.display = 'block';
+            }
+            calculateWoodAmount();
         }
 
         function onTemplateSelected() {
@@ -2758,17 +3031,26 @@
         }
 
         function calculateWoodAmount() {
-            const grossWeight = parseFloat(document.getElementById('wood-gross-weight').value) || 0;
-            const emptyWeight = parseFloat(document.getElementById('wood-empty-weight').value) || 0;
-            const pricePerKg = parseFloat(document.getElementById('wood-price-per-kg').value) || 0;
-            
-            const netWeight = Math.max(0, grossWeight - emptyWeight);
-            const totalAmount = netWeight * pricePerKg;
-            
-            document.getElementById('wood-net-weight').textContent = `${netWeight.toFixed(1)} كغ`;
+            const method = (document.querySelector('input[name="wood-pricing-method"]:checked') || {}).value || 'per_kg';
+            let totalAmount = 0;
+            let details = '';
+
+            if (method === 'per_kg') {
+                const grossWeight = parseFloat(document.getElementById('wood-gross-weight').value) || 0;
+                const emptyWeight = parseFloat(document.getElementById('wood-empty-weight').value) || 0;
+                const pricePerKg = parseFloat(document.getElementById('wood-price-per-kg').value) || 0;
+                const netWeight = Math.max(0, grossWeight - emptyWeight);
+                totalAmount = netWeight * pricePerKg;
+                const netEl = document.getElementById('wood-net-weight');
+                if (netEl) netEl.textContent = `${netWeight.toFixed(1)} كغ`;
+                details = `الحساب: ${netWeight.toFixed(1)} كغ × ${pricePerKg.toFixed(2)} درهم = ${totalAmount.toFixed(2)} درهم`;
+            } else {
+                totalAmount = parseFloat(document.getElementById('wood-total-input').value) || 0;
+                details = method === 'per_load' ? 'سعر الحمولة الكاملة' : 'مبلغ متفق عليه';
+            }
+
             document.getElementById('wood-total-amount').textContent = `${totalAmount.toFixed(2)} درهم`;
-            document.getElementById('wood-calculation-details').textContent = 
-                `الحساب: ${netWeight.toFixed(1)} كغ × ${pricePerKg.toFixed(2)} درهم = ${totalAmount.toFixed(2)} درهم`;
+            document.getElementById('wood-calculation-details').textContent = details;
         }
 
         async function submitExpense() {
@@ -2852,44 +3134,65 @@
 
         async function submitWoodPurchase() {
             try {
-                const supplierName = document.getElementById('wood-supplier').value.trim();
-                const grossWeight = parseFloat(document.getElementById('wood-gross-weight').value);
-                const emptyWeight = parseFloat(document.getElementById('wood-empty-weight').value);
-                const pricePerKg = parseFloat(document.getElementById('wood-price-per-kg').value);
+                const sellerSelect = document.getElementById('wood-seller-select');
+                const sellerId = sellerSelect.value ? parseInt(sellerSelect.value, 10) : null;
+                const woodType = document.getElementById('wood-type-input').value.trim();
                 const deliveryDate = document.getElementById('wood-delivery-date').value;
                 const notes = document.getElementById('wood-notes').value.trim();
-                
-                // Validation
-                if (!supplierName) {
-                    showToast('يرجى إدخال اسم المورد', 'error');
+                const pricingMethod = (document.querySelector('input[name="wood-pricing-method"]:checked') || {}).value || 'per_kg';
+                const paymentStatus = (document.querySelector('input[name="wood-payment-status"]:checked') || {}).value || 'paid';
+                const paid = paymentStatus === 'paid';
+
+                if (!sellerId) {
+                    showToast('يرجى اختيار المورد', 'error');
                     return;
                 }
-                
-                if (!grossWeight || !emptyWeight || !pricePerKg || !deliveryDate) {
-                    showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
+                if (!deliveryDate) {
+                    showToast('يرجى تحديد تاريخ التسليم', 'error');
                     return;
                 }
-                
-                if (grossWeight <= emptyWeight) {
-                    showToast('الوزن الإجمالي يجب أن يكون أكبر من وزن الشاحنة فارغة', 'error');
+
+                const opts = { sellerId, woodType, pricingMethod, deliveryDate, paid, notes };
+
+                if (pricingMethod === 'per_kg') {
+                    const grossWeight = parseFloat(document.getElementById('wood-gross-weight').value);
+                    const emptyWeight = parseFloat(document.getElementById('wood-empty-weight').value);
+                    const pricePerKg = parseFloat(document.getElementById('wood-price-per-kg').value);
+                    if (!grossWeight || !emptyWeight || !pricePerKg) {
+                        showToast('يرجى ملء الأوزان وسعر الكيلو', 'error');
+                        return;
+                    }
+                    if (grossWeight <= emptyWeight) {
+                        showToast('الوزن الإجمالي يجب أن يكون أكبر من وزن الشاحنة فارغة', 'error');
+                        return;
+                    }
+                    opts.netWeight = grossWeight - emptyWeight;
+                    opts.unitPrice = pricePerKg;
+                } else {
+                    const total = parseFloat(document.getElementById('wood-total-input').value);
+                    if (!total || total <= 0) {
+                        showToast('يرجى إدخال المبلغ الإجمالي', 'error');
+                        return;
+                    }
+                    opts.totalAmount = total;
+                }
+
+                const result = await api.wood.recordPurchase(opts);
+                if (!result || result.success === false) {
+                    showToast((result && result.error) || 'فشل في تسجيل شراء الخشب', 'error');
                     return;
                 }
-                
-                // Add wood purchase
-                const result = await api.expenseTemplates.addWoodPurchase(
-                    supplierName, grossWeight, emptyWeight, pricePerKg, deliveryDate, notes
-                );
-                
-                showToast(`تم تسجيل شراء الخشب: ${result.netWeight} كغ - ${result.totalAmount} درهم`, 'success');
+
+                const paidLabel = paid ? 'مدفوع' : 'غير مدفوع';
+                showToast(`تم تسجيل شراء الخشب: ${result.totalAmount} درهم (${paidLabel})`, 'success');
                 closeWoodModal();
-                
-                // Update displays
+
                 await Promise.all([
                     updateDisplays(),
                     updateDailyLedger(),
                     refreshCurrentDayDetails()
                 ]);
-                
+
             } catch (error) {
                 console.error('Failed to submit wood purchase:', error);
                 showToast('فشل في تسجيل شراء الخشب', 'error');
@@ -2912,19 +3215,27 @@
 
         function closeWoodModal() {
             document.getElementById('wood-modal').classList.add('hidden');
-            
+
             // Reset wood form
-            document.getElementById('wood-supplier').value = '';
+            const sel = document.getElementById('wood-seller-select');
+            if (sel) sel.value = '';
+            document.getElementById('wood-type-input').value = '';
             document.getElementById('wood-gross-weight').value = '';
             document.getElementById('wood-empty-weight').value = '';
             document.getElementById('wood-price-per-kg').value = '';
+            const totalInput = document.getElementById('wood-total-input');
+            if (totalInput) totalInput.value = '';
             document.getElementById('wood-delivery-date').value = new Date().toISOString().split('T')[0];
             document.getElementById('wood-notes').value = '';
-            
+            const perKgRadio = document.querySelector('input[name="wood-pricing-method"][value="per_kg"]');
+            if (perKgRadio) perKgRadio.checked = true;
+            const paidRadio = document.querySelector('input[name="wood-payment-status"][value="paid"]');
+            if (paidRadio) paidRadio.checked = true;
+
             // Reset calculations
             document.getElementById('wood-net-weight').textContent = '0 كغ';
             document.getElementById('wood-total-amount').textContent = '0 درهم';
-            document.getElementById('wood-calculation-details').textContent = 'الحساب: 0 كغ × 0 درهم = 0 درهم';
+            document.getElementById('wood-calculation-details').textContent = '';
         }
         
         async function updateDailyLedger() {
@@ -4003,6 +4314,10 @@
 
                 // Load reusable expense types list
                 await loadExpenseTypesList();
+
+                // Load wood sellers + outstanding wood lists
+                await loadWoodSellersList();
+                await loadOutstandingWood();
                 
                 // Show modal
                 const modal = document.getElementById('settings-modal');

@@ -901,6 +901,69 @@ ipcMain.handle('expenseTemplates:toggleTemplate', (event, id, active) => {
   return { success: true };
 });
 
+// ─── Wood sellers + wood purchases (Task #4) ────────────────────────
+ipcMain.handle('wood:addSeller', (event, name, phone, woodType, defaultPricePerKg, notes) => {
+  if (!expenseTemplates) return { success: false, error: 'غير متاح' };
+  return expenseTemplates.addWoodSeller(name, phone, woodType, defaultPricePerKg, notes);
+});
+
+ipcMain.handle('wood:getSellers', (event, activeOnly) => {
+  if (!expenseTemplates) return [];
+  return expenseTemplates.getWoodSellers(activeOnly);
+});
+
+ipcMain.handle('wood:updateSeller', (event, id, name, phone, woodType, defaultPricePerKg, notes) => {
+  if (!expenseTemplates) return { success: false, error: 'غير متاح' };
+  return expenseTemplates.updateWoodSeller(id, name, phone, woodType, defaultPricePerKg, notes);
+});
+
+ipcMain.handle('wood:toggleSeller', (event, id, active) => {
+  if (!expenseTemplates) return { success: false, error: 'غير متاح' };
+  return expenseTemplates.toggleWoodSeller(id, active);
+});
+
+ipcMain.handle('wood:recordPurchase', async (event, opts) => {
+  if (!expenseTemplates) return { success: false, error: 'غير متاح' };
+  const result = expenseTemplates.recordWoodPurchase(opts);
+  if (!result.success) return result;
+  // Mirror the created expense (if paid now) to backups/Excel/cloud, matching the
+  // existing expense mirror pattern. Unpaid purchases create no expense yet.
+  if (result.expenseId && backupManager) {
+    const expense = { id: result.expenseId, description: 'خشب', amount: result.totalAmount, date: (opts && opts.deliveryDate) || new Date().toISOString().split('T')[0], time: new Date().toTimeString().split(' ')[0] };
+    try { await backupManager.addExpense(expense); } catch (e) { console.error('wood expense backup failed', e); }
+    if (excelManager) { try { await excelManager.addExpense(expense); } catch (e) { console.error('wood expense excel failed', e); } }
+    if (cloudSync) cloudSync.syncExpense(expense).catch(() => {});
+  }
+  return result;
+});
+
+ipcMain.handle('wood:payPurchase', async (event, woodId, paidDate) => {
+  if (!expenseTemplates) return { success: false, error: 'غير متاح' };
+  const result = expenseTemplates.payWoodPurchase(woodId, paidDate);
+  if (!result.success) return result;
+  if (result.expenseId && backupManager) {
+    const expense = { id: result.expenseId, description: 'خشب (دفعة)', amount: 0, date: paidDate || new Date().toISOString().split('T')[0], time: new Date().toTimeString().split(' ')[0] };
+    try { await backupManager.addExpense(expense); } catch (e) { console.error('wood pay backup failed', e); }
+    if (excelManager) { try { await excelManager.addExpense(expense); } catch (e) { console.error('wood pay excel failed', e); } }
+  }
+  return result;
+});
+
+ipcMain.handle('wood:getOutstanding', (event) => {
+  if (!expenseTemplates) return [];
+  return expenseTemplates.getOutstandingWoodPurchases();
+});
+
+ipcMain.handle('wood:getBySeller', (event) => {
+  if (!expenseTemplates) return [];
+  return expenseTemplates.getWoodBySeller();
+});
+
+ipcMain.handle('wood:getByType', (event) => {
+  if (!expenseTemplates) return [];
+  return expenseTemplates.getWoodByType();
+});
+
 // Clear all data handler (Testing only)
 ipcMain.handle('storage:clearAllData', async () => {
   // Clear data from database
