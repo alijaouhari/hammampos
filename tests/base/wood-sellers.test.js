@@ -807,3 +807,85 @@ test('bug1: an unpaid purchase can still be paid later (drops cash once)', async
     assert.equal(et.payWoodPurchase(rec.woodId, daysAgo(1)).success, false); // once only
   } finally { cleanup(s); }
 });
+
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Teller wood-purchase payment (roadmap): the Teller uses the SAME backend
+ * payment path as the Manager (api.wood.payPurchase -> payWoodPurchase).
+ * These tests assert that path pays an unpaid purchase exactly once, records
+ * the payment date, refuses a second payment, and preserves history — which
+ * is what the Teller "تم الدفع" action invokes.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+test('teller payment: paying an unpaid purchase drops cash exactly once and records date', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const c = s.addCategory('رجال', 3000); s.createTicket(c); // +3000 revenue
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    const rec = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_load',
+      totalAmount: 700, netWeight: 900, deliveryDate: daysAgo(2), paid: false
+    });
+    // Unpaid: cash unchanged, appears outstanding.
+    const before = s.getCashInHand();
+    assert.equal(et.getOutstandingWoodPurchases().length, 1);
+
+    // Teller pays via the shared backend method.
+    const payDate = daysAgo(1);
+    const pay = et.payWoodPurchase(rec.woodId, payDate);
+    assert.equal(pay.success, true);
+    assert.equal(typeof pay.expenseId, 'number');
+    assert.equal(s.getCashInHand(), before - 700);            // exactly once
+    assert.equal(et.getOutstandingWoodPurchases().length, 0);
+
+    const row = et.getWoodPurchases(10).find(x => x.id === rec.woodId);
+    assert.equal(row.paid, 1);
+    assert.equal(row.paid_date, payDate);
+    assert.equal(typeof row.expense_id, 'number');
+  } finally { cleanup(s); }
+});
+
+test('teller payment: an already-paid purchase cannot be paid again (no duplicate cash/expense)', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const c = s.addCategory('رجال', 3000); s.createTicket(c);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    const rec = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_load',
+      totalAmount: 500, netWeight: 600, deliveryDate: daysAgo(2), paid: false
+    });
+    et.payWoodPurchase(rec.woodId, daysAgo(1));
+    const afterFirst = s.getCashInHand();
+
+    // Second attempt must be rejected and must not change cash again.
+    const again = et.payWoodPurchase(rec.woodId, daysAgo(1));
+    assert.equal(again.success, false);
+    assert.equal(s.getCashInHand(), afterFirst);              // no second deduction
+    // Exactly one expense row exists for this purchase's amount pathway.
+    assert.equal(et.getOutstandingWoodPurchases().length, 0);
+  } finally { cleanup(s); }
+});
+
+test('teller payment: paying a purchase does not corrupt other historical purchases', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    // A pre-existing paid purchase (history) + an unpaid one.
+    const paidRec = et.recordWoodPurchase({ sellerId, woodType: 'ليج', pricingMethod: 'per_kg', netWeight: 100, unitPrice: 2, deliveryDate: daysAgo(5), paid: true });
+    const unpaidRec = et.recordWoodPurchase({ sellerId, woodType: 'ليج', pricingMethod: 'per_load', totalAmount: 400, netWeight: 500, deliveryDate: daysAgo(3), paid: false });
+
+    et.payWoodPurchase(unpaidRec.woodId, daysAgo(1));
+
+    const rows = et.getWoodPurchases(10);
+    const paidRow = rows.find(x => x.id === paidRec.woodId);
+    // The historical paid purchase is unchanged (snapshot + amount intact).
+    assert.equal(paidRow.paid, 1);
+    assert.equal(paidRow.total_amount, 200);
+    assert.equal(paidRow.wood_type, 'ليج');
+    // Both purchases still present.
+    assert.equal(rows.length, 2);
+  } finally { cleanup(s); }
+});

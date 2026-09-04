@@ -169,7 +169,7 @@
             top: 80px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 20000;
+            z-index: 30000;
             padding: 1rem 1.5rem;
             border-radius: 8px;
             font-weight: 600;
@@ -1257,6 +1257,33 @@
                             <td id="total-balance">0</td>
                         </tr>
                     </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Wood Purchases (Teller view) — same data + payment as Manager -->
+        <div id="teller-wood-section" class="daily-summary-section" style="display: none;">
+            <h3>🪵 مشتريات الخشب</h3>
+            <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0; text-align: center;">
+                الخشب غير المدفوع (آجل) لا يُخصم من النقد حتى تضغط "تم الدفع".
+            </p>
+            <div class="summary-table-container">
+                <table class="summary-table" id="teller-wood-table">
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>المورد</th>
+                            <th>نوع الخشب</th>
+                            <th>الوزن (كغ)</th>
+                            <th>السعر (درهم)</th>
+                            <th>الحالة</th>
+                            <th>تاريخ الدفع</th>
+                            <th>إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teller-wood-tbody">
+                        <!-- Wood purchases will be populated here -->
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -2515,6 +2542,10 @@
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('categories-section').style.display = 'block';
                 document.getElementById('daily-summary-section').style.display = 'block';
+                const tellerWoodSection = document.getElementById('teller-wood-section');
+                if (tellerWoodSection) tellerWoodSection.style.display = 'block';
+                // Populate the Teller wood-purchases table (reuses the shared backend).
+                loadTellerWoodTable();
                 
                 // Setup event listeners
                 console.log('Setting up event listeners...');
@@ -3175,6 +3206,56 @@
             }
         }
 
+        // Wood purchases table for the TELLER (main) page. Reuses exactly the same
+        // data source (api.wood.getPurchases) and the SAME payment path
+        // (payWoodPurchaseUI -> api.wood.payPurchase) as the Manager table — no
+        // second financial/payment system. Read-only rows (no editing of purchase
+        // details); only unpaid rows expose the "تم الدفع" action.
+        async function loadTellerWoodTable() {
+            const tbody = document.getElementById('teller-wood-tbody');
+            if (!tbody) return;
+            try {
+                const rows = await api.wood.getPurchases(200);
+                if (!rows || rows.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#6b7280; padding:1rem;">لا توجد مشتريات خشب</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = '';
+                rows.forEach(w => {
+                    const paid = Number(w.paid) === 1;
+                    const tr = document.createElement('tr');
+                    const weight = (w.net_wood_weight != null && w.net_wood_weight !== '') ? `${w.net_wood_weight}` : '—';
+                    tr.innerHTML =
+                        `<td>${woodDisplayDate(w.delivery_date)}</td>` +
+                        `<td>${w.supplier_name || '—'}</td>` +
+                        `<td>${w.wood_type || '—'}</td>` +
+                        `<td>${weight}</td>` +
+                        `<td>${w.total_amount}</td>` +
+                        `<td style="color:${paid ? '#059669' : '#dc2626'}; font-weight:600;">${woodStatusLabel(w)}</td>` +
+                        `<td>${paid ? woodDisplayDate(w.paid_date) : '—'}</td>`;
+                    const actionTd = document.createElement('td');
+                    if (!paid) {
+                        // Unpaid -> payable via the shared payment flow. Already-paid rows
+                        // get no action, so they can never be paid twice from here.
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'btn btn-success';
+                        btn.style.cssText = 'padding:0.2rem 0.6rem; font-size:0.78rem;';
+                        btn.textContent = 'تم الدفع';
+                        btn.onclick = () => payWoodPurchaseUI(w.id, w.total_amount);
+                        actionTd.appendChild(btn);
+                    } else {
+                        actionTd.textContent = '—';
+                    }
+                    tr.appendChild(actionTd);
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Failed to load teller wood table:', error);
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#dc2626; padding:1rem;">خطأ في التحميل</td></tr>';
+            }
+        }
+
         async function payWoodPurchaseUI(woodId, amount) {
             const confirmed = await showConfirm(`تأكيد دفع ${amount} درهم لهذا الشراء؟\nسيُخصم المبلغ من النقد في الصندوق الآن.`);
             if (!confirmed) return;
@@ -3188,6 +3269,7 @@
                 showToast('تم تسجيل الدفع', 'success');
                 await Promise.all([
                     loadAdminWoodTable(),
+                    loadTellerWoodTable(),
                     loadWoodPurchasesTable(),
                     updateDisplays(),
                     updateDailyLedger()
@@ -3602,7 +3684,8 @@
                     updateDisplays(),
                     updateDailyLedger(),
                     refreshCurrentDayDetails(),
-                    loadAdminWoodTable()
+                    loadAdminWoodTable(),
+                    loadTellerWoodTable()
                 ]);
 
             } catch (error) {
@@ -3885,6 +3968,8 @@
                 // Hide main content
                 document.getElementById('categories-section').style.display = 'none';
                 document.getElementById('daily-summary-section').style.display = 'none';
+                const tellerWoodSectionHide = document.getElementById('teller-wood-section');
+                if (tellerWoodSectionHide) tellerWoodSectionHide.style.display = 'none';
                 document.getElementById('day-details').style.display = 'none';
                 
                 // Show admin dashboard
@@ -3959,6 +4044,10 @@
             // Show main content
             document.getElementById('categories-section').style.display = 'block';
             document.getElementById('daily-summary-section').style.display = 'block';
+            const tellerWoodSectionShow = document.getElementById('teller-wood-section');
+            if (tellerWoodSectionShow) tellerWoodSectionShow.style.display = 'block';
+            // Refresh the Teller wood table so payment state is current after admin actions.
+            loadTellerWoodTable();
             
             console.log('Admin dashboard closed');
         }
