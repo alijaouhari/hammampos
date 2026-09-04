@@ -1123,6 +1123,61 @@
             font-weight: 600;
             font-size: 1rem;
         }
+
+        /* ── On-screen keyboard ────────────────────────────────────────── */
+        #osk-panel {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 4000;
+            background: #1f2937;
+            border-top: 3px solid #2563eb;
+            box-shadow: 0 -6px 24px rgba(0,0,0,0.35);
+            padding: 0.6rem 0.8rem 0.9rem;
+            direction: ltr; /* keys are laid out left-to-right regardless of app RTL */
+            user-select: none;
+        }
+        #osk-panel.hidden { display: none; }
+        .osk-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .osk-title { color: #e5e7eb; font-weight: 700; font-size: 0.95rem; }
+        .osk-bar-actions { display: flex; gap: 0.5rem; }
+        .osk-row {
+            display: flex;
+            justify-content: center;
+            gap: 0.4rem;
+            margin-bottom: 0.4rem;
+        }
+        .osk-key {
+            min-width: 3rem;
+            height: 3.2rem;
+            padding: 0 0.5rem;
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: #f9fafb;
+            background: #374151;
+            border: 1px solid #4b5563;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            transition: background 0.08s ease;
+        }
+        .osk-key:hover { background: #4b5563; }
+        .osk-key:active { background: #2563eb; }
+        .osk-key.osk-wide { min-width: 6rem; }
+        .osk-key.osk-space { flex: 1 1 auto; max-width: 28rem; }
+        .osk-key.osk-accent { background: #2563eb; border-color: #1d4ed8; }
+        .osk-key.osk-accent:hover { background: #1d4ed8; }
+        .osk-key.osk-danger { background: #b91c1c; border-color: #991b1b; }
+        .osk-key.osk-danger:hover { background: #991b1b; }
     </style>
 </head>
 <body>
@@ -1131,6 +1186,7 @@
         <div class="header">
             <h1 id="hammam-name">حمام جديد</h1>
             <div class="header-actions">
+                <button id="osk-toggle-btn" class="btn btn-primary" title="لوحة المفاتيح على الشاشة">⌨ لوحة المفاتيح</button>
                 <button id="add-expense-btn" class="btn btn-warning">إضافة مصروف</button>
                 <button id="admin-btn" class="btn btn-success">إدارة</button>
             </div>
@@ -2182,6 +2238,18 @@
                 <button type="button" id="confirm-modal-no" class="btn btn-secondary">إلغاء</button>
             </div>
         </div>
+    </div>
+
+    <!-- On-screen keyboard (Arabic / QWERTY) -->
+    <div id="osk-panel" class="hidden" aria-hidden="true">
+        <div class="osk-bar">
+            <span class="osk-title">لوحة المفاتيح</span>
+            <div class="osk-bar-actions">
+                <button type="button" id="osk-switch-layout" class="osk-key osk-wide osk-accent" title="تبديل اللغة">العربية / EN</button>
+                <button type="button" id="osk-hide" class="osk-key osk-wide osk-danger" title="إخفاء">✕ إخفاء</button>
+            </div>
+        </div>
+        <div id="osk-keys"></div>
     </div>
 
     <script>
@@ -5995,6 +6063,160 @@
             }
         });
         
+        // ══════════════════════════════════════════════════════════════
+        // On-screen keyboard (Arabic / QWERTY)
+        // Pure layout + key logic lives in src/services/OnScreenKeyboard.js so
+        // it can be unit-tested headlessly; the renderer only builds the keys
+        // and routes presses to the currently focused text input.
+        // ══════════════════════════════════════════════════════════════
+        const OSK = require('../services/OnScreenKeyboard');
+
+        // The last text-like input/textarea the user focused. On-screen keys are
+        // routed here so the keyboard is never hardcoded to one field.
+        let oskLastInput = null;
+        let oskLayout = 'ar';
+
+        function oskIsTextInput(el) {
+            if (!el || !el.tagName) return false;
+            const tag = el.tagName.toLowerCase();
+            if (tag === 'textarea') return true;
+            if (tag !== 'input') return false;
+            const type = (el.getAttribute('type') || 'text').toLowerCase();
+            // Route to text-like fields (incl. number/search/tel/password). Skip
+            // non-text controls (checkbox/radio/date/range/button/etc.).
+            return ['text', 'search', 'tel', 'url', 'email', 'password', 'number'].includes(type);
+        }
+
+        // Track focus across the whole app so keys go to the active field.
+        document.addEventListener('focusin', (e) => {
+            if (oskIsTextInput(e.target)) oskLastInput = e.target;
+        });
+
+        function oskRenderKeys() {
+            const container = document.getElementById('osk-keys');
+            if (!container) return;
+            container.innerHTML = '';
+            const rows = OSK.getLayout(oskLayout);
+            rows.forEach(row => {
+                const rowEl = document.createElement('div');
+                rowEl.className = 'osk-row';
+                row.forEach(ch => {
+                    const key = document.createElement('button');
+                    key.type = 'button';
+                    key.className = 'osk-key';
+                    key.textContent = ch;
+                    key.dataset.key = ch;
+                    rowEl.appendChild(key);
+                });
+                container.appendChild(rowEl);
+            });
+            // Control row: Backspace, Space, Enter.
+            const ctrl = document.createElement('div');
+            ctrl.className = 'osk-row';
+            const mk = (label, keyName, cls) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'osk-key ' + cls;
+                b.textContent = label;
+                b.dataset.control = keyName;
+                return b;
+            };
+            ctrl.appendChild(mk('⌫ مسح', 'Backspace', 'osk-wide osk-danger'));
+            ctrl.appendChild(mk('مسافة', 'Space', 'osk-space'));
+            ctrl.appendChild(mk('⏎ إدخال', 'Enter', 'osk-wide osk-accent'));
+            container.appendChild(ctrl);
+        }
+
+        function oskApplyToInput(keyOrControl, isControl) {
+            const input = oskLastInput;
+            if (!input) {
+                showToast && showToast('انقر على حقل الكتابة أولاً', 'info');
+                return;
+            }
+            const multiline = input.tagName.toLowerCase() === 'textarea';
+            const state = {
+                value: input.value,
+                selStart: input.selectionStart,
+                selEnd: input.selectionEnd
+            };
+            // number inputs don't expose selection; fall back to end-of-value.
+            if (state.selStart == null) { state.selStart = input.value.length; state.selEnd = input.value.length; }
+            const next = OSK.applyKey(state, isControl ? keyOrControl : keyOrControl, { multiline });
+            input.value = next.value;
+            try { input.setSelectionRange(next.selStart, next.selEnd); } catch (_) {}
+            // Notify existing listeners (live totals, validation, etc.).
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            if (next.submit) {
+                // Enter on a single-line field: submit the closest form if any,
+                // otherwise dispatch an Enter keydown for handlers that listen.
+                const form = input.form;
+                if (form && typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+                }
+            }
+            // Keep the field focused so the caret stays visible.
+            try { input.focus(); } catch (_) {}
+        }
+
+        function oskShow() {
+            const panel = document.getElementById('osk-panel');
+            if (!panel) return;
+            oskRenderKeys();
+            panel.classList.remove('hidden');
+            panel.setAttribute('aria-hidden', 'false');
+        }
+        function oskHide() {
+            const panel = document.getElementById('osk-panel');
+            if (!panel) return;
+            panel.classList.add('hidden');
+            panel.setAttribute('aria-hidden', 'true');
+        }
+        function oskToggle() {
+            const panel = document.getElementById('osk-panel');
+            if (!panel) return;
+            if (panel.classList.contains('hidden')) oskShow(); else oskHide();
+        }
+        function oskSwitchLayout() {
+            oskLayout = OSK.nextLayout(oskLayout);
+            oskRenderKeys();
+        }
+
+        function oskInit() {
+            const panel = document.getElementById('osk-panel');
+            const toggleBtn = document.getElementById('osk-toggle-btn');
+            if (toggleBtn) toggleBtn.onclick = oskToggle;
+            const hideBtn = document.getElementById('osk-hide');
+            if (hideBtn) hideBtn.onclick = oskHide;
+            const switchBtn = document.getElementById('osk-switch-layout');
+            if (switchBtn) switchBtn.onclick = oskSwitchLayout;
+            if (panel) {
+                // Use mousedown + preventDefault so the focused input does NOT lose
+                // focus when a key is clicked (mouse-first / touch-first operation).
+                panel.addEventListener('mousedown', (e) => {
+                    const keyEl = e.target.closest('.osk-key');
+                    if (!keyEl) return;
+                    // Do not steal focus for the control buttons in the top bar.
+                    if (keyEl.id === 'osk-switch-layout' || keyEl.id === 'osk-hide') return;
+                    if (!keyEl.dataset.control && keyEl.dataset.key === undefined) return;
+                    e.preventDefault();
+                    if (keyEl.dataset.control) {
+                        oskApplyToInput(keyEl.dataset.control, true);
+                    } else {
+                        oskApplyToInput(keyEl.dataset.key, false);
+                    }
+                });
+            }
+            oskRenderKeys();
+        }
+        // Initialize as soon as the DOM is ready (independent of app data init).
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', oskInit);
+        } else {
+            oskInit();
+        }
+
         console.log('=== HammamPOS Script Loaded ===');
     </script>
 </body>
