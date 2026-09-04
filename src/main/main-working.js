@@ -927,29 +927,47 @@ ipcMain.handle('wood:deleteSeller', (event, id) => {
   return expenseTemplates.deleteWoodSeller(id);
 });
 
-ipcMain.handle('wood:recordPurchase', async (event, opts) => {
+ipcMain.handle('wood:recordPurchase', (event, opts) => {
   if (!expenseTemplates) return { success: false, error: 'غير متاح' };
+  // recordWoodPurchase persists the row synchronously (storage.save() writes the
+  // DB file) BEFORE we return, so the purchase is durable immediately.
   const result = expenseTemplates.recordWoodPurchase(opts);
   if (!result.success) return result;
-  // Mirror the created expense (if paid now) to backups/Excel/cloud, matching the
-  // existing expense mirror pattern. Unpaid purchases create no expense yet.
+  // Mirror the created expense (if paid now) to backups/Excel/cloud in the
+  // BACKGROUND. This is a secondary durability copy and must NOT block the save
+  // confirmation — awaiting a slow Excel/backup write here was the cause of the
+  // purchase "taking a long time to appear / needing a restart" (v2.8.18 bug).
   if (result.expenseId && backupManager) {
     const expense = { id: result.expenseId, description: 'خشب', amount: result.totalAmount, date: (opts && opts.deliveryDate) || new Date().toISOString().split('T')[0], time: new Date().toTimeString().split(' ')[0] };
-    try { await backupManager.addExpense(expense); } catch (e) { console.error('wood expense backup failed', e); }
-    if (excelManager) { try { await excelManager.addExpense(expense); } catch (e) { console.error('wood expense excel failed', e); } }
+    Promise.resolve()
+      .then(() => backupManager.addExpense(expense))
+      .catch(e => console.error('wood expense backup failed', e));
+    if (excelManager) {
+      Promise.resolve()
+        .then(() => excelManager.addExpense(expense))
+        .catch(e => console.error('wood expense excel failed', e));
+    }
     if (cloudSync) cloudSync.syncExpense(expense).catch(() => {});
   }
+  // Return the DB-backed result right away so the renderer confirms + refreshes now.
   return result;
 });
 
-ipcMain.handle('wood:payPurchase', async (event, woodId, paidDate) => {
+ipcMain.handle('wood:payPurchase', (event, woodId, paidDate) => {
   if (!expenseTemplates) return { success: false, error: 'غير متاح' };
   const result = expenseTemplates.payWoodPurchase(woodId, paidDate);
   if (!result.success) return result;
+  // Background mirroring (non-blocking) — same reasoning as recordPurchase.
   if (result.expenseId && backupManager) {
     const expense = { id: result.expenseId, description: 'خشب (دفعة)', amount: 0, date: paidDate || new Date().toISOString().split('T')[0], time: new Date().toTimeString().split(' ')[0] };
-    try { await backupManager.addExpense(expense); } catch (e) { console.error('wood pay backup failed', e); }
-    if (excelManager) { try { await excelManager.addExpense(expense); } catch (e) { console.error('wood pay excel failed', e); } }
+    Promise.resolve()
+      .then(() => backupManager.addExpense(expense))
+      .catch(e => console.error('wood pay backup failed', e));
+    if (excelManager) {
+      Promise.resolve()
+        .then(() => excelManager.addExpense(expense))
+        .catch(e => console.error('wood pay excel failed', e));
+    }
   }
   return result;
 });

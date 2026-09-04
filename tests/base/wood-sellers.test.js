@@ -694,3 +694,116 @@ test('bugfix: negative amount formats with the minus sign on the left', () => {
   assert.equal(String(-12.5), '-12.5'); // decimals preserved
   assert.equal(String(50), '50');       // positives unchanged
 });
+
+
+/* ══════════════════════════════════════════════════════════════════════
+ * v2.8.19 — Bug 1: wood purchase persists IMMEDIATELY.
+ * The root cause was the IPC handler awaiting slow backup/Excel mirroring
+ * before returning; the DB row itself is persisted synchronously by
+ * recordWoodPurchase (storage.save()). These tests prove the row is present
+ * the instant recordWoodPurchase returns — no restart, no delay — for all
+ * four combinations, with correct cash behavior and no duplicate rows.
+ * (The IPC no-longer-blocking wiring lives in the Electron main process and
+ * cannot be exercised headlessly; it is covered by human testing.)
+ * ══════════════════════════════════════════════════════════════════════ */
+
+test('bug1: paid per-kg purchase persists immediately and drops cash', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const c = s.addCategory('رجال', 5000); s.createTicket(c);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    const before = s.getCashInHand();
+    const res = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_kg',
+      netWeight: 100, unitPrice: 2, deliveryDate: daysAgo(1), paid: true
+    });
+    assert.equal(res.success, true);
+    // Present in the table the instant the call returns (no restart/delay).
+    assert.equal(et.getWoodPurchases(50).length, 1);
+    assert.equal(s.getCashInHand(), before - 200);
+  } finally { cleanup(s); }
+});
+
+test('bug1: unpaid per-kg purchase persists immediately with no cash change', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const c = s.addCategory('رجال', 5000); s.createTicket(c);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    const before = s.getCashInHand();
+    const res = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_kg',
+      netWeight: 100, unitPrice: 2, deliveryDate: daysAgo(1), paid: false
+    });
+    assert.equal(res.success, true);
+    assert.equal(et.getWoodPurchases(50).length, 1);
+    assert.equal(s.getCashInHand(), before);            // unchanged
+    assert.equal(et.getOutstandingWoodPurchases().length, 1);
+  } finally { cleanup(s); }
+});
+
+test('bug1: paid per-load purchase persists immediately and drops cash', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const c = s.addCategory('رجال', 5000); s.createTicket(c);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    const before = s.getCashInHand();
+    const res = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_load',
+      totalAmount: 800, netWeight: 1000, deliveryDate: daysAgo(1), paid: true
+    });
+    assert.equal(res.success, true);
+    assert.equal(et.getWoodPurchases(50).length, 1);
+    assert.equal(s.getCashInHand(), before - 800);
+  } finally { cleanup(s); }
+});
+
+test('bug1: unpaid per-load purchase persists immediately with no cash change', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const c = s.addCategory('رجال', 5000); s.createTicket(c);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    const before = s.getCashInHand();
+    const res = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_load',
+      totalAmount: 800, netWeight: 1000, deliveryDate: daysAgo(1), paid: false
+    });
+    assert.equal(res.success, true);
+    assert.equal(et.getWoodPurchases(50).length, 1);
+    assert.equal(s.getCashInHand(), before);
+    assert.equal(et.getOutstandingWoodPurchases().length, 1);
+  } finally { cleanup(s); }
+});
+
+test('bug1: each recordWoodPurchase creates exactly one row (no duplicates)', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    et.recordWoodPurchase({ sellerId, woodType: 'ليج', pricingMethod: 'per_kg', netWeight: 100, unitPrice: 2, deliveryDate: daysAgo(2), paid: true });
+    et.recordWoodPurchase({ sellerId, woodType: 'ليج', pricingMethod: 'per_load', totalAmount: 300, netWeight: 400, deliveryDate: daysAgo(1), paid: false });
+    assert.equal(et.getWoodPurchases(50).length, 2); // two calls -> two rows, no dup
+  } finally { cleanup(s); }
+});
+
+test('bug1: an unpaid purchase can still be paid later (drops cash once)', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const c = s.addCategory('رجال', 5000); s.createTicket(c);
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج'], 2).id;
+    const rec = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_load',
+      totalAmount: 700, netWeight: 900, deliveryDate: daysAgo(2), paid: false
+    });
+    const before = s.getCashInHand();
+    const pay = et.payWoodPurchase(rec.woodId, daysAgo(1));
+    assert.equal(pay.success, true);
+    assert.equal(s.getCashInHand(), before - 700);
+    assert.equal(et.getOutstandingWoodPurchases().length, 0);
+    assert.equal(et.payWoodPurchase(rec.woodId, daysAgo(1)).success, false); // once only
+  } finally { cleanup(s); }
+});

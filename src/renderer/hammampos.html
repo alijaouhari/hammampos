@@ -1144,6 +1144,39 @@
         #daily-ledger-table tbody td,
         #admin-daily-ledger-table tbody td { text-align: center; }
 
+        /* ── Wood sellers table (Settings) ─────────────────────────────── */
+        .sellers-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .sellers-table th,
+        .sellers-table td {
+            padding: 0.5rem 0.6rem;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: right;
+            vertical-align: middle;
+        }
+        .sellers-table thead th {
+            background: #f3f4f6;
+            color: #374151;
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+        }
+        .sellers-table tbody tr:hover { background: #f9fafb; }
+        .sellers-table .type-chip {
+            display: inline-block;
+            background: #eef2ff;
+            color: #3730a3;
+            border: 1px solid #e0e7ff;
+            border-radius: 999px;
+            padding: 0.1rem 0.55rem;
+            margin: 0.1rem 0.1rem;
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+
         /* ── On-screen keyboard ────────────────────────────────────────── */
         #osk-panel {
             position: fixed;
@@ -2891,40 +2924,70 @@
                     listEl.innerHTML = '<div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">لا يوجد موردون</div>';
                     return;
                 }
+                // Render a proper RTL table: one seller per row, each field in its
+                // own cell so nothing collides. Phone cell is LTR-ordered.
+                const esc = (v) => String(v == null ? '' : v)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 listEl.innerHTML = '';
+                const table = document.createElement('table');
+                table.className = 'sellers-table';
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>المورد</th>
+                            <th>أنواع الخشب</th>
+                            <th>السعر/كغ</th>
+                            <th>الهاتف</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>`;
+                const tbody = table.querySelector('tbody');
                 sellers.forEach(s => {
                     const active = Number(s.active) === 1;
                     const types = Array.isArray(s.types) ? s.types : (s.wood_type ? [s.wood_type] : []);
-                    const typesTxt = types.length ? ' — ' + types.join('، ') : '';
-                    const row = document.createElement('div');
-                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.75rem; border-bottom:1px solid #f0f0f0;';
-                    const info = document.createElement('div');
-                    const priceTxt = (s.default_price_per_kg != null && s.default_price_per_kg !== '') ? ` — ${s.default_price_per_kg} د/كغ` : '';
-                    info.innerHTML = `<span style="${active ? 'color:#1f2937;' : 'color:#9ca3af; text-decoration:line-through;'}">${s.name}${typesTxt}${priceTxt}</span>` +
-                        (s.phone ? `<br><span style="color:#6b7280; font-size:0.8rem; direction:ltr; display:inline-block;">${formatMoroccoPhone(s.phone)}</span>` : '');
-                    // Actions: deactivate/activate (hide) AND permanent delete are
-                    // presented as two clearly distinct buttons.
-                    const actions = document.createElement('div');
-                    actions.style.cssText = 'display:flex; gap:0.4rem;';
-                    const btn = document.createElement('button');
-                    btn.type = 'button';
-                    btn.className = 'btn btn-secondary';
-                    btn.style.cssText = 'padding:0.25rem 0.75rem; font-size:0.8rem;';
-                    btn.textContent = active ? 'تعطيل' : 'تفعيل';
-                    btn.onclick = () => toggleWoodSellerActive(s.id, !active);
+                    const typesHtml = types.length
+                        ? types.map(t => `<span class="type-chip">${esc(t)}</span>`).join(' ')
+                        : '<span style="color:#9ca3af;">—</span>';
+                    const priceTxt = (s.default_price_per_kg != null && s.default_price_per_kg !== '')
+                        ? `${esc(s.default_price_per_kg)} د` : '—';
+                    const phoneHtml = s.phone
+                        ? `<span style="direction:ltr; unicode-bidi:embed; display:inline-block;">${esc(formatMoroccoPhone(s.phone))}</span>`
+                        : '—';
+                    const statusHtml = active
+                        ? '<span style="color:#059669; font-weight:600;">مُفعّل</span>'
+                        : '<span style="color:#9ca3af; font-weight:600;">مُعطّل</span>';
+
+                    const tr = document.createElement('tr');
+                    if (!active) tr.style.opacity = '0.7';
+                    tr.innerHTML =
+                        `<td style="font-weight:600; color:#1f2937;">${esc(s.name)}</td>` +
+                        `<td>${typesHtml}</td>` +
+                        `<td>${priceTxt}</td>` +
+                        `<td>${phoneHtml}</td>` +
+                        `<td>${statusHtml}</td>`;
+                    const actionsTd = document.createElement('td');
+                    actionsTd.style.cssText = 'white-space:nowrap;';
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.type = 'button';
+                    toggleBtn.className = 'btn btn-secondary';
+                    toggleBtn.style.cssText = 'padding:0.25rem 0.6rem; font-size:0.78rem; margin-left:0.35rem;';
+                    toggleBtn.textContent = active ? 'تعطيل' : 'تفعيل';
+                    toggleBtn.onclick = () => toggleWoodSellerActive(s.id, !active);
                     const delBtn = document.createElement('button');
                     delBtn.type = 'button';
                     delBtn.className = 'btn';
-                    delBtn.style.cssText = 'padding:0.25rem 0.75rem; font-size:0.8rem; background:#dc2626; color:#fff;';
+                    delBtn.style.cssText = 'padding:0.25rem 0.6rem; font-size:0.78rem; background:#dc2626; color:#fff;';
                     delBtn.textContent = '🗑 حذف';
                     delBtn.title = 'حذف المورد نهائياً';
                     delBtn.onclick = () => deleteWoodSellerUI(s.id, s.name);
-                    actions.appendChild(btn);
-                    actions.appendChild(delBtn);
-                    row.appendChild(info);
-                    row.appendChild(actions);
-                    listEl.appendChild(row);
+                    actionsTd.appendChild(toggleBtn);
+                    actionsTd.appendChild(delBtn);
+                    tr.appendChild(actionsTd);
+                    tbody.appendChild(tr);
                 });
+                listEl.appendChild(table);
             } catch (error) {
                 console.error('Failed to load wood sellers list:', error);
                 listEl.innerHTML = '<div style="padding: 1rem; text-align: center; color: #dc2626; font-size: 0.85rem;">خطأ في تحميل الموردين</div>';
@@ -3181,7 +3244,17 @@
                 document.getElementById('custom-expense-form').style.display = 'block';
                 document.getElementById('expense-modal').classList.remove('hidden');
             } else if (selectedType === 'wood') {
-                document.getElementById('wood-modal').classList.remove('hidden');
+                const woodModal = document.getElementById('wood-modal');
+                woodModal.classList.remove('hidden');
+                // Bug fix: start the modal scrolled to the TOP so the seller field
+                // is immediately visible (the scrollable .modal-content otherwise
+                // keeps the last scroll position, opening near the bottom table).
+                const woodContent = woodModal.querySelector('.modal-content');
+                const scrollTop = () => { if (woodContent) woodContent.scrollTop = 0; };
+                scrollTop();
+                // Re-assert after layout/content render so it stays at the top even
+                // once the recent-purchases table below has been populated.
+                requestAnimationFrame(scrollTop);
                 loadWoodSellersIntoModal();
                 onWoodPricingMethodChange();
                 loadWoodPurchasesTable();
