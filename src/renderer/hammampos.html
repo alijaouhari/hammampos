@@ -1124,6 +1124,26 @@
             font-size: 1rem;
         }
 
+        /* ── Numeric values: render LTR so a negative sign appears on the LEFT
+              (e.g. -50, not 50-) even though the surrounding UI is RTL. This does
+              NOT change the RTL layout; it only fixes the bidi rendering of the
+              number text itself. Applied to the daily/admin summary table data
+              cells and to the numeric stat/amount displays. */
+        #daily-ledger-table tbody td,
+        #daily-ledger-table tfoot td,
+        #admin-daily-ledger-table tbody td,
+        #admin-daily-ledger-table tfoot td,
+        .cash-amount,
+        .admin-stat-value,
+        #float-current-balance,
+        .ltr-num {
+            direction: ltr;
+            unicode-bidi: embed;
+        }
+        /* Keep table cells centered as before; the numeric fix is direction-only. */
+        #daily-ledger-table tbody td,
+        #admin-daily-ledger-table tbody td { text-align: center; }
+
         /* ── On-screen keyboard ────────────────────────────────────────── */
         #osk-panel {
             position: fixed;
@@ -1414,9 +1434,6 @@
                     </label>
                     <label style="display:flex; align-items:center; cursor:pointer;">
                         <input type="radio" name="wood-pricing-method" value="per_load" style="margin-left:0.5rem;"> بالحمولة
-                    </label>
-                    <label style="display:flex; align-items:center; cursor:pointer;">
-                        <input type="radio" name="wood-pricing-method" value="agreement" style="margin-left:0.5rem;"> بالاتفاق
                     </label>
                 </div>
 
@@ -2108,7 +2125,7 @@
                 </p>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
                     <input type="text" id="new-wood-seller-name" placeholder="اسم المورد">
-                    <input type="text" id="new-wood-seller-phone" placeholder="رقم الهاتف (00 00 00 00 00)" inputmode="numeric" maxlength="14">
+                    <input type="text" id="new-wood-seller-phone" placeholder="رقم الهاتف (00 00 00 00 00)" inputmode="numeric" maxlength="14" dir="ltr" style="direction:ltr; text-align:left;">
                     <input type="text" id="new-wood-seller-type" placeholder="أنواع الخشب (افصل بينها بفاصلة)">
                     <input type="number" id="new-wood-seller-price" step="0.01" min="0" placeholder="سعر الكيلو الافتراضي (اختياري)">
                 </div>
@@ -2365,6 +2382,7 @@
                 getSellers: (activeOnly) => ipcRenderer.invoke('wood:getSellers', activeOnly),
                 updateSeller: (id, name, phone, woodType, defaultPricePerKg, notes) => ipcRenderer.invoke('wood:updateSeller', id, name, phone, woodType, defaultPricePerKg, notes),
                 toggleSeller: (id, active) => ipcRenderer.invoke('wood:toggleSeller', id, active),
+                deleteSeller: (id) => ipcRenderer.invoke('wood:deleteSeller', id),
                 recordPurchase: (opts) => ipcRenderer.invoke('wood:recordPurchase', opts),
                 payPurchase: (woodId, paidDate) => ipcRenderer.invoke('wood:payPurchase', woodId, paidDate),
                 getPurchases: (limit) => ipcRenderer.invoke('wood:getPurchases', limit),
@@ -2884,14 +2902,27 @@
                     const priceTxt = (s.default_price_per_kg != null && s.default_price_per_kg !== '') ? ` — ${s.default_price_per_kg} د/كغ` : '';
                     info.innerHTML = `<span style="${active ? 'color:#1f2937;' : 'color:#9ca3af; text-decoration:line-through;'}">${s.name}${typesTxt}${priceTxt}</span>` +
                         (s.phone ? `<br><span style="color:#6b7280; font-size:0.8rem; direction:ltr; display:inline-block;">${formatMoroccoPhone(s.phone)}</span>` : '');
+                    // Actions: deactivate/activate (hide) AND permanent delete are
+                    // presented as two clearly distinct buttons.
+                    const actions = document.createElement('div');
+                    actions.style.cssText = 'display:flex; gap:0.4rem;';
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'btn btn-secondary';
                     btn.style.cssText = 'padding:0.25rem 0.75rem; font-size:0.8rem;';
                     btn.textContent = active ? 'تعطيل' : 'تفعيل';
                     btn.onclick = () => toggleWoodSellerActive(s.id, !active);
+                    const delBtn = document.createElement('button');
+                    delBtn.type = 'button';
+                    delBtn.className = 'btn';
+                    delBtn.style.cssText = 'padding:0.25rem 0.75rem; font-size:0.8rem; background:#dc2626; color:#fff;';
+                    delBtn.textContent = '🗑 حذف';
+                    delBtn.title = 'حذف المورد نهائياً';
+                    delBtn.onclick = () => deleteWoodSellerUI(s.id, s.name);
+                    actions.appendChild(btn);
+                    actions.appendChild(delBtn);
                     row.appendChild(info);
-                    row.appendChild(btn);
+                    row.appendChild(actions);
                     listEl.appendChild(row);
                 });
             } catch (error) {
@@ -2939,6 +2970,26 @@
             } catch (error) {
                 console.error('Failed to toggle wood seller:', error);
                 showToast('خطأ في تحديث المورد', 'error');
+            }
+        }
+
+        // Permanently delete a seller (distinct from deactivate). Requires
+        // confirmation. Historical wood purchases keep their own snapshot and are
+        // NOT affected by removing the seller.
+        async function deleteWoodSellerUI(id, name) {
+            const confirmed = await showConfirm(`حذف المورد "${name}" نهائياً؟\nلن تتأثر مشتريات الخشب السابقة (تحتفظ ببياناتها).`);
+            if (!confirmed) return;
+            try {
+                const res = await api.wood.deleteSeller(id);
+                if (res && res.success === false) {
+                    showToast(res.error || 'تعذّر حذف المورد', 'error');
+                    return;
+                }
+                showToast('تم حذف المورد نهائياً', 'success');
+                await loadWoodSellersList();
+            } catch (error) {
+                console.error('Failed to delete wood seller:', error);
+                showToast('خطأ في حذف المورد', 'error');
             }
         }
 

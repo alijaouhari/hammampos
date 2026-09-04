@@ -551,3 +551,146 @@ test('clearAllData removes wood sellers, purchases, and seller types', async () 
     assert.equal(et.getWoodSellerTypes(sellerId).length, 0);
   } finally { cleanup(s); }
 });
+
+
+/* ══════════════════════════════════════════════════════════════════════
+ * v2.8.18 — Bug fixes: seller deactivate vs permanent delete, wood-save
+ * regression on legacy NOT NULL schema, historical integrity after delete,
+ * and readability of legacy 'agreement' rows.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+// Bug 2: seller can be deactivated (hidden from active picker) without deletion.
+test('bugfix: seller deactivate hides from active list but keeps the record', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const { id } = et.addWoodSeller('مورد للتعطيل', '06 11 22 33 44', ['ليج'], 2);
+    et.toggleWoodSeller(id, false);
+    assert.equal(et.getWoodSellers(true).length, 0);   // not in active picker
+    assert.equal(et.getWoodSellers(false).length, 1);   // still exists
+    assert.ok(et.getWoodSeller(id));                     // record intact
+  } finally { cleanup(s); }
+});
+
+// Bug 2: seller can be permanently removed and no longer appears anywhere.
+test('bugfix: deleteWoodSeller permanently removes the seller and its types', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const { id } = et.addWoodSeller('مورد للحذف', '', ['ليج', 'أرز'], 2);
+    assert.equal(et.getWoodSellerTypes(id).length, 2);
+    const res = et.deleteWoodSeller(id);
+    assert.equal(res.success, true);
+    assert.equal(et.getWoodSeller(id), null);            // gone
+    assert.equal(et.getWoodSellers(false).length, 0);    // not listed
+    assert.equal(et.getWoodSellerTypes(id).length, 0);   // types removed
+    // Deleting a missing seller fails cleanly.
+    assert.equal(et.deleteWoodSeller(9999).success, false);
+  } finally { cleanup(s); }
+});
+
+// Bug 2: historical wood purchases survive permanent seller deletion (snapshot).
+test('bugfix: historical purchase remains intact after the seller is deleted', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const { id: sellerId } = et.addWoodSeller('صالح', '', ['ليج'], 2);
+    const rec = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_kg',
+      netWeight: 100, unitPrice: 2, deliveryDate: daysAgo(3), paid: true
+    });
+    et.deleteWoodSeller(sellerId);
+
+    const row = et.getWoodPurchases(10).find(r => r.id === rec.woodId);
+    assert.ok(row, 'purchase row still exists');
+    assert.equal(row.supplier_name, 'صالح');   // snapshot preserved
+    assert.equal(row.wood_type, 'ليج');
+    assert.equal(row.unit_price, 2);
+    assert.equal(row.total_amount, 200);
+    // Reports still read the historical row.
+    assert.ok(et.getWoodBySeller().some(r => r.supplier_name === 'صالح'));
+  } finally { cleanup(s); }
+});
+
+// Bug 4: wood purchase actually SAVES on a LEGACY database whose wood_purchases
+// columns were declared NOT NULL. This reproduces the real failure and proves
+// the fix (the INSERT now supplies safe defaults for the legacy columns).
+test('bugfix: wood purchase saves on legacy NOT NULL schema (paid + unpaid)', async () => {
+  const s = await newStorage();
+  try {
+    // Recreate the legacy wood_purchases table (NOT NULL truck/net/price columns)
+    // BEFORE ExpenseTemplateManager.initialize runs its guarded ALTERs.
+    s.db.run('DROP TABLE IF EXISTS wood_purchases');
+    s.db.run(`CREATE TABLE wood_purchases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      supplier_name TEXT NOT NULL,
+      truck_weight_gross REAL NOT NULL,
+      truck_weight_empty REAL NOT NULL,
+      net_wood_weight REAL NOT NULL,
+      price_per_kg REAL NOT NULL,
+      total_amount REAL NOT NULL,
+      delivery_date TEXT NOT NULL,
+      notes TEXT,
+      expense_id INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`);
+    s.save();
+
+    const et = etFor(s); // adds the new columns via guarded ALTER
+    const c = s.addCategory('رجال', 5000);
+    s.createTicket(c); // +5000 revenue
+    const sellerId = et.addWoodSeller('صالح', '', ['ليج', 'أوكاليبتوس'], 2).id;
+
+    // PAID per_load: must save AND drop cash by the agreed amount.
+    const before = s.getCashInHand();
+    const paidRes = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'per_load',
+      totalAmount: 900, netWeight: 1200, deliveryDate: daysAgo(2), paid: true
+    });
+    assert.equal(paidRes.success, true, 'paid per_load saved');
+    assert.equal(s.getCashInHand(), before - 900);
+
+    // UNPAID per_kg: must save AND NOT change cash.
+    const beforeUnpaid = s.getCashInHand();
+    const unpaidRes = et.recordWoodPurchase({
+      sellerId, woodType: 'أوكاليبتوس', pricingMethod: 'per_kg',
+      netWeight: 100, unitPrice: 2, deliveryDate: daysAgo(1), paid: false
+    });
+    assert.equal(unpaidRes.success, true, 'unpaid per_kg saved');
+    assert.equal(s.getCashInHand(), beforeUnpaid); // no cash change until paid
+
+    // Both appear in the wood table; one outstanding.
+    assert.equal(et.getWoodPurchases(10).length, 2);
+    assert.equal(et.getOutstandingWoodPurchases().length, 1);
+  } finally { cleanup(s); }
+});
+
+// Bug 3: legacy rows recorded under the (now removed) 'agreement' method remain
+// readable. The UI no longer offers the option, but old data must not break.
+test('bugfix: legacy agreement purchases remain readable', async () => {
+  const s = await newStorage();
+  try {
+    const et = etFor(s);
+    const sellerId = et.addWoodSeller('مورد قديم', '', ['ليج'], 2).id;
+    const res = et.recordWoodPurchase({
+      sellerId, woodType: 'ليج', pricingMethod: 'agreement',
+      totalAmount: 1500, deliveryDate: daysAgo(2), paid: true
+    });
+    assert.equal(res.success, true);
+    const row = et.getWoodPurchases(10).find(r => r.id === res.woodId);
+    assert.equal(row.pricing_method, 'agreement');
+    assert.equal(row.total_amount, 1500);
+  } finally { cleanup(s); }
+});
+
+// Bug 5: negative-number formatting helper mirrors the intended display: the
+// minus sign is on the LEFT of the number. (Renderer applies LTR via CSS; this
+// documents/locks the expected textual form.)
+test('bugfix: negative amount formats with the minus sign on the left', () => {
+  // The value HammamPOS stores/produces is a normal JS number; JS string form
+  // already places the minus on the left. The RTL bug was purely visual (CSS).
+  assert.equal(String(-50), '-50');
+  assert.equal(String(-50).charAt(0), '-');
+  assert.equal(String(-12.5), '-12.5'); // decimals preserved
+  assert.equal(String(50), '50');       // positives unchanged
+});

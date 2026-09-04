@@ -446,6 +446,28 @@ class ExpenseTemplateManager {
     return { success: true };
   }
 
+  /**
+   * Permanently remove a seller and its registered wood types.
+   *
+   * Historical wood_purchases are DELIBERATELY left untouched: each purchase row
+   * snapshots supplier_name / wood_type / unit_price, so past purchases remain
+   * fully readable and financially accurate even after the seller is deleted.
+   * (This is distinct from toggleWoodSeller, which only hides an active seller.)
+   *
+   * @returns {{success:boolean, error?:string}}
+   */
+  deleteWoodSeller(id) {
+    const seller = this.getWoodSeller(id);
+    if (!seller) return { success: false, error: 'المورد غير موجود' };
+    // Remove the seller's registered types, then the seller record. Never touch
+    // wood_purchases — those keep their own snapshot for historical integrity.
+    try { this.storage.db.run('DELETE FROM wood_seller_types WHERE seller_id = ?', [id]); } catch (_) {}
+    this.storage.db.run('DELETE FROM wood_sellers WHERE id = ?', [id]);
+    this.storage.logAudit('DELETE', 'wood_sellers', id, `${seller.name} (permanent)`);
+    this.storage.save();
+    return { success: true };
+  }
+
   // ─── Wood purchases (per-kg / per-load / agreement, paid or unpaid) ──
 
   /**
@@ -530,13 +552,32 @@ class ExpenseTemplateManager {
       expenseId = this.storage.addExpense(label, total);
     }
 
+    // IMPORTANT: on databases created by older versions, wood_purchases.truck_weight_gross
+    // and truck_weight_empty were declared NOT NULL. The per-load / per-kg-by-net flow
+    // does not use the truck-weighing fields, so we must still supply non-null values
+    // (0) for them or the INSERT fails with a NOT NULL constraint error — which is the
+    // real cause of "تسجيل شراء الخشب does nothing" on existing installs. We write the
+    // legacy weighing columns with safe defaults; the authoritative weight lives in
+    // net_wood_weight.
+    // Legacy databases declared truck_weight_gross, truck_weight_empty,
+    // net_wood_weight and price_per_kg as NOT NULL. The per-load / agreement flow
+    // (and unpaid per-kg) legitimately has no value for some of these, so we must
+    // substitute safe non-null defaults or the INSERT fails with a NOT NULL
+    // constraint — the real cause of "تسجيل شراء الخشب does nothing" on existing
+    // installs. The authoritative numbers are net_wood_weight (weight) and
+    // unit_price (per-kg rate); the legacy columns get 0 when not applicable.
+    const truckGross = 0;
+    const truckEmpty = 0;
+    const netCol = (net == null ? 0 : net);
+    const pricePerKgCol = (pricingMethod === 'per_kg' && unit != null) ? unit : 0;
     this.storage.db.run(`
       INSERT INTO wood_purchases
-      (supplier_name, seller_id, wood_type, pricing_method, net_wood_weight, price_per_kg, unit_price, total_amount, delivery_date, notes, expense_id, paid, paid_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (supplier_name, seller_id, wood_type, pricing_method, truck_weight_gross, truck_weight_empty, net_wood_weight, price_per_kg, unit_price, total_amount, delivery_date, notes, expense_id, paid, paid_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       sellerName, sellerId, resolvedWoodType, pricingMethod,
-      net, (pricingMethod === 'per_kg' ? unit : null), unit,
+      truckGross, truckEmpty,
+      netCol, pricePerKgCol, unit,
       total, deliveryDate, notes || '', expenseId,
       isPaid ? 1 : 0, isPaid ? deliveryDate : null
     ]);

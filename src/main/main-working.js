@@ -922,6 +922,11 @@ ipcMain.handle('wood:toggleSeller', (event, id, active) => {
   return expenseTemplates.toggleWoodSeller(id, active);
 });
 
+ipcMain.handle('wood:deleteSeller', (event, id) => {
+  if (!expenseTemplates) return { success: false, error: 'غير متاح' };
+  return expenseTemplates.deleteWoodSeller(id);
+});
+
 ipcMain.handle('wood:recordPurchase', async (event, opts) => {
   if (!expenseTemplates) return { success: false, error: 'غير متاح' };
   const result = expenseTemplates.recordWoodPurchase(opts);
