@@ -634,11 +634,31 @@ class StorageManager {
     if (earliestResult.length > 0 && earliestResult[0].values[0][0]) {
       earliestDate = earliestResult[0].values[0][0];
     }
+
+    // Find the LATEST date in the application's data. The window must extend to the
+    // most recent data date, not just the machine clock's "today": if a sale/expense
+    // is dated after today (e.g. the device clock is behind, or a future-dated entry),
+    // capping at today would silently drop those rows and blank the ledger. We anchor
+    // the window's upper bound at max(today, latest data date).
+    const latestResult = this.db.exec(`
+      SELECT MAX(date) FROM (
+        SELECT MAX(date) as date FROM tickets
+        UNION ALL
+        SELECT MAX(date) as date FROM expenses
+        UNION ALL
+        SELECT MAX(date) as date FROM collections
+      ) WHERE date IS NOT NULL
+    `);
+    let windowEnd = today;
+    if (latestResult.length > 0 && latestResult[0].values[0][0]) {
+      const latestDate = latestResult[0].values[0][0];
+      if (latestDate > windowEnd) windowEnd = latestDate; // string compare works for YYYY-MM-DD
+    }
     
-    // Generate all calendar dates from earliestDate to today
+    // Generate all calendar dates from earliestDate to windowEnd (inclusive), newest first.
     const allDates = [];
     const startDate = new Date(earliestDate + 'T12:00:00');
-    const endDate = new Date(today + 'T12:00:00');
+    const endDate = new Date(windowEnd + 'T12:00:00');
     for (let d = new Date(endDate); d >= startDate; d.setDate(d.getDate() - 1)) {
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');

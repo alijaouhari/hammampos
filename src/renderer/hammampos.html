@@ -435,6 +435,30 @@
             max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            box-sizing: border-box;
+        }
+
+        /* Bug fix: keep every text-entry control fully inside its modal/card/form.
+           border-box + width/max-width:100% prevents inputs from overflowing through
+           the modal background or being clipped at the edge (padding/border included
+           in the width). Applies to static and dynamically-created inputs. */
+        .modal-content input,
+        .modal-content textarea,
+        .modal-content select,
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 100%;
+        }
+        .modal-content textarea { resize: vertical; }
+        /* Inputs placed inside grid/flex layouts must also not exceed their track. */
+        .modal-content input[type="number"],
+        .modal-content input[type="text"],
+        .modal-content input[type="password"],
+        .modal-content input[type="date"] {
+            min-width: 0;
         }
 
         .modal-content h3 {
@@ -1129,18 +1153,9 @@
               NOT change the RTL layout; it only fixes the bidi rendering of the
               number text itself. Applied to the daily/admin summary table data
               cells and to the numeric stat/amount displays. */
-        #daily-ledger-table tbody td,
-        #daily-ledger-table tfoot td,
-        #admin-daily-ledger-table tbody td,
-        #admin-daily-ledger-table tfoot td,
-        .cash-amount,
-        .admin-stat-value,
-        #float-current-balance,
-        .ltr-num {
-            direction: ltr;
-            unicode-bidi: embed;
-        }
-        /* Keep table cells centered as before; the numeric fix is direction-only. */
+        /* Money numeric tokens are wrapped in dir="ltr" spans by formatMoney()/
+           ltrNum() so the sign/digits never get reordered by the RTL context.
+           Keep the ledger data cells centered as before. */
         #daily-ledger-table tbody td,
         #admin-daily-ledger-table tbody td { text-align: center; }
 
@@ -1177,60 +1192,6 @@
             white-space: nowrap;
         }
 
-        /* ── On-screen keyboard ────────────────────────────────────────── */
-        #osk-panel {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 4000;
-            background: #1f2937;
-            border-top: 3px solid #2563eb;
-            box-shadow: 0 -6px 24px rgba(0,0,0,0.35);
-            padding: 0.6rem 0.8rem 0.9rem;
-            direction: ltr; /* keys are laid out left-to-right regardless of app RTL */
-            user-select: none;
-        }
-        #osk-panel.hidden { display: none; }
-        .osk-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-        }
-        .osk-title { color: #e5e7eb; font-weight: 700; font-size: 0.95rem; }
-        .osk-bar-actions { display: flex; gap: 0.5rem; }
-        .osk-row {
-            display: flex;
-            justify-content: center;
-            gap: 0.4rem;
-            margin-bottom: 0.4rem;
-        }
-        .osk-key {
-            min-width: 3rem;
-            height: 3.2rem;
-            padding: 0 0.5rem;
-            font-size: 1.35rem;
-            font-weight: 600;
-            color: #f9fafb;
-            background: #374151;
-            border: 1px solid #4b5563;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex: 0 0 auto;
-            transition: background 0.08s ease;
-        }
-        .osk-key:hover { background: #4b5563; }
-        .osk-key:active { background: #2563eb; }
-        .osk-key.osk-wide { min-width: 6rem; }
-        .osk-key.osk-space { flex: 1 1 auto; max-width: 28rem; }
-        .osk-key.osk-accent { background: #2563eb; border-color: #1d4ed8; }
-        .osk-key.osk-accent:hover { background: #1d4ed8; }
-        .osk-key.osk-danger { background: #b91c1c; border-color: #991b1b; }
-        .osk-key.osk-danger:hover { background: #991b1b; }
     </style>
 </head>
 <body>
@@ -1239,7 +1200,6 @@
         <div class="header">
             <h1 id="hammam-name">حمام جديد</h1>
             <div class="header-actions">
-                <button id="osk-toggle-btn" class="btn btn-primary" title="لوحة المفاتيح على الشاشة">⌨ لوحة المفاتيح</button>
                 <button id="add-expense-btn" class="btn btn-warning">إضافة مصروف</button>
                 <button id="admin-btn" class="btn btn-success">إدارة</button>
             </div>
@@ -2290,17 +2250,8 @@
         </div>
     </div>
 
-    <!-- On-screen keyboard (Arabic / QWERTY) -->
-    <div id="osk-panel" class="hidden" aria-hidden="true">
-        <div class="osk-bar">
-            <span class="osk-title">لوحة المفاتيح</span>
-            <div class="osk-bar-actions">
-                <button type="button" id="osk-switch-layout" class="osk-key osk-wide osk-accent" title="تبديل اللغة">العربية / EN</button>
-                <button type="button" id="osk-hide" class="osk-key osk-wide osk-danger" title="إخفاء">✕ إخفاء</button>
-            </div>
-        </div>
-        <div id="osk-keys"></div>
-    </div>
+    <!-- (The v2.8.17 global on-screen keyboard was removed in v2.8.20. The
+         per-input keyboard-icon + separate-window redesign is deferred; see report.) -->
 
     <script>
         console.log('=== HammamPOS Script Starting ===');
@@ -2444,6 +2395,84 @@
                 getHistory: () => ipcRenderer.invoke('float:getHistory')
             }
         };
+
+        // ── Money formatting (RTL-safe) ──────────────────────────────────
+        // The app UI is RTL. We want money to read "درهم <number>" with the
+        // currency label on the right of the number visually, and the numeric
+        // token itself always LEFT-TO-RIGHT so a negative shows as "-50" (minus
+        // on the left), never "50-". We build markup with the digits wrapped in a
+        // dir="ltr" span so the browser cannot reorder the sign/digits.
+        // Underlying numeric values are never modified.
+        function moneyNumber(n) {
+            const num = Number(n);
+            if (!Number.isFinite(num)) return '0';
+            // Trim a trailing ".00" style but keep meaningful decimals.
+            let s = (Math.round(num * 100) / 100).toString();
+            return s;
+        }
+        // Returns HTML: currency label + an LTR-isolated numeric token.
+        function formatMoney(n) {
+            const numStr = moneyNumber(n);
+            return `درهم <span dir="ltr" style="unicode-bidi:isolate; direction:ltr;">${numStr}</span>`;
+        }
+        // Plain-text variant (for places that must stay textContent, e.g. canvas).
+        function formatMoneyText(n) {
+            return `درهم ${moneyNumber(n)}`;
+        }
+        // LTR-isolated numeric token WITHOUT the currency label — for dense table
+        // cells whose column header already denotes currency. Ensures a negative
+        // renders as "-50" (sign on the left), never "50-".
+        function ltrNum(n, opts) {
+            const raw = (n === '' || n == null) ? '' : moneyNumber(n);
+            if (raw === '') return '';
+            const color = opts && opts.color ? `color:${opts.color};` : '';
+            const weight = opts && opts.weight ? `font-weight:${opts.weight};` : '';
+            return `<span dir="ltr" style="unicode-bidi:isolate; direction:ltr; ${color}${weight}">${raw}</span>`;
+        }
+        // Set an element's money display via innerHTML and remember the raw number
+        // in dataset.amount so other code can read the value back without parsing
+        // bidi text.
+        function setMoney(el, n) {
+            if (!el) return;
+            el.dataset.amount = String(Number(n) || 0);
+            el.innerHTML = formatMoney(n);
+        }
+
+        // ── Modals always open at the TOP ────────────────────────────────
+        // Bug fix (general): every scrollable modal must start scrolled to the top
+        // when it opens, so the user never lands halfway down or at the bottom.
+        // Rather than patch each modal's open function, we watch every .modal for the
+        // 'hidden' class being removed and reset its .modal-content scrollTop to 0.
+        // This covers static AND dynamically shown modals without touching their logic.
+        function resetModalScrollTop(modal) {
+            if (!modal) return;
+            const content = modal.querySelector('.modal-content') || modal;
+            const doReset = () => { try { content.scrollTop = 0; } catch (_) {} };
+            doReset();
+            // Re-assert after layout/content paint (async-loaded lists, tables, etc.).
+            requestAnimationFrame(doReset);
+        }
+        function initModalsOpenAtTop() {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                // If it starts visible, reset now.
+                if (!modal.classList.contains('hidden')) resetModalScrollTop(modal);
+                const observer = new MutationObserver(muts => {
+                    muts.forEach(m => {
+                        if (m.attributeName === 'class') {
+                            const isHidden = modal.classList.contains('hidden');
+                            if (!isHidden) resetModalScrollTop(modal);
+                        }
+                    });
+                });
+                observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initModalsOpenAtTop);
+        } else {
+            initModalsOpenAtTop();
+        }
         
         // Initialize app
         async function initializeApp() {
@@ -2536,9 +2565,13 @@
                 // Show immediate success feedback
                 showToast(`تم بيع تذكرة ${category.name} - ${category.price} درهم`, 'success');
                 
-                // Update cash display immediately (optimistic update)
-                const currentCash = parseFloat(document.getElementById('cash-in-hand').textContent.replace(' درهم', ''));
-                document.getElementById('cash-in-hand').textContent = `${currentCash + category.price} درهم`;
+                // Update cash display immediately (optimistic update). Read the raw
+                // value from dataset.amount (set by setMoney) rather than parsing text.
+                const cashEl = document.getElementById('cash-in-hand');
+                const currentCash = cashEl && cashEl.dataset.amount != null
+                    ? parseFloat(cashEl.dataset.amount)
+                    : (parseFloat((cashEl ? cashEl.textContent : '').replace(/[^\d.-]/g, '')) || 0);
+                setMoney(cashEl, currentCash + category.price);
                 
                 // Create ticket (this is the main operation)
                 const ticket = await api.storage.createTicket(category.id);
@@ -2578,7 +2611,7 @@
                 ]);
                 
                 // Update UI immediately with the results
-                document.getElementById('cash-in-hand').textContent = `${cashInHand} درهم`;
+                setMoney(document.getElementById('cash-in-hand'), cashInHand);
                 
                 console.log('Displays updated');
                 
@@ -3705,9 +3738,9 @@
                     
                     rowHTML += `
                         <td>${summary.total_tickets || ''}</td>
-                        <td style="color: #059669; font-weight: 600;">${summary.revenue || ''}</td>
-                        <td style="color: #dc2626; font-weight: 600;">${summary.expenses || ''}</td>
-                        <td style="color: ${balance >= 0 ? '#059669' : '#dc2626'}; font-weight: 700;">${balance}</td>
+                        <td>${summary.revenue ? ltrNum(summary.revenue, { color: '#059669', weight: 600 }) : ''}</td>
+                        <td>${summary.expenses ? ltrNum(summary.expenses, { color: '#dc2626', weight: 600 }) : ''}</td>
+                        <td>${ltrNum(balance, { color: balance >= 0 ? '#059669' : '#dc2626', weight: 700 })}</td>
                     `;
                     
                     row.innerHTML = rowHTML;
@@ -3739,9 +3772,9 @@
                 const totalBalanceEl = document.getElementById('total-balance');
                 
                 if (totalTicketsEl) totalTicketsEl.textContent = totals.tickets;
-                if (totalRevenueEl) totalRevenueEl.textContent = totals.revenue;
-                if (totalExpensesEl) totalExpensesEl.textContent = totals.expenses;
-                if (totalBalanceEl) totalBalanceEl.textContent = totals.revenue - totals.expenses;
+                if (totalRevenueEl) totalRevenueEl.innerHTML = ltrNum(totals.revenue);
+                if (totalExpensesEl) totalExpensesEl.innerHTML = ltrNum(totals.expenses);
+                if (totalBalanceEl) totalBalanceEl.innerHTML = ltrNum(totals.revenue - totals.expenses);
 
                 console.log('Daily ledger updated with dynamic categories');
 
@@ -3943,13 +3976,13 @@
                 const todaySales = todayTickets.reduce((sum, ticket) => sum + ticket.price, 0);
                 const todayExpensesTotal = todayExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-                // Update admin stats
-                document.getElementById('admin-cash-in-hand').textContent = `${cashInHand} درهم`;
-                document.getElementById('admin-today-sales').textContent = `${todaySales} درهم`;
+                // Update admin stats (money values use the RTL-safe formatter)
+                setMoney(document.getElementById('admin-cash-in-hand'), cashInHand);
+                setMoney(document.getElementById('admin-today-sales'), todaySales);
                 document.getElementById('admin-today-tickets').textContent = todayTickets.length;
-                document.getElementById('admin-today-expenses').textContent = `${todayExpensesTotal} درهم`;
+                setMoney(document.getElementById('admin-today-expenses'), todayExpensesTotal);
                 const floatCard = document.getElementById('admin-change-float');
-                if (floatCard) floatCard.textContent = `${floatBalance} درهم`;
+                if (floatCard) setMoney(floatCard, floatBalance);
 
                 // Load admin daily summary table
                 await loadAdminDailyLedger();
@@ -4053,9 +4086,9 @@
                     
                     rowHTML += `
                         <td>${summary.total_tickets || ''}</td>
-                        <td style="color: #059669; font-weight: 600;">${summary.revenue || ''}</td>
-                        <td style="color: #dc2626; font-weight: 600;">${summary.expenses || ''}</td>
-                        <td style="color: ${balance >= 0 ? '#059669' : '#dc2626'}; font-weight: 700;">${balance}</td>
+                        <td>${summary.revenue ? ltrNum(summary.revenue, { color: '#059669', weight: 600 }) : ''}</td>
+                        <td>${summary.expenses ? ltrNum(summary.expenses, { color: '#dc2626', weight: 600 }) : ''}</td>
+                        <td>${ltrNum(balance, { color: balance >= 0 ? '#059669' : '#dc2626', weight: 700 })}</td>
                     `;
                     
                     row.innerHTML = rowHTML;
@@ -4087,9 +4120,9 @@
                 const totalBalanceEl = document.getElementById('admin-total-balance');
                 
                 if (totalTicketsEl) totalTicketsEl.textContent = totals.tickets;
-                if (totalRevenueEl) totalRevenueEl.textContent = totals.revenue;
-                if (totalExpensesEl) totalExpensesEl.textContent = totals.expenses;
-                if (totalBalanceEl) totalBalanceEl.textContent = totals.revenue - totals.expenses;
+                if (totalRevenueEl) totalRevenueEl.innerHTML = ltrNum(totals.revenue);
+                if (totalExpensesEl) totalExpensesEl.innerHTML = ltrNum(totals.expenses);
+                if (totalBalanceEl) totalBalanceEl.innerHTML = ltrNum(totals.revenue - totals.expenses);
 
                 console.log('Admin daily ledger updated with dynamic categories');
 
@@ -5280,7 +5313,7 @@
             ]);
 
             const balEl = document.getElementById('float-current-balance');
-            if (balEl) balEl.textContent = `${balance} درهم`;
+            if (balEl) setMoney(balEl, balance);
 
             const body = document.getElementById('float-history-body');
             if (body) {
@@ -5292,8 +5325,8 @@
                             <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center;">${op.date}</td>
                             <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center;">${op.time}</td>
                             <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center; color: ${op.operation === 'add' ? '#059669' : '#dc2626'}; font-weight: 600;">${floatOperationLabel(op.operation)}</td>
-                            <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center;">${op.amount} درهم</td>
-                            <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 600;">${op.balance_after} درهم</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center;">${formatMoney(op.amount)}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 600;">${formatMoney(op.balance_after)}</td>
                             <td style="padding: 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: center;">${op.note || '-'}</td>
                         </tr>
                     `).join('');
@@ -5387,7 +5420,7 @@
                 
                 // Get current cash in hand
                 const currentCash = await api.storage.getCashInHand();
-                document.getElementById('current-cash-display').textContent = `${currentCash} درهم`;
+                setMoney(document.getElementById('current-cash-display'), currentCash);
                 
                 // Load uncollected days
                 await loadUncollectedDays();
@@ -5418,12 +5451,14 @@
                 const collectedDays = await api.storage.getCollectedDays();
                 const collectedSet = new Set(collectedDays || []);
 
-                // Filter days that have positive net revenue (revenue > expenses)
-                // AND have not already been collected.
-                uncollectedDaysData = summaries.filter(day => {
-                    const netAmount = (day.revenue || 0) - (day.expenses || 0);
-                    return netAmount > 0 && !collectedSet.has(day.date);
-                });
+                // Show EVERY day in the window that has not already been collected —
+                // including zero-sales, holiday, repair, and expense-only days. Days
+                // are no longer silently dropped because their net is not positive
+                // (that was the "missing days" bug). Collectible amount is still the
+                // net; days with net <= 0 are shown but cannot be selected (nothing to
+                // collect), so the displayed total always equals the sum of the
+                // selected, shown days.
+                uncollectedDaysData = summaries.filter(day => !collectedSet.has(day.date));
                 
                 if (uncollectedDaysData.length === 0) {
                     container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #6b7280;">لا توجد أيام متاحة للتحصيل</div>';
@@ -5434,22 +5469,34 @@
                 container.innerHTML = '';
                 uncollectedDaysData.forEach((day, index) => {
                     const netAmount = (day.revenue || 0) - (day.expenses || 0);
+                    const collectible = netAmount > 0;
                     const displayDate = new Date(day.date).toLocaleDateString('ar-MA');
+                    const status = day.day_status || 'working';
+                    let statusBadge = '';
+                    if (status === 'holiday') statusBadge = ' <span style="color:#2563eb;">(عطلة)</span>';
+                    else if (status === 'repair') statusBadge = ' <span style="color:#dc2626;">(إصلاح)</span>';
                     
                     const dayItem = document.createElement('div');
                     dayItem.className = 'day-item';
                     dayItem.dataset.date = day.date;
+                    if (!collectible) dayItem.style.opacity = '0.7';
+                    
+                    // Non-collectible days (net <= 0) are represented but their checkbox
+                    // is disabled so they never contribute to the total.
+                    const checkboxHtml = collectible
+                        ? `<input type="checkbox" id="day-${index}" onchange="setDaySelection('${day.date}', this.checked)">`
+                        : `<input type="checkbox" id="day-${index}" disabled title="لا يوجد مبلغ للتحصيل في هذا اليوم">`;
                     
                     dayItem.innerHTML = `
-                        <input type="checkbox" id="day-${index}" onchange="setDaySelection('${day.date}', this.checked)">
+                        ${checkboxHtml}
                         <div class="day-item-content">
                             <div>
-                                <div class="day-item-date">${displayDate}</div>
+                                <div class="day-item-date">${displayDate}${statusBadge}</div>
                                 <div class="day-item-details">
-                                    إيرادات: ${day.revenue || 0} درهم | مصروفات: ${day.expenses || 0} درهم | تذاكر: ${day.total_tickets || 0}
+                                    إيرادات: ${formatMoney(day.revenue || 0)} | مصروفات: ${formatMoney(day.expenses || 0)} | تذاكر: ${day.total_tickets || 0}
                                 </div>
                             </div>
-                            <div class="day-item-amount">${netAmount} درهم</div>
+                            <div class="day-item-amount">${formatMoney(netAmount)}</div>
                         </div>
                     `;
                     
@@ -5496,17 +5543,25 @@
             updateCollectionTotals();
         }
 
+        // A day is collectible only if its net (revenue - expenses) is positive.
+        function isCollectibleDay(day) {
+            return ((day.revenue || 0) - (day.expenses || 0)) > 0;
+        }
+
         function selectAllDays() {
             // Scope to the collection modal container so we target the .day-item
             // checkbox rows, NOT the daily-ledger table rows that also use data-date.
+            // Only collectible days (net > 0) are selected; zero/holiday/repair days
+            // are shown but not selectable, so the total stays exact.
             const container = document.getElementById('uncollected-days-container');
             uncollectedDaysData.forEach(day => {
+                if (!isCollectibleDay(day)) return;
                 selectedDays.add(day.date);
                 const dayItem = container ? container.querySelector(`[data-date="${day.date}"]`) : null;
                 if (dayItem) {
                     dayItem.classList.add('selected');
                     const checkbox = dayItem.querySelector('input[type="checkbox"]');
-                    if (checkbox) checkbox.checked = true;
+                    if (checkbox && !checkbox.disabled) checkbox.checked = true;
                 }
             });
             updateCollectionTotals();
@@ -5524,10 +5579,13 @@
             updateCollectionTotals();
         }
 
-        // True when every currently available day is selected (and there is at least one).
+        // True when every COLLECTIBLE day is selected (and there is at least one).
+        // Non-collectible (net <= 0) days are ignored so the toggle can reach the
+        // "all selected" state.
         function areAllDaysSelected() {
-            return uncollectedDaysData.length > 0 &&
-                   uncollectedDaysData.every(day => selectedDays.has(day.date));
+            const collectible = uncollectedDaysData.filter(isCollectibleDay);
+            return collectible.length > 0 &&
+                   collectible.every(day => selectedDays.has(day.date));
         }
 
         // Single toggle: if all available days are selected -> clear; otherwise -> select all.
@@ -5562,15 +5620,18 @@
             });
             
             // Update displays
-            document.getElementById('total-selected-amount').textContent = `${totalAmount} درهم`;
-            document.getElementById('selected-amount-display').textContent = `${totalAmount} درهم`;
+            setMoney(document.getElementById('total-selected-amount'), totalAmount);
+            setMoney(document.getElementById('selected-amount-display'), totalAmount);
             document.getElementById('selected-days-count').textContent = `${selectedCount} يوم`;
             
-            // Update remaining cash
-            const currentCashText = document.getElementById('current-cash-display').textContent;
-            const currentCash = parseFloat(currentCashText.replace(' درهم', '')) || 0;
+            // Update remaining cash. Read the numeric value from the current-cash
+            // element's dataset (set by setMoney) rather than parsing display text.
+            const cashEl = document.getElementById('current-cash-display');
+            const currentCash = cashEl && cashEl.dataset.amount != null
+                ? parseFloat(cashEl.dataset.amount)
+                : (parseFloat((cashEl ? cashEl.textContent : '').replace(/[^\d.-]/g, '')) || 0);
             const remainingCash = currentCash - totalAmount;
-            document.getElementById('remaining-cash-display').textContent = `${remainingCash} درهم`;
+            setMoney(document.getElementById('remaining-cash-display'), remainingCash);
             
             // Enable/disable collect button
             const collectBtn = document.getElementById('collect-money-btn');
@@ -6187,159 +6248,13 @@
             }
         });
         
-        // ══════════════════════════════════════════════════════════════
-        // On-screen keyboard (Arabic / QWERTY)
-        // Pure layout + key logic lives in src/services/OnScreenKeyboard.js so
-        // it can be unit-tested headlessly; the renderer only builds the keys
-        // and routes presses to the currently focused text input.
-        // ══════════════════════════════════════════════════════════════
-        const OSK = require('../services/OnScreenKeyboard');
-
-        // The last text-like input/textarea the user focused. On-screen keys are
-        // routed here so the keyboard is never hardcoded to one field.
-        let oskLastInput = null;
-        let oskLayout = 'ar';
-
-        function oskIsTextInput(el) {
-            if (!el || !el.tagName) return false;
-            const tag = el.tagName.toLowerCase();
-            if (tag === 'textarea') return true;
-            if (tag !== 'input') return false;
-            const type = (el.getAttribute('type') || 'text').toLowerCase();
-            // Route to text-like fields (incl. number/search/tel/password). Skip
-            // non-text controls (checkbox/radio/date/range/button/etc.).
-            return ['text', 'search', 'tel', 'url', 'email', 'password', 'number'].includes(type);
-        }
-
-        // Track focus across the whole app so keys go to the active field.
-        document.addEventListener('focusin', (e) => {
-            if (oskIsTextInput(e.target)) oskLastInput = e.target;
-        });
-
-        function oskRenderKeys() {
-            const container = document.getElementById('osk-keys');
-            if (!container) return;
-            container.innerHTML = '';
-            const rows = OSK.getLayout(oskLayout);
-            rows.forEach(row => {
-                const rowEl = document.createElement('div');
-                rowEl.className = 'osk-row';
-                row.forEach(ch => {
-                    const key = document.createElement('button');
-                    key.type = 'button';
-                    key.className = 'osk-key';
-                    key.textContent = ch;
-                    key.dataset.key = ch;
-                    rowEl.appendChild(key);
-                });
-                container.appendChild(rowEl);
-            });
-            // Control row: Backspace, Space, Enter.
-            const ctrl = document.createElement('div');
-            ctrl.className = 'osk-row';
-            const mk = (label, keyName, cls) => {
-                const b = document.createElement('button');
-                b.type = 'button';
-                b.className = 'osk-key ' + cls;
-                b.textContent = label;
-                b.dataset.control = keyName;
-                return b;
-            };
-            ctrl.appendChild(mk('⌫ مسح', 'Backspace', 'osk-wide osk-danger'));
-            ctrl.appendChild(mk('مسافة', 'Space', 'osk-space'));
-            ctrl.appendChild(mk('⏎ إدخال', 'Enter', 'osk-wide osk-accent'));
-            container.appendChild(ctrl);
-        }
-
-        function oskApplyToInput(keyOrControl, isControl) {
-            const input = oskLastInput;
-            if (!input) {
-                showToast && showToast('انقر على حقل الكتابة أولاً', 'info');
-                return;
-            }
-            const multiline = input.tagName.toLowerCase() === 'textarea';
-            const state = {
-                value: input.value,
-                selStart: input.selectionStart,
-                selEnd: input.selectionEnd
-            };
-            // number inputs don't expose selection; fall back to end-of-value.
-            if (state.selStart == null) { state.selStart = input.value.length; state.selEnd = input.value.length; }
-            const next = OSK.applyKey(state, isControl ? keyOrControl : keyOrControl, { multiline });
-            input.value = next.value;
-            try { input.setSelectionRange(next.selStart, next.selEnd); } catch (_) {}
-            // Notify existing listeners (live totals, validation, etc.).
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            if (next.submit) {
-                // Enter on a single-line field: submit the closest form if any,
-                // otherwise dispatch an Enter keydown for handlers that listen.
-                const form = input.form;
-                if (form && typeof form.requestSubmit === 'function') {
-                    form.requestSubmit();
-                } else {
-                    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-                }
-            }
-            // Keep the field focused so the caret stays visible.
-            try { input.focus(); } catch (_) {}
-        }
-
-        function oskShow() {
-            const panel = document.getElementById('osk-panel');
-            if (!panel) return;
-            oskRenderKeys();
-            panel.classList.remove('hidden');
-            panel.setAttribute('aria-hidden', 'false');
-        }
-        function oskHide() {
-            const panel = document.getElementById('osk-panel');
-            if (!panel) return;
-            panel.classList.add('hidden');
-            panel.setAttribute('aria-hidden', 'true');
-        }
-        function oskToggle() {
-            const panel = document.getElementById('osk-panel');
-            if (!panel) return;
-            if (panel.classList.contains('hidden')) oskShow(); else oskHide();
-        }
-        function oskSwitchLayout() {
-            oskLayout = OSK.nextLayout(oskLayout);
-            oskRenderKeys();
-        }
-
-        function oskInit() {
-            const panel = document.getElementById('osk-panel');
-            const toggleBtn = document.getElementById('osk-toggle-btn');
-            if (toggleBtn) toggleBtn.onclick = oskToggle;
-            const hideBtn = document.getElementById('osk-hide');
-            if (hideBtn) hideBtn.onclick = oskHide;
-            const switchBtn = document.getElementById('osk-switch-layout');
-            if (switchBtn) switchBtn.onclick = oskSwitchLayout;
-            if (panel) {
-                // Use mousedown + preventDefault so the focused input does NOT lose
-                // focus when a key is clicked (mouse-first / touch-first operation).
-                panel.addEventListener('mousedown', (e) => {
-                    const keyEl = e.target.closest('.osk-key');
-                    if (!keyEl) return;
-                    // Do not steal focus for the control buttons in the top bar.
-                    if (keyEl.id === 'osk-switch-layout' || keyEl.id === 'osk-hide') return;
-                    if (!keyEl.dataset.control && keyEl.dataset.key === undefined) return;
-                    e.preventDefault();
-                    if (keyEl.dataset.control) {
-                        oskApplyToInput(keyEl.dataset.control, true);
-                    } else {
-                        oskApplyToInput(keyEl.dataset.key, false);
-                    }
-                });
-            }
-            oskRenderKeys();
-        }
-        // Initialize as soon as the DOM is ready (independent of app data init).
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', oskInit);
-        } else {
-            oskInit();
-        }
+        // NOTE: The v2.8.17 global on-screen keyboard (header button + bottom panel)
+        // was REJECTED and has been removed in v2.8.20. The replacement design
+        // (a keyboard icon inside each input opening a separate resizable window)
+        // is deferred to a dedicated change to avoid destabilizing this bug-fix
+        // batch; see the report's KNOWN LIMITATIONS. The pure layout/key logic in
+        // src/services/OnScreenKeyboard.js is retained for that future work and its
+        // tests still run.
 
         console.log('=== HammamPOS Script Loaded ===');
     </script>
