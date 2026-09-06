@@ -685,47 +685,73 @@ class ExpenseTemplateManager {
   }
 
   /**
-   * Create expense from template
+   * Resolve a template into its computed { amount, description } WITHOUT creating an
+   * expense row. This is the single source of truth for template pricing/description
+   * rules, so the unified expense-entry form can compute the values and then route
+   * them through the shared StorageManager.recordExpense (which owns expense day /
+   * paid / paid_date / payment_source). No expense is inserted here.
+   *   pricingKind: 'fixed' (template.fixed_amount) | 'per_unit' (template.price_per_unit)
+   *                | 'variable' (amount must be supplied by the caller)
+   * @returns {{success:boolean, amount?:number, description?:string, pricingKind?:string, error?:string}}
    */
-  createExpenseFromTemplate(templateId, quantity = 1, customAmount = null, notes = '') {
-    // Get template
+  getTemplateAmountAndDescription(templateId, quantity = 1, customAmount = null, notes = '') {
     const templateResult = this.storage.db.exec('SELECT * FROM expense_templates WHERE id = ?', [templateId]);
     if (!templateResult[0] || templateResult[0].values.length === 0) {
-      throw new Error('Template not found');
+      return { success: false, error: 'Template not found' };
     }
-    
     const cols = templateResult[0].columns;
     const row = templateResult[0].values[0];
     const template = {};
     cols.forEach((col, i) => template[col] = row[i]);
-    
-    // Calculate amount
+
+    const qty = Number(quantity) > 0 ? Number(quantity) : 1;
     let amount;
-    if (customAmount !== null) {
-      amount = customAmount;
+    let pricingKind;
+    if (customAmount !== null && customAmount !== undefined && customAmount !== '') {
+      amount = Number(customAmount);
+      // A variable template supplies its amount via customAmount; a fixed/per-unit
+      // template can still be overridden by an explicit customAmount.
+      pricingKind = template.fixed_amount ? 'fixed' : (template.price_per_unit ? 'per_unit' : 'variable');
     } else if (template.fixed_amount) {
-      amount = template.fixed_amount * quantity;
+      amount = template.fixed_amount * qty;
+      pricingKind = 'fixed';
     } else if (template.price_per_unit) {
-      amount = template.price_per_unit * quantity;
+      amount = template.price_per_unit * qty;
+      pricingKind = 'per_unit';
     } else {
-      throw new Error('Template has no pricing information');
+      // Variable template with no amount provided.
+      return { success: false, error: 'Template has no pricing information', pricingKind: 'variable' };
     }
-    
-    // Create description
+
     let description = template.name;
-    if (quantity > 1 && template.unit) {
-      description += ` (${quantity} ${template.unit})`;
+    if (qty > 1 && template.unit) {
+      description += ` (${qty} ${template.unit})`;
     }
     if (notes) {
       description += ` - ${notes}`;
     }
-    
-    // Create expense
-    const expenseId = this.storage.addExpense(description, amount);
-    
-    this.storage.logAudit('CREATE', 'expenses', expenseId, 
-      `From template: ${template.name} - ${amount}dh`);
-    
+
+    return { success: true, amount, description, pricingKind };
+  }
+
+  /**
+   * Create expense from template (LEGACY path — retained for backward compatibility
+   * and existing tests). Uses the shared pricing/description resolver above, then the
+   * default paid-business-cash-today insert via storage.addExpense. The unified UI
+   * uses getTemplateAmountAndDescription + storage.recordExpense instead so it can
+   * carry expense day / paid state / payment source.
+   */
+  createExpenseFromTemplate(templateId, quantity = 1, customAmount = null, notes = '') {
+    const resolved = this.getTemplateAmountAndDescription(templateId, quantity, customAmount, notes);
+    if (!resolved.success) {
+      throw new Error(resolved.error || 'Template not found');
+    }
+
+    const expenseId = this.storage.addExpense(resolved.description, resolved.amount);
+
+    this.storage.logAudit('CREATE', 'expenses', expenseId,
+      `From template: ${resolved.description} - ${resolved.amount}dh`);
+
     return expenseId;
   }
 }

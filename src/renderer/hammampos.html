@@ -1355,64 +1355,50 @@
         <div class="modal-content">
             <h3>💸 إضافة مصروف</h3>
             
-            <!-- Expense Type Selection -->
-            <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">نوع المصروف:</label>
-                <div style="display: flex; gap: 1rem;">
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="radio" name="expense-type" value="template" checked style="margin-left: 0.5rem;">
-                        من القائمة المحفوظة
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="radio" name="expense-type" value="custom" style="margin-left: 0.5rem;">
-                        مصروف مخصص
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="radio" name="expense-type" value="wood" style="margin-left: 0.5rem;">
-                        شراء خشب
-                    </label>
-                </div>
-            </div>
-            
-            <!-- Template Expense Form -->
-            <div id="template-expense-form">
+            <!-- Unified Expense Entry Form.
+                 ONE description selector holds every saved expense/template PLUS a
+                 "مصروف مخصص" option and a "شراء خشب" shortcut. The custom description
+                 field is enabled only for مصروف مخصص, so a saved expense and a custom
+                 description can never be entered at the same time (mutually exclusive).
+                 The payment fields (day / paid / source) apply identically to every
+                 kind because submission always routes through storage.recordExpense. -->
+            <div id="expense-entry-form">
                 <div class="form-group">
-                    <label for="expense-template">اختر المصروف:</label>
-                    <select id="expense-template" required>
+                    <label for="expense-selector">المصروف:</label>
+                    <select id="expense-selector" required>
                         <option value="">جاري التحميل...</option>
                     </select>
                 </div>
-                
-                <div id="template-details" style="display: none; background: #f9fafb; padding: 1rem; border-radius: 6px; margin: 1rem 0;">
+
+                <div id="template-details" style="display: none; background: #f9fafb; padding: 0.75rem 1rem; border-radius: 6px; margin: 0.5rem 0;">
                     <div id="template-info"></div>
                 </div>
-                
+
+                <!-- Custom description: only for "مصروف مخصص". -->
+                <div class="form-group" id="custom-description-group" style="display: none;">
+                    <label for="expense-description">وصف المصروف:</label>
+                    <input type="text" id="expense-description" placeholder="وصف المصروف">
+                </div>
+
+                <!-- Quantity: only for per-unit / fixed templates. -->
                 <div class="form-group" id="quantity-group" style="display: none;">
                     <label for="expense-quantity">الكمية:</label>
                     <input type="number" id="expense-quantity" min="1" value="1" step="1">
                 </div>
-                
-                <div class="form-group" id="custom-amount-group" style="display: none;">
-                    <label for="expense-custom-amount">المبلغ (درهم):</label>
-                    <input type="number" id="expense-custom-amount" step="0.01" min="0" placeholder="أدخل المبلغ">
-                </div>
-                
+
                 <div class="form-group">
+                    <label for="expense-amount">المبلغ (درهم):</label>
+                    <input type="number" id="expense-amount" placeholder="المبلغ" step="0.01" min="0">
+                    <small id="expense-amount-hint" style="color:#6b7280; display:none;">المبلغ محسوب من المصروف المحفوظ.</small>
+                </div>
+
+                <!-- Optional notes appended to the chosen saved expense description. -->
+                <div class="form-group" id="template-notes-group" style="display: none;">
                     <label for="expense-template-notes">ملاحظات إضافية (اختياري):</label>
                     <input type="text" id="expense-template-notes" placeholder="ملاحظات...">
                 </div>
-            </div>
-            
-            <!-- Custom Expense Form -->
-            <div id="custom-expense-form" style="display: none;">
-                <div class="form-group">
-                    <label for="expense-description">وصف المصروف:</label>
-                    <input type="text" id="expense-description" placeholder="وصف المصروف" required>
-                </div>
-                <div class="form-group">
-                    <label for="expense-amount">المبلغ (درهم):</label>
-                    <input type="number" id="expense-amount" placeholder="المبلغ" step="0.01" required>
-                </div>
+
+                <!-- Shared Expense System fields (apply to saved AND custom). -->
                 <div class="form-group">
                     <label for="expense-day">يوم المصروف:</label>
                     <input type="date" id="expense-day">
@@ -2411,6 +2397,7 @@
                 getTemplates: (activeOnly) => ipcRenderer.invoke('expenseTemplates:getTemplates', activeOnly),
                 getTemplatesByCategory: (activeOnly) => ipcRenderer.invoke('expenseTemplates:getTemplatesByCategory', activeOnly),
                 createFromTemplate: (templateId, quantity, customAmount, notes) => ipcRenderer.invoke('expenseTemplates:createFromTemplate', templateId, quantity, customAmount, notes),
+                resolveTemplate: (templateId, quantity, customAmount, notes) => ipcRenderer.invoke('expenseTemplates:resolveTemplate', templateId, quantity, customAmount, notes),
                 addWoodPurchase: (supplierName, grossWeight, emptyWeight, pricePerKg, deliveryDate, notes) => ipcRenderer.invoke('expenseTemplates:addWoodPurchase', supplierName, grossWeight, emptyWeight, pricePerKg, deliveryDate, notes),
                 getWoodPurchases: (limit) => ipcRenderer.invoke('expenseTemplates:getWoodPurchases', limit),
                 addTemplate: (name, category, description) => ipcRenderer.invoke('expenseTemplates:addTemplate', name, category, description),
@@ -2899,13 +2886,12 @@
 
         async function showExpenseModal() {
             try {
-                // Load expense templates
+                // Load the unified expense selector (saved templates + custom + wood)
                 await loadExpenseTemplates();
-                
-                // Reset form
-                document.querySelector('input[name="expense-type"][value="template"]').checked = true;
-                toggleExpenseType();
-                
+
+                // Reset the unified form to its default state.
+                resetExpenseForm();
+
                 // Show modal
                 const modal = document.getElementById('expense-modal');
                 if (modal) {
@@ -3312,21 +3298,33 @@
         async function loadExpenseTemplates() {
             try {
                 currentExpenseTemplates = await api.expenseTemplates.getTemplates(true);
-                const templateSelect = document.getElementById('expense-template');
-                
-                // Flat list — no categories
-                templateSelect.innerHTML = '<option value="">اختر مصروف...</option>';
+                const selector = document.getElementById('expense-selector');
+                if (!selector) return;
+
+                // ONE dropdown: placeholder, every saved expense/template, then the
+                // "مصروف مخصص" option and the "شراء خشب" shortcut. A saved expense and
+                // a custom description are therefore mutually exclusive by construction.
+                selector.innerHTML = '<option value="">اختر مصروف...</option>';
                 currentExpenseTemplates.forEach(template => {
                     const option = document.createElement('option');
-                    option.value = template.id;
+                    option.value = 'tpl:' + template.id;
                     option.textContent = template.name;
                     option.dataset.template = JSON.stringify(template);
-                    templateSelect.appendChild(option);
+                    selector.appendChild(option);
                 });
-                
+                const customOpt = document.createElement('option');
+                customOpt.value = 'custom';
+                customOpt.textContent = 'مصروف مخصص';
+                selector.appendChild(customOpt);
+
+                const woodOpt = document.createElement('option');
+                woodOpt.value = 'wood';
+                woodOpt.textContent = '🪵 شراء خشب';
+                selector.appendChild(woodOpt);
             } catch (error) {
                 console.error('Failed to load expense templates:', error);
-                document.getElementById('expense-template').innerHTML = '<option value="">خطأ في تحميل القوائم</option>';
+                const selector = document.getElementById('expense-selector');
+                if (selector) selector.innerHTML = '<option value="">خطأ في تحميل القوائم</option>';
             }
         }
 
@@ -3336,15 +3334,12 @@
             // previously left the wood submit button without a handler).
             const on = (id, prop, fn) => { const el = document.getElementById(id); if (el) el[prop] = fn; };
 
-            // Expense type radio buttons
-            document.querySelectorAll('input[name="expense-type"]').forEach(radio => {
-                radio.onchange = toggleExpenseType;
-            });
+            // Unified expense selector (saved templates + custom + wood)
+            on('expense-selector', 'onchange', onExpenseSelectionChange);
+            // Quantity change recomputes a fixed/per-unit template's amount.
+            on('expense-quantity', 'oninput', recomputeSelectedTemplateAmount);
 
-            // Template selection
-            on('expense-template', 'onchange', onTemplateSelected);
-
-            // Custom expense: show/hide the payment-source selector with paid state
+            // Show/hide the payment-source selector with paid state
             on('expense-payment-status', 'onchange', updateExpenseSourceVisibility);
 
             // Wood calculation inputs
@@ -3371,48 +3366,6 @@
             // Cancel buttons
             on('cancel-expense', 'onclick', closeExpenseModal);
             on('cancel-wood-purchase', 'onclick', closeWoodModal);
-        }
-
-        function toggleExpenseType() {
-            const selectedType = document.querySelector('input[name="expense-type"]:checked').value;
-            
-            // Hide all forms
-            document.getElementById('template-expense-form').style.display = 'none';
-            document.getElementById('custom-expense-form').style.display = 'none';
-            
-            // Hide modals
-            document.getElementById('expense-modal').classList.add('hidden');
-            document.getElementById('wood-modal').classList.add('hidden');
-            
-            if (selectedType === 'template') {
-                document.getElementById('template-expense-form').style.display = 'block';
-                document.getElementById('expense-modal').classList.remove('hidden');
-            } else if (selectedType === 'custom') {
-                document.getElementById('custom-expense-form').style.display = 'block';
-                document.getElementById('expense-modal').classList.remove('hidden');
-                // Default the expense day to today (the user may pick a past date).
-                const expDay = document.getElementById('expense-day');
-                if (expDay && !expDay.value) expDay.value = new Date().toISOString().split('T')[0];
-                // Reset payment controls to the safe default (unpaid, source hidden).
-                const statusSel = document.getElementById('expense-payment-status');
-                if (statusSel) statusSel.value = 'unpaid';
-                updateExpenseSourceVisibility();
-            } else if (selectedType === 'wood') {
-                const woodModal = document.getElementById('wood-modal');
-                woodModal.classList.remove('hidden');
-                // Bug fix: start the modal scrolled to the TOP so the seller field
-                // is immediately visible (the scrollable .modal-content otherwise
-                // keeps the last scroll position, opening near the bottom table).
-                const woodContent = woodModal.querySelector('.modal-content');
-                const scrollTop = () => { if (woodContent) woodContent.scrollTop = 0; };
-                scrollTop();
-                // Re-assert after layout/content render so it stays at the top even
-                // once the recent-purchases table below has been populated.
-                requestAnimationFrame(scrollTop);
-                loadWoodSellersIntoModal();
-                onWoodPricingMethodChange();
-                loadWoodPurchasesTable();
-            }
         }
 
         // Load active wood sellers into the wood-modal dropdown.
@@ -3507,41 +3460,120 @@
             calculateWoodAmount();
         }
 
-        function onTemplateSelected() {
-            const select = document.getElementById('expense-template');
-            const templateId = select.value;
-            
-            if (!templateId) {
-                document.getElementById('template-details').style.display = 'none';
-                selectedTemplate = null;
-                return;
-            }
-            
-            selectedTemplate = JSON.parse(select.selectedOptions[0].dataset.template);
-            
-            // Show template details
+        function onExpenseSelectionChange() {
+            const select = document.getElementById('expense-selector');
+            if (!select) return;
+            const value = select.value;
+
+            const customGroup = document.getElementById('custom-description-group');
+            const quantityGroup = document.getElementById('quantity-group');
+            const notesGroup = document.getElementById('template-notes-group');
             const detailsDiv = document.getElementById('template-details');
             const infoDiv = document.getElementById('template-info');
-            
-            let infoHTML = `<strong>${selectedTemplate.name}</strong><br>`;
-            infoHTML += `<span style="color: #6b7280;">${selectedTemplate.description}</span><br>`;
-            
-            if (selectedTemplate.fixed_amount) {
-                infoHTML += `<span style="color: #059669; font-weight: 600;">مبلغ ثابت: ${selectedTemplate.fixed_amount} درهم</span>`;
-                document.getElementById('quantity-group').style.display = 'block';
-                document.getElementById('custom-amount-group').style.display = 'none';
-            } else if (selectedTemplate.price_per_unit) {
-                infoHTML += `<span style="color: #2563eb; font-weight: 600;">سعر ${selectedTemplate.unit}: ${selectedTemplate.price_per_unit} درهم</span>`;
-                document.getElementById('quantity-group').style.display = 'block';
-                document.getElementById('custom-amount-group').style.display = 'none';
-            } else {
-                infoHTML += `<span style="color: #f59e0b; font-weight: 600;">مبلغ متغير - أدخل المبلغ</span>`;
-                document.getElementById('quantity-group').style.display = 'none';
-                document.getElementById('custom-amount-group').style.display = 'block';
+            const amountInput = document.getElementById('expense-amount');
+            const amountHint = document.getElementById('expense-amount-hint');
+            const descInput = document.getElementById('expense-description');
+
+            // Reset shared sub-fields each time selection changes.
+            selectedTemplate = null;
+            if (customGroup) customGroup.style.display = 'none';
+            if (quantityGroup) quantityGroup.style.display = 'none';
+            if (notesGroup) notesGroup.style.display = 'none';
+            if (detailsDiv) detailsDiv.style.display = 'none';
+            if (amountHint) amountHint.style.display = 'none';
+            if (amountInput) { amountInput.readOnly = false; amountInput.value = ''; }
+            if (descInput) descInput.value = '';
+
+            // "شراء خشب" is a genuinely different transaction: hand off to the wood
+            // modal (unchanged) and close the expense modal.
+            if (value === 'wood') {
+                document.getElementById('expense-modal').classList.add('hidden');
+                openWoodModalFromSelector();
+                return;
             }
-            
-            infoDiv.innerHTML = infoHTML;
-            detailsDiv.style.display = 'block';
+
+            if (value === 'custom') {
+                // Custom: enable the free-text description; amount is fully editable.
+                if (customGroup) customGroup.style.display = 'block';
+                if (descInput) descInput.focus();
+                return;
+            }
+
+            if (value && value.startsWith('tpl:')) {
+                // Saved expense/template: description comes from the template (custom
+                // text stays hidden/empty, so the two can never be combined).
+                selectedTemplate = JSON.parse(select.selectedOptions[0].dataset.template);
+                if (notesGroup) notesGroup.style.display = 'block';
+
+                let infoHTML = `<strong>${selectedTemplate.name}</strong><br>`;
+                if (selectedTemplate.description) {
+                    infoHTML += `<span style="color: #6b7280;">${selectedTemplate.description}</span><br>`;
+                }
+                if (selectedTemplate.fixed_amount) {
+                    infoHTML += `<span style="color: #059669; font-weight: 600;">مبلغ ثابت: ${selectedTemplate.fixed_amount} درهم</span>`;
+                    if (quantityGroup) quantityGroup.style.display = 'block';
+                    recomputeSelectedTemplateAmount();
+                    if (amountInput) amountInput.readOnly = true;
+                    if (amountHint) amountHint.style.display = 'block';
+                } else if (selectedTemplate.price_per_unit) {
+                    infoHTML += `<span style="color: #2563eb; font-weight: 600;">سعر ${selectedTemplate.unit}: ${selectedTemplate.price_per_unit} درهم</span>`;
+                    if (quantityGroup) quantityGroup.style.display = 'block';
+                    recomputeSelectedTemplateAmount();
+                    if (amountInput) amountInput.readOnly = true;
+                    if (amountHint) amountHint.style.display = 'block';
+                } else {
+                    infoHTML += `<span style="color: #f59e0b; font-weight: 600;">مبلغ متغير - أدخل المبلغ</span>`;
+                    // Variable template: amount is entered by the teller.
+                }
+                if (infoDiv) infoDiv.innerHTML = infoHTML;
+                if (detailsDiv) detailsDiv.style.display = 'block';
+            }
+        }
+
+        // Recompute the amount for a fixed / per-unit template from its quantity and
+        // write it into the (read-only) amount field so the teller sees the total.
+        function recomputeSelectedTemplateAmount() {
+            if (!selectedTemplate) return;
+            const amountInput = document.getElementById('expense-amount');
+            if (!amountInput) return;
+            const qty = parseInt(document.getElementById('expense-quantity').value) || 1;
+            let amount = null;
+            if (selectedTemplate.fixed_amount) amount = selectedTemplate.fixed_amount * qty;
+            else if (selectedTemplate.price_per_unit) amount = selectedTemplate.price_per_unit * qty;
+            if (amount !== null) amount = Math.round(amount * 100) / 100;
+            if (amount !== null) amountInput.value = amount;
+        }
+
+        // Open the wood modal from the unified selector (mirrors the previous
+        // radio='wood' behavior; wood logic itself is unchanged).
+        function openWoodModalFromSelector() {
+            const woodModal = document.getElementById('wood-modal');
+            if (!woodModal) return;
+            woodModal.classList.remove('hidden');
+            const woodContent = woodModal.querySelector('.modal-content');
+            const scrollTop = () => { if (woodContent) woodContent.scrollTop = 0; };
+            scrollTop();
+            requestAnimationFrame(scrollTop);
+            loadWoodSellersIntoModal();
+            onWoodPricingMethodChange();
+            loadWoodPurchasesTable();
+        }
+
+        // Reset the unified expense form to a clean default (selector cleared, payment
+        // fields at safe defaults, expense day = today).
+        function resetExpenseForm() {
+            const selector = document.getElementById('expense-selector');
+            if (selector) selector.value = '';
+            selectedTemplate = null;
+            const qty = document.getElementById('expense-quantity'); if (qty) qty.value = '1';
+            const desc = document.getElementById('expense-description'); if (desc) desc.value = '';
+            const notes = document.getElementById('expense-template-notes'); if (notes) notes.value = '';
+            const amount = document.getElementById('expense-amount'); if (amount) { amount.value = ''; amount.readOnly = false; }
+            const expDay = document.getElementById('expense-day'); if (expDay) expDay.value = new Date().toISOString().split('T')[0];
+            const statusSel = document.getElementById('expense-payment-status'); if (statusSel) statusSel.value = 'unpaid';
+            const sourceSel = document.getElementById('expense-payment-source'); if (sourceSel) sourceSel.value = 'cash';
+            ['custom-description-group', 'quantity-group', 'template-notes-group', 'template-details', 'expense-source-group', 'expense-amount-hint']
+                .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
         }
 
         function calculateWoodAmount() {
@@ -3567,62 +3599,6 @@
             document.getElementById('wood-calculation-details').textContent = details;
         }
 
-        async function submitExpense() {
-            try {
-                const expenseType = document.querySelector('input[name="expense-type"]:checked').value;
-                
-                if (expenseType === 'template') {
-                    await submitTemplateExpense();
-                } else if (expenseType === 'custom') {
-                    await submitCustomExpense();
-                }
-                
-            } catch (error) {
-                console.error('Failed to submit expense:', error);
-                showToast('فشل في إضافة المصروف', 'error');
-            }
-        }
-
-        async function submitTemplateExpense() {
-            if (!selectedTemplate) {
-                showToast('يرجى اختيار مصروف من القائمة', 'error');
-                return;
-            }
-            
-            const quantity = parseInt(document.getElementById('expense-quantity').value) || 1;
-            const customAmount = parseFloat(document.getElementById('expense-custom-amount').value) || null;
-            const notes = document.getElementById('expense-template-notes').value.trim();
-            
-            // Validate custom amount if required
-            if (!selectedTemplate.fixed_amount && !selectedTemplate.price_per_unit && !customAmount) {
-                showToast('يرجى إدخال المبلغ', 'error');
-                return;
-            }
-            
-            // Create expense from template
-            await api.expenseTemplates.createFromTemplate(selectedTemplate.id, quantity, customAmount, notes);
-            
-            // Calculate display amount
-            let displayAmount;
-            if (customAmount) {
-                displayAmount = customAmount;
-            } else if (selectedTemplate.fixed_amount) {
-                displayAmount = selectedTemplate.fixed_amount * quantity;
-            } else if (selectedTemplate.price_per_unit) {
-                displayAmount = selectedTemplate.price_per_unit * quantity;
-            }
-            
-            showToast(`تم إضافة مصروف: ${selectedTemplate.name} - ${displayAmount} درهم`, 'success');
-            closeExpenseModal();
-            
-            // Update displays
-            await Promise.all([
-                updateDisplays(),
-                updateDailyLedger(),
-                refreshCurrentDayDetails()
-            ]);
-        }
-
         // Show the payment-source selector only when the expense is marked "paid".
         // An unpaid expense has no source yet (nothing has left any pocket).
         function updateExpenseSourceVisibility() {
@@ -3632,48 +3608,108 @@
             sourceGroup.style.display = statusSel.value === 'paid' ? 'block' : 'none';
         }
 
-        async function submitCustomExpense() {
-            const description = document.getElementById('expense-description').value.trim();
-            const amount = parseFloat(document.getElementById('expense-amount').value);
-            const expenseDay = document.getElementById('expense-day').value || new Date().toISOString().split('T')[0];
-            const status = document.getElementById('expense-payment-status').value; // 'paid' | 'unpaid'
-            const paymentSource = document.getElementById('expense-payment-source').value; // 'cash' | 'out_of_pocket'
-            const isPaid = status === 'paid';
+        // UNIFIED expense submission. Works identically for a saved expense/template
+        // and for مصروف مخصص: it resolves the description + amount for the chosen kind,
+        // then routes through the SAME storage.recordExpense so expense day / paid /
+        // paid day / payment source apply the same way to both. There is no separate
+        // template-vs-custom write path.
+        async function submitExpense() {
+            try {
+                const selector = document.getElementById('expense-selector');
+                const value = selector ? selector.value : '';
 
-            if (!description || !amount || amount <= 0) {
-                showToast('يرجى إدخال وصف ومبلغ صحيح', 'error');
-                return;
+                if (!value) {
+                    showToast('يرجى اختيار مصروف', 'error');
+                    return;
+                }
+                if (value === 'wood') {
+                    // Handled by the wood modal (opened on selection); nothing to submit here.
+                    openWoodModalFromSelector();
+                    return;
+                }
+
+                // Shared payment fields.
+                const expenseDay = document.getElementById('expense-day').value || new Date().toISOString().split('T')[0];
+                const status = document.getElementById('expense-payment-status').value; // 'paid' | 'unpaid'
+                const paymentSource = document.getElementById('expense-payment-source').value; // 'cash' | 'out_of_pocket'
+                const isPaid = status === 'paid';
+
+                let description;
+                let amount;
+
+                if (value === 'custom') {
+                    // مصروف مخصص: free-text description + entered amount.
+                    description = document.getElementById('expense-description').value.trim();
+                    amount = parseFloat(document.getElementById('expense-amount').value);
+                    if (!description) {
+                        showToast('يرجى إدخال وصف المصروف', 'error');
+                        return;
+                    }
+                } else if (value.startsWith('tpl:')) {
+                    // Saved expense/template: resolve description + amount via the shared
+                    // backend resolver (single pricing source of truth).
+                    const templateId = parseInt(value.slice(4), 10);
+                    const quantity = parseInt(document.getElementById('expense-quantity').value) || 1;
+                    // For fixed/per-unit the amount field is computed+read-only; for a
+                    // variable template the teller typed it. Pass it as the custom amount
+                    // only when the template has no intrinsic pricing (variable), so fixed
+                    // templates keep quantity-based pricing.
+                    const typedAmount = parseFloat(document.getElementById('expense-amount').value);
+                    const isVariable = !selectedTemplate || (!selectedTemplate.fixed_amount && !selectedTemplate.price_per_unit);
+                    const notes = document.getElementById('expense-template-notes').value.trim();
+                    const resolved = await api.expenseTemplates.resolveTemplate(
+                        templateId,
+                        quantity,
+                        isVariable ? (Number.isFinite(typedAmount) ? typedAmount : null) : null,
+                        notes
+                    );
+                    if (!resolved || resolved.success === false) {
+                        showToast((resolved && resolved.error) === 'Template has no pricing information'
+                            ? 'يرجى إدخال المبلغ' : 'تعذّر تحضير المصروف', 'error');
+                        return;
+                    }
+                    description = resolved.description;
+                    amount = resolved.amount;
+                } else {
+                    showToast('يرجى اختيار مصروف', 'error');
+                    return;
+                }
+
+                if (!Number.isFinite(amount) || amount <= 0) {
+                    showToast('يرجى إدخال مبلغ صحيح', 'error');
+                    return;
+                }
+
+                // Single write path: expense day preserved; paid/source honoured; cash
+                // only moves for paid business-cash expenses (enforced in getCashInHand).
+                const res = await api.storage.recordExpense({
+                    description,
+                    amount,
+                    date: expenseDay,
+                    paid: isPaid,
+                    paymentSource: isPaid ? paymentSource : 'cash',
+                    paidDate: isPaid ? new Date().toISOString().split('T')[0] : null
+                });
+                if (res && res.success === false) {
+                    showToast(res.error || 'فشل في إضافة المصروف', 'error');
+                    return;
+                }
+
+                const statusLabel = !isPaid
+                    ? 'غير مدفوع'
+                    : (paymentSource === 'out_of_pocket' ? 'مدفوع - من الجيب' : 'مدفوع - نقد الصندوق');
+                showToast(`تم إضافة مصروف: ${description} - ${amount} درهم (${statusLabel})`, 'success');
+                closeExpenseModal();
+
+                await Promise.all([
+                    updateDisplays(),
+                    updateDailyLedger(),
+                    refreshCurrentDayDetails()
+                ]);
+            } catch (error) {
+                console.error('Failed to submit expense:', error);
+                showToast('فشل في إضافة المصروف', 'error');
             }
-
-            // Record via the new expense model: expense day is preserved exactly,
-            // paid/unpaid + payment source are honoured, and business cash only
-            // decreases for paid business-cash expenses (enforced in getCashInHand).
-            const res = await api.storage.recordExpense({
-                description,
-                amount,
-                date: expenseDay,
-                paid: isPaid,
-                paymentSource: isPaid ? paymentSource : 'cash',
-                // Paid today (when marked paid at entry); expense day stays as chosen.
-                paidDate: isPaid ? new Date().toISOString().split('T')[0] : null
-            });
-            if (res && res.success === false) {
-                showToast(res.error || 'فشل في إضافة المصروف', 'error');
-                return;
-            }
-
-            const statusLabel = !isPaid
-                ? 'غير مدفوع'
-                : (paymentSource === 'out_of_pocket' ? 'مدفوع - من الجيب' : 'مدفوع - نقد الصندوق');
-            showToast(`تم إضافة مصروف: ${description} - ${amount} درهم (${statusLabel})`, 'success');
-            closeExpenseModal();
-
-            // Update displays
-            await Promise.all([
-                updateDisplays(),
-                updateDailyLedger(),
-                refreshCurrentDayDetails()
-            ]);
         }
 
         async function submitWoodPurchase() {
@@ -3765,24 +3801,9 @@
 
         function closeExpenseModal() {
             document.getElementById('expense-modal').classList.add('hidden');
-            
-            // Reset forms
-            document.getElementById('expense-template').value = '';
-            document.getElementById('expense-quantity').value = '1';
-            document.getElementById('expense-custom-amount').value = '';
-            document.getElementById('expense-template-notes').value = '';
-            document.getElementById('expense-description').value = '';
-            document.getElementById('expense-amount').value = '';
-            const expDay = document.getElementById('expense-day');
-            if (expDay) expDay.value = '';
-            const statusSel = document.getElementById('expense-payment-status');
-            if (statusSel) statusSel.value = 'unpaid';
-            const sourceSel = document.getElementById('expense-payment-source');
-            if (sourceSel) sourceSel.value = 'cash';
-            const sourceGroup = document.getElementById('expense-source-group');
-            if (sourceGroup) sourceGroup.style.display = 'none';
-            document.getElementById('template-details').style.display = 'none';
-            selectedTemplate = null;
+            // Reset the unified form (selector, description, amount, quantity, payment
+            // fields, and all conditional groups).
+            resetExpenseForm();
         }
 
         function closeWoodModal() {

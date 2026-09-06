@@ -872,6 +872,14 @@ ipcMain.handle('expenseTemplates:createFromTemplate', async (event, templateId, 
   return expenseId;
 });
 
+// Compute-only: resolve a template into { amount, description, pricingKind } WITHOUT
+// inserting. The unified expense form calls this, then storage:recordExpense so the
+// expense day / paid state / payment source apply uniformly to template expenses too.
+ipcMain.handle('expenseTemplates:resolveTemplate', (event, templateId, quantity, customAmount, notes) => {
+  if (!expenseTemplates) return { success: false, error: 'Expense templates not available' };
+  return expenseTemplates.getTemplateAmountAndDescription(templateId, quantity, customAmount, notes);
+});
+
 ipcMain.handle('expenseTemplates:addWoodPurchase', async (event, supplierName, grossWeight, emptyWeight, pricePerKg, deliveryDate, notes) => {
   if (!expenseTemplates) {
     throw new Error('Expense templates not available');
