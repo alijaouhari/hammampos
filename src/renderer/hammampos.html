@@ -992,25 +992,41 @@
         }
 
         .day-item input[type="checkbox"] {
-            margin-left: 0.75rem;
             transform: scale(1.2);
+            flex-shrink: 0;
+            margin: 0;
         }
 
+        /* Card body fills the width and stacks two rows:
+             row 1: date (start) ── checkbox (end)
+             row 2: amount on its own line */
         .day-item-content {
             flex: 1;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+            gap: 0.35rem;
+            min-width: 0;
+        }
+
+        .day-item-top {
+            display: flex;
             align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
         }
 
         .day-item-date {
             font-weight: 600;
             color: #374151;
+            min-width: 0;
         }
 
         .day-item-amount {
             font-weight: 600;
             color: #059669;
+            /* Keep "درهم 1275" (and negatives/zero) on ONE line — the currency word
+               and the number must never wrap independently when they fit. */
+            white-space: nowrap;
         }
 
         .day-item-details {
@@ -5692,11 +5708,13 @@
                         ? `<input type="checkbox" id="day-${index}" onchange="setDaySelection('${day.date}', this.checked)">`
                         : `<input type="checkbox" id="day-${index}" disabled title="لا يوجد مبلغ للتحصيل في هذا اليوم">`;
                     
+                    // Layout: top row = date (start) + checkbox (end); second row =
+                    // amount on its own line. Structure only — no data changes.
                     dayItem.innerHTML = `
-                        ${checkboxHtml}
                         <div class="day-item-content">
-                            <div>
+                            <div class="day-item-top">
                                 <div class="day-item-date">${displayDate}${statusBadge}</div>
+                                ${checkboxHtml}
                             </div>
                             <div class="day-item-amount">${formatMoney(netAmount)}</div>
                         </div>
