@@ -1327,6 +1327,9 @@
                                         <th>الوقت</th>
                                         <th>الوصف</th>
                                         <th>المبلغ</th>
+                                        <th>الحالة</th>
+                                        <th>يوم الدفع</th>
+                                        <th>إجراء</th>
                                     </tr>
                                 </thead>
                                 <tbody id="expenses-details-tbody">
@@ -1409,6 +1412,25 @@
                 <div class="form-group">
                     <label for="expense-amount">المبلغ (درهم):</label>
                     <input type="number" id="expense-amount" placeholder="المبلغ" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="expense-day">يوم المصروف:</label>
+                    <input type="date" id="expense-day">
+                    <small style="color:#6b7280;">اختر التاريخ الذي وقع فيه المصروف فعلاً (يمكن اختيار يوم سابق).</small>
+                </div>
+                <div class="form-group">
+                    <label for="expense-payment-status">حالة الدفع:</label>
+                    <select id="expense-payment-status">
+                        <option value="unpaid">غير مدفوع (آجل)</option>
+                        <option value="paid">مدفوع</option>
+                    </select>
+                </div>
+                <div class="form-group" id="expense-source-group" style="display: none;">
+                    <label for="expense-payment-source">مصدر الدفع:</label>
+                    <select id="expense-payment-source">
+                        <option value="cash">نقد الصندوق (يُخصم من النقد)</option>
+                        <option value="out_of_pocket">من الجيب الخاص (لا يُخصم من النقد)</option>
+                    </select>
                 </div>
             </div>
             
@@ -1739,6 +1761,9 @@
                                             <th>الوقت</th>
                                             <th>الوصف</th>
                                             <th>المبلغ</th>
+                                            <th>الحالة</th>
+                                            <th>يوم الدفع</th>
+                                            <th>إجراء</th>
                                             <th>حذف</th>
                                         </tr>
                                     </thead>
@@ -2340,6 +2365,10 @@
                 getCashInHand: () => ipcRenderer.invoke('storage:getCashInHand'),
                 getLifetimeRevenue: () => ipcRenderer.invoke('storage:getLifetimeRevenue'),
                 addExpense: (description, amount) => ipcRenderer.invoke('storage:addExpense', description, amount),
+                recordExpense: (opts) => ipcRenderer.invoke('storage:recordExpense', opts),
+                payExpense: (expenseId, opts) => ipcRenderer.invoke('storage:payExpense', expenseId, opts),
+                getExpense: (id) => ipcRenderer.invoke('storage:getExpense', id),
+                getOutstandingExpenses: () => ipcRenderer.invoke('storage:getOutstandingExpenses'),
                 getDailySummariesWithDetails: (limit) => ipcRenderer.invoke('storage:getDailySummariesWithDetails', limit),
                 getTicketsForDate: (date) => ipcRenderer.invoke('storage:getTicketsForDate', date),
                 getTickets: (startDate, endDate) => ipcRenderer.invoke('storage:getTickets', startDate, endDate),
@@ -3315,6 +3344,9 @@
             // Template selection
             on('expense-template', 'onchange', onTemplateSelected);
 
+            // Custom expense: show/hide the payment-source selector with paid state
+            on('expense-payment-status', 'onchange', updateExpenseSourceVisibility);
+
             // Wood calculation inputs
             on('wood-gross-weight', 'oninput', calculateWoodAmount);
             on('wood-empty-weight', 'oninput', calculateWoodAmount);
@@ -3358,6 +3390,13 @@
             } else if (selectedType === 'custom') {
                 document.getElementById('custom-expense-form').style.display = 'block';
                 document.getElementById('expense-modal').classList.remove('hidden');
+                // Default the expense day to today (the user may pick a past date).
+                const expDay = document.getElementById('expense-day');
+                if (expDay && !expDay.value) expDay.value = new Date().toISOString().split('T')[0];
+                // Reset payment controls to the safe default (unpaid, source hidden).
+                const statusSel = document.getElementById('expense-payment-status');
+                if (statusSel) statusSel.value = 'unpaid';
+                updateExpenseSourceVisibility();
             } else if (selectedType === 'wood') {
                 const woodModal = document.getElementById('wood-modal');
                 woodModal.classList.remove('hidden');
@@ -3584,21 +3623,51 @@
             ]);
         }
 
+        // Show the payment-source selector only when the expense is marked "paid".
+        // An unpaid expense has no source yet (nothing has left any pocket).
+        function updateExpenseSourceVisibility() {
+            const statusSel = document.getElementById('expense-payment-status');
+            const sourceGroup = document.getElementById('expense-source-group');
+            if (!statusSel || !sourceGroup) return;
+            sourceGroup.style.display = statusSel.value === 'paid' ? 'block' : 'none';
+        }
+
         async function submitCustomExpense() {
             const description = document.getElementById('expense-description').value.trim();
             const amount = parseFloat(document.getElementById('expense-amount').value);
-            
+            const expenseDay = document.getElementById('expense-day').value || new Date().toISOString().split('T')[0];
+            const status = document.getElementById('expense-payment-status').value; // 'paid' | 'unpaid'
+            const paymentSource = document.getElementById('expense-payment-source').value; // 'cash' | 'out_of_pocket'
+            const isPaid = status === 'paid';
+
             if (!description || !amount || amount <= 0) {
                 showToast('يرجى إدخال وصف ومبلغ صحيح', 'error');
                 return;
             }
-            
-            // Add custom expense
-            await api.storage.addExpense(description, amount);
-            
-            showToast(`تم إضافة مصروف: ${description} - ${amount} درهم`, 'success');
+
+            // Record via the new expense model: expense day is preserved exactly,
+            // paid/unpaid + payment source are honoured, and business cash only
+            // decreases for paid business-cash expenses (enforced in getCashInHand).
+            const res = await api.storage.recordExpense({
+                description,
+                amount,
+                date: expenseDay,
+                paid: isPaid,
+                paymentSource: isPaid ? paymentSource : 'cash',
+                // Paid today (when marked paid at entry); expense day stays as chosen.
+                paidDate: isPaid ? new Date().toISOString().split('T')[0] : null
+            });
+            if (res && res.success === false) {
+                showToast(res.error || 'فشل في إضافة المصروف', 'error');
+                return;
+            }
+
+            const statusLabel = !isPaid
+                ? 'غير مدفوع'
+                : (paymentSource === 'out_of_pocket' ? 'مدفوع - من الجيب' : 'مدفوع - نقد الصندوق');
+            showToast(`تم إضافة مصروف: ${description} - ${amount} درهم (${statusLabel})`, 'success');
             closeExpenseModal();
-            
+
             // Update displays
             await Promise.all([
                 updateDisplays(),
@@ -3704,6 +3773,14 @@
             document.getElementById('expense-template-notes').value = '';
             document.getElementById('expense-description').value = '';
             document.getElementById('expense-amount').value = '';
+            const expDay = document.getElementById('expense-day');
+            if (expDay) expDay.value = '';
+            const statusSel = document.getElementById('expense-payment-status');
+            if (statusSel) statusSel.value = 'unpaid';
+            const sourceSel = document.getElementById('expense-payment-source');
+            if (sourceSel) sourceSel.value = 'cash';
+            const sourceGroup = document.getElementById('expense-source-group');
+            if (sourceGroup) sourceGroup.style.display = 'none';
             document.getElementById('template-details').style.display = 'none';
             selectedTemplate = null;
         }
@@ -4318,19 +4395,37 @@
             expensesTbody.innerHTML = '';
             
             expenses.forEach(expense => {
+                const paid = Number(expense.paid) === 1;
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${expense.time}</td>
                     <td>${expense.description}</td>
                     <td>${expense.amount} درهم</td>
-                    <td><button class="delete-btn" onclick="deleteExpense(${expense.id})">حذف</button></td>
+                    <td style="color:${paid ? '#059669' : '#dc2626'}; font-weight:600;">${expensePaymentLabel(expense)}</td>
+                    <td>${paid && expense.paid_date ? woodDisplayDate(expense.paid_date) : '—'}</td>
                 `;
+                const actionTd = document.createElement('td');
+                if (!paid) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-success';
+                    btn.style.cssText = 'padding:0.2rem 0.6rem; font-size:0.78rem;';
+                    btn.textContent = 'دفع';
+                    btn.onclick = () => payExpenseUI(expense.id, expense.amount);
+                    actionTd.appendChild(btn);
+                } else {
+                    actionTd.textContent = '—';
+                }
+                row.appendChild(actionTd);
+                const delTd = document.createElement('td');
+                delTd.innerHTML = `<button class="delete-btn" onclick="deleteExpense(${expense.id})">حذف</button>`;
+                row.appendChild(delTd);
                 expensesTbody.appendChild(row);
             });
             
             if (expenses.length === 0) {
                 const row = document.createElement('tr');
-                row.innerHTML = '<td colspan="4" style="text-align: center; color: #6b7280;">لا توجد مصروفات</td>';
+                row.innerHTML = '<td colspan="7" style="text-align: center; color: #6b7280;">لا توجد مصروفات</td>';
                 expensesTbody.appendChild(row);
             }
         }
@@ -6266,19 +6361,81 @@
             expensesTbody.innerHTML = '';
             
             expenses.forEach(expense => {
+                const paid = Number(expense.paid) === 1;
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${expense.time}</td>
                     <td>${expense.description}</td>
                     <td>${expense.amount} درهم</td>
+                    <td style="color:${paid ? '#059669' : '#dc2626'}; font-weight:600;">${expensePaymentLabel(expense)}</td>
+                    <td>${paid && expense.paid_date ? woodDisplayDate(expense.paid_date) : '—'}</td>
                 `;
+                const actionTd = document.createElement('td');
+                if (!paid) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-success';
+                    btn.style.cssText = 'padding:0.2rem 0.6rem; font-size:0.78rem;';
+                    btn.textContent = 'دفع';
+                    btn.onclick = () => payExpenseUI(expense.id, expense.amount);
+                    actionTd.appendChild(btn);
+                } else {
+                    actionTd.textContent = '—';
+                }
+                row.appendChild(actionTd);
                 expensesTbody.appendChild(row);
             });
             
             if (expenses.length === 0) {
                 const row = document.createElement('tr');
-                row.innerHTML = '<td colspan="3" style="text-align: center; color: #6b7280;">لا توجد مصروفات</td>';
+                row.innerHTML = '<td colspan="6" style="text-align: center; color: #6b7280;">لا توجد مصروفات</td>';
                 expensesTbody.appendChild(row);
+            }
+        }
+
+        // Human-readable payment state for an expense row (RTL Arabic), mirroring the
+        // wood status label style.
+        function expensePaymentLabel(expense) {
+            if (Number(expense.paid) !== 1) return 'غير مدفوع';
+            return expense.payment_source === 'out_of_pocket' ? 'مدفوع - من الجيب' : 'مدفوع - نقد الصندوق';
+        }
+
+        // Pay a previously-unpaid expense. Reuses the shared expense payment backend
+        // (api.storage.payExpense -> StorageManager.payExpense). Lets the user choose
+        // the payment source; business cash only decreases for a business-cash payment.
+        // Cannot be triggered on an already-paid row (no button is rendered for those).
+        async function payExpenseUI(expenseId, amount) {
+            const fromPocket = await showConfirm(
+                `دفع مصروف بقيمة ${amount} درهم.\n\nاضغط "موافق" للدفع من الجيب الخاص (لا يُخصم من النقد)،\nأو "إلغاء" ثم اختر الدفع من نقد الصندوق.`
+            );
+            // showConfirm is a two-way (OK/Cancel) dialog. To keep the existing dialog
+            // system (no new UI), map: OK => out_of_pocket, Cancel => ask cash explicitly.
+            let paymentSource;
+            if (fromPocket) {
+                paymentSource = 'out_of_pocket';
+            } else {
+                const payCash = await showConfirm(
+                    `الدفع من نقد الصندوق: سيُخصم ${amount} درهم من النقد الآن.\nاضغط "موافق" للتأكيد.`
+                );
+                if (!payCash) return; // user cancelled entirely
+                paymentSource = 'cash';
+            }
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const res = await api.storage.payExpense(expenseId, { paidDate: today, paymentSource });
+                if (res && res.success === false) {
+                    showToast(res.error || 'تعذّر تسجيل الدفع', 'error');
+                    return;
+                }
+                showToast('تم تسجيل دفع المصروف', 'success');
+                await Promise.all([
+                    updateDisplays(),
+                    updateDailyLedger(),
+                    refreshCurrentDayDetails()
+                ]);
+            } catch (error) {
+                console.error('Failed to pay expense:', error);
+                showToast('خطأ في تسجيل الدفع', 'error');
             }
         }
         

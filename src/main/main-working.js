@@ -468,6 +468,46 @@ ipcMain.handle('storage:addExpense', async (event, description, amount) => {
   return id;
 });
 
+// Full-featured expense entry: separates expense day / paid state / payment source.
+// opts = { description, amount, date, paid, paymentSource, paidDate }
+ipcMain.handle('storage:recordExpense', async (event, opts) => {
+  const res = storage.recordExpense(opts || {});
+  if (!res.success) return res;
+
+  const ex = storage.getExpense(res.id) || {};
+  const expense = {
+    id: res.id,
+    description: ex.description,
+    amount: ex.amount,
+    date: ex.date,
+    time: ex.time,
+    paid: ex.paid,
+    paid_date: ex.paid_date,
+    payment_source: ex.payment_source
+  };
+
+  // Mirror the created expense to backups/Excel/cloud in the BACKGROUND so it never
+  // blocks the save confirmation (same durability copy path as storage:addExpense).
+  if (backupManager) { backupManager.addExpense(expense).catch(err => console.error('backup addExpense failed:', err)); }
+  if (excelManager) { excelManager.addExpense(expense).catch(err => console.error('excel addExpense failed:', err)); }
+  if (cloudSync) cloudSync.syncExpense(expense).catch(() => {});
+
+  return res;
+});
+
+// Pay a previously-unpaid expense exactly once. opts = { paidDate, paymentSource }.
+ipcMain.handle('storage:payExpense', (event, expenseId, opts) => {
+  return storage.payExpense(expenseId, opts || {});
+});
+
+ipcMain.handle('storage:getExpense', (event, id) => {
+  return storage.getExpense(id);
+});
+
+ipcMain.handle('storage:getOutstandingExpenses', () => {
+  return storage.getOutstandingExpenses();
+});
+
 ipcMain.handle('storage:getCashInHand', () => {
   return storage.getCashInHand();
 });

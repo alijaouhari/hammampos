@@ -180,9 +180,35 @@ class StorageManager {
       timestamp TEXT DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // Expense payment-model migration (idempotent; ADD COLUMN throws if the column
+    // already exists, so each is guarded). This separates WHEN an expense occurred
+    // (the existing `date` column = "expense day") from WHETHER/WHEN/HOW it was paid.
+    // Existing rows keep the pre-migration meaning "recorded = paid from business
+    // cash on `date`": paid=1, payment_source='cash', and paid_date defaults to the
+    // expense `date`. This preserves all historical cash math (getCashInHand still
+    // subtracts them) with no data rewrite.
+    //   paid           1 = paid, 0 = unpaid/outstanding
+    //   paid_date      the day the expense was actually paid (may differ from `date`)
+    //   payment_source 'cash' (business cash) | 'out_of_pocket' (owner paid personally)
+    const expenseMigrations = [
+      "ALTER TABLE expenses ADD COLUMN paid INTEGER DEFAULT 1",
+      "ALTER TABLE expenses ADD COLUMN paid_date TEXT",
+      "ALTER TABLE expenses ADD COLUMN payment_source TEXT DEFAULT 'cash'"
+    ];
+    for (const sql of expenseMigrations) {
+      try { this.db.run(sql); } catch (_) { /* column already exists */ }
+    }
+    // Backfill paid_date for pre-existing paid rows so their "paid day" equals their
+    // expense day (they were treated as paid-on-entry before this migration existed).
+    // Only touches rows where the new column is still NULL — safe to run every boot.
+    try {
+      this.db.run("UPDATE expenses SET paid_date = date WHERE paid = 1 AND paid_date IS NULL");
+    } catch (_) { /* columns not present yet on a brand-new table build order */ }
+
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_date ON tickets(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_year ON tickets(year)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_paid ON expenses(paid)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_collections_date ON collections(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_collection_days_date ON collection_days(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_collection_days_collection ON collection_days(collection_id)`);
@@ -397,20 +423,123 @@ class StorageManager {
   /**
    * Expenses Management
    */
-  addExpense(description, amount) {
+  // Low-level primitive. BACKWARD-COMPATIBLE: called with (description, amount) it
+  // behaves exactly as before — a paid, business-cash expense stamped with today's
+  // date. The optional `opts` object lets callers (recordExpense / payExpense) set a
+  // historical expense day, an unpaid state, a payment source, or a paid date without
+  // changing any existing caller (wood/template payment, older tests).
+  //   opts.date          'YYYY-MM-DD' expense day (default: today)
+  //   opts.time          'HH:MM:SS' (default: now)
+  //   opts.paid          true/1 = paid, false/0 = unpaid (default: paid)
+  //   opts.paymentSource 'cash' | 'out_of_pocket' (default: 'cash')
+  //   opts.paidDate      'YYYY-MM-DD' the day it was paid (default: expense day when
+  //                      paid; null when unpaid)
+  addExpense(description, amount, opts = {}) {
     const now = new Date();
-    const date = now.toISOString().split('T')[0];
-    const time = now.toTimeString().split(' ')[0];
+    const date = opts.date || now.toISOString().split('T')[0];
+    const time = opts.time || now.toTimeString().split(' ')[0];
 
-    this.db.run('INSERT INTO expenses (description, amount, date, time) VALUES (?, ?, ?, ?)', 
-      [description, amount, date, time]);
-    
+    // Default = paid (preserves legacy "recorded = paid" for existing callers).
+    const isPaid = (opts.paid === undefined) ? true
+      : (opts.paid === true || opts.paid === 1 || opts.paid === '1');
+    const rawSource = opts.paymentSource === 'out_of_pocket' ? 'out_of_pocket' : 'cash';
+    // A never-paid expense has no source yet; store 'cash' placeholder but paid=0.
+    const paidDate = isPaid ? (opts.paidDate || date) : null;
+
+    this.db.run(
+      'INSERT INTO expenses (description, amount, date, time, paid, paid_date, payment_source) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [description, amount, date, time, isPaid ? 1 : 0, paidDate, rawSource]
+    );
+
     const result = this.db.exec('SELECT last_insert_rowid()');
     const id = result[0].values[0][0];
-    
-    this.logAudit('CREATE', 'expenses', id, `${description} - ${amount}dh`);
+
+    this.logAudit('CREATE', 'expenses', id,
+      `${description} - ${amount}dh - ${isPaid ? ('paid/' + rawSource) : 'unpaid'} - day ${date}`);
     this.save();
     return id;
+  }
+
+  /**
+   * Full-featured expense entry. Separates expense day / paid state / payment source.
+   * Real-world workflows supported:
+   *  - known + paid now (cash or out-of-pocket)
+   *  - known but unpaid (recorded, no cash movement, payable later)
+   *  - historical/back-dated expense day (does NOT get overwritten with today)
+   * Cash only decreases for expenses that are paid AND paid from business cash
+   * (enforced centrally in getCashInHand), so unpaid/out-of-pocket entries never
+   * move business cash here.
+   * @returns {{success:boolean, id?:number, error?:string}}
+   */
+  recordExpense(opts = {}) {
+    const description = (opts.description == null ? '' : String(opts.description)).trim();
+    const amount = Number(opts.amount);
+    if (!description) return { success: false, error: 'وصف المصروف مطلوب' };
+    if (!Number.isFinite(amount) || amount <= 0) return { success: false, error: 'المبلغ غير صالح' };
+
+    const today = new Date().toISOString().split('T')[0];
+    const expenseDay = (opts.date && String(opts.date).trim()) ? String(opts.date).trim() : today;
+
+    const isPaid = (opts.paid === true || opts.paid === 1 || opts.paid === '1');
+    const paymentSource = opts.paymentSource === 'out_of_pocket' ? 'out_of_pocket' : 'cash';
+    // Paid day is only meaningful when paid; defaults to today (the day the payment
+    // is being recorded), NOT the expense day, unless the caller specifies one.
+    const paidDate = isPaid ? (opts.paidDate || today) : null;
+
+    const id = this.addExpense(description, amount, {
+      date: expenseDay,
+      paid: isPaid,
+      paymentSource,
+      paidDate
+    });
+    return { success: true, id };
+  }
+
+  /**
+   * Pay a previously-unpaid expense. Preserves the original expense day; records the
+   * paid day + payment source. Mirrors payWoodPurchase: a given expense can be paid
+   * exactly once — an already-paid expense is rejected with no cash movement and no
+   * mutation of the existing paid_date/source.
+   * @param {number} expenseId
+   * @param {{paidDate?:string, paymentSource?:string}} opts
+   * @returns {{success:boolean, error?:string}}
+   */
+  payExpense(expenseId, opts = {}) {
+    const result = this.db.exec('SELECT * FROM expenses WHERE id = ?', [expenseId]);
+    if (!result[0] || result[0].values.length === 0) {
+      return { success: false, error: 'المصروف غير موجود' };
+    }
+    const cols = result[0].columns;
+    const ex = {};
+    cols.forEach((col, i) => ex[col] = result[0].values[0][i]);
+
+    if (Number(ex.paid) === 1) {
+      return { success: false, error: 'تم دفع هذا المصروف مسبقاً' };
+    }
+
+    const payDate = (opts.paidDate && String(opts.paidDate).trim())
+      ? String(opts.paidDate).trim()
+      : new Date().toISOString().split('T')[0];
+    const paymentSource = opts.paymentSource === 'out_of_pocket' ? 'out_of_pocket' : 'cash';
+
+    // Expense day (`date`) is intentionally NOT touched.
+    this.db.run(
+      'UPDATE expenses SET paid = 1, paid_date = ?, payment_source = ? WHERE id = ?',
+      [payDate, paymentSource, expenseId]
+    );
+    this.logAudit('UPDATE', 'expenses', expenseId,
+      `paid ${ex.amount}dh on ${payDate} via ${paymentSource} (expense day ${ex.date})`);
+    this.save();
+    return { success: true };
+  }
+
+  getExpense(id) {
+    const result = this.db.exec('SELECT * FROM expenses WHERE id = ?', [id]);
+    if (!result[0] || result[0].values.length === 0) return null;
+    const cols = result[0].columns;
+    const obj = {};
+    cols.forEach((col, i) => obj[col] = result[0].values[0][i]);
+    return obj;
   }
 
   getExpenses(startDate, endDate = null) {
@@ -432,7 +561,7 @@ class StorageManager {
 
   getExpensesForDate(date) {
     const result = this.db.exec(`
-      SELECT id, description, amount, time, timestamp
+      SELECT id, description, amount, time, timestamp, paid, paid_date, payment_source
       FROM expenses 
       WHERE date = ? 
       ORDER BY time ASC
@@ -441,18 +570,38 @@ class StorageManager {
     const expenses = [];
     if (result.length > 0) {
       result[0].values.forEach(row => {
-        const [id, description, amount, time, timestamp] = row;
+        const [id, description, amount, time, timestamp, paid, paid_date, payment_source] = row;
         expenses.push({
           id,
           description,
           amount,
           time,
-          timestamp
+          timestamp,
+          paid,
+          paid_date,
+          payment_source
         });
       });
     }
     
     return expenses;
+  }
+
+  /**
+   * Outstanding (unpaid) expenses, newest expense-day first. Mirrors
+   * getOutstandingWoodPurchases so the UI can surface payable expenses.
+   */
+  getOutstandingExpenses() {
+    const result = this.db.exec(
+      'SELECT * FROM expenses WHERE paid = 0 ORDER BY date DESC, timestamp DESC'
+    );
+    if (!result[0]) return [];
+    const cols = result[0].columns;
+    return result[0].values.map(row => {
+      const obj = {};
+      cols.forEach((col, i) => obj[col] = row[i]);
+      return obj;
+    });
   }
 
   /**
@@ -576,15 +725,21 @@ class StorageManager {
     const revenueResult = this.db.exec('SELECT COALESCE(SUM(price), 0) as total FROM tickets');
     const totalRevenue = revenueResult[0] ? revenueResult[0].values[0][0] : 0;
 
-    // Calculate total expenses
-    const expensesResult = this.db.exec('SELECT COALESCE(SUM(amount), 0) as total FROM expenses');
+    // Calculate total expenses that actually left the business cash box. Only
+    // expenses that are BOTH paid AND paid from business cash reduce cash-in-hand.
+    // Unpaid expenses (outstanding) and out-of-pocket payments do NOT — they are
+    // recorded obligations/spends that never moved the till. Legacy rows migrate to
+    // paid=1 / payment_source='cash', so historical cash math is unchanged.
+    const expensesResult = this.db.exec(
+      "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE paid = 1 AND payment_source = 'cash'"
+    );
     const totalExpenses = expensesResult[0] ? expensesResult[0].values[0][0] : 0;
 
     // Calculate total collections (money taken out)
     const collectionsResult = this.db.exec('SELECT COALESCE(SUM(amount), 0) as total FROM collections');
     const totalCollections = collectionsResult[0] ? collectionsResult[0].values[0][0] : 0;
 
-    // Cash in hand = Revenue - Expenses - Collections
+    // Cash in hand = Revenue - (paid business-cash expenses) - Collections
     return totalRevenue - totalExpenses - totalCollections;
   }
 
