@@ -633,8 +633,8 @@ ipcMain.handle('storage:collectMoney', async (event, amount, notes) => {
 });
 
 // Collect money for a specific set of days (persists day associations atomically)
-ipcMain.handle('storage:collectMoneyForDays', async (event, amount, notes, days) => {
-  const result = storage.collectMoneyForDays(amount, notes, days);
+ipcMain.handle('storage:collectMoneyForDays', async (event, amount, notes, days, dayAmounts) => {
+  const result = storage.collectMoneyForDays(amount, notes, days, dayAmounts || {});
   const collection = { id: result.id, amount: result.amount, notes: result.notes, date: result.date, time: result.time };
 
   // Add to backup files (mirror pattern, best-effort — must not fail the DB write)
@@ -673,6 +673,28 @@ ipcMain.handle('storage:getCollectedDays', () => {
 
 ipcMain.handle('storage:getCollectionDays', (event, collectionId) => {
   return storage.getCollectionDays(collectionId);
+});
+ipcMain.handle('storage:getCollectionDaysWithAmounts', (event, collectionId) => {
+  return storage.getCollectionDaysWithAmounts(collectionId);
+});
+
+// New collection/cash-flow model
+ipcMain.handle('storage:getAvailableCollectionDays', (event, limit) => {
+  return storage.getAvailableCollectionDays(limit || 60);
+});
+
+// Zakat tracking (informational only — zero financial effect)
+ipcMain.handle('storage:getZakatSetAside', (event, collectionDayId) => {
+  return storage.getZakatSetAside(collectionDayId);
+});
+ipcMain.handle('storage:setZakatSetAside', (event, collectionDayId, setAside) => {
+  return storage.setZakatSetAside(collectionDayId, setAside);
+});
+ipcMain.handle('storage:getZakatHistory', () => {
+  return storage.getZakatHistory();
+});
+ipcMain.handle('storage:getZakatVisibility', () => {
+  return storage.getZakatVisibility();
 });
 
 // Day status operations

@@ -205,6 +205,22 @@ class StorageManager {
       this.db.run("UPDATE expenses SET paid_date = date WHERE paid = 1 AND paid_date IS NULL");
     } catch (_) { /* columns not present yet on a brand-new table build order */ }
 
+    // collection_days: add `amount` column so each day's allocation within a
+    // multi-day collection can be stored individually (required for repeat/partial
+    // collection of the same date across multiple collection events). Migration is
+    // guarded — existing rows get DEFAULT 0 (legacy rows have no per-day split).
+    try { this.db.run("ALTER TABLE collection_days ADD COLUMN amount REAL DEFAULT 0"); } catch (_) {}
+
+    // zakat_tracking: one row per collection_days row, stores the set-aside status
+    // for the owner's personal Zakat tracking. NEVER touched by financial queries.
+    this.db.run(`CREATE TABLE IF NOT EXISTS zakat_tracking (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      collection_day_id INTEGER NOT NULL UNIQUE,
+      set_aside INTEGER DEFAULT 0,
+      set_aside_at TEXT,
+      FOREIGN KEY (collection_day_id) REFERENCES collection_days(id)
+    )`);
+
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_date ON tickets(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_year ON tickets(year)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`);
@@ -629,12 +645,15 @@ class StorageManager {
    * rows are written together; nothing is persisted to disk (save()) unless all
    * inserts succeed. On failure the in-memory rows are rolled back and the error
    * is rethrown, so no partial collection is ever recorded.
-   * @param {number} amount
+   * @param {number} amount - total collected (must equal sum of dayAmounts values)
    * @param {string} notes
    * @param {string[]} days - array of 'YYYY-MM-DD' dates included in this collection
-   * @returns {{id:number, amount:number, notes:string, date:string, time:string, days:string[]}}
+   * @param {Object} [dayAmounts] - map of date → amount allocated from that date.
+   *   If omitted/incomplete, the total is distributed evenly across the days (legacy
+   *   path). This enables per-date Zakat tracking and partial re-collection of a date.
+   * @returns {{id,amount,notes,date,time,days}}
    */
-  collectMoneyForDays(amount, notes = '', days = []) {
+  collectMoneyForDays(amount, notes = '', days = [], dayAmounts = {}) {
     const now = new Date();
     const date = now.toISOString().split('T')[0];
     const time = now.toTimeString().split(' ')[0];
@@ -651,7 +670,11 @@ class StorageManager {
       id = this.db.exec('SELECT last_insert_rowid()')[0].values[0][0];
 
       for (const d of uniqueDays) {
-        this.db.run('INSERT INTO collection_days (collection_id, date) VALUES (?, ?)', [id, d]);
+        // Per-day amount: use supplied value if valid, else distribute evenly.
+        const dayAmt = (dayAmounts && Number.isFinite(Number(dayAmounts[d])) && Number(dayAmounts[d]) > 0)
+          ? Number(dayAmounts[d])
+          : (uniqueDays.length > 0 ? Math.round((amount / uniqueDays.length) * 100) / 100 : 0);
+        this.db.run('INSERT INTO collection_days (collection_id, date, amount) VALUES (?, ?, ?)', [id, d, dayAmt]);
       }
 
       this.logAudit('CREATE', 'collections', id, `${amount}dh (${uniqueDays.length} days: ${uniqueDays.join(', ')})`);
@@ -692,6 +715,133 @@ class StorageManager {
     return result[0].values.map(row => row[0]);
   }
 
+  // Same as getCollectionDays but also returns per-day amounts (for the collection
+  // details modal and Zakat tracking). amount=0 for legacy rows (no per-day split).
+  getCollectionDaysWithAmounts(collectionId) {
+    const result = this.db.exec(
+      'SELECT id, date, COALESCE(amount, 0) as amount FROM collection_days WHERE collection_id = ? ORDER BY date',
+      [collectionId]);
+    if (!result[0]) return [];
+    return result[0].values.map(row => ({ id: row[0], date: row[1], amount: row[2] }));
+  }
+
+  /**
+   * Per-day cash-flow: cash that actually entered the drawer on date D.
+   *   = SUM(ticket revenue on D)  −  SUM(cash-paid expenses whose paid_date = D)
+   * Out-of-pocket, unpaid, and expense-day-dated amounts are ALL excluded because
+   * they never moved physical cash on that day.
+   * Used by the available-collection model; NOT used by getCashInHand (which sums
+   * across all time — both are self-consistent).
+   */
+  getDayCashFlow(date) {
+    const revR = this.db.exec(
+      'SELECT COALESCE(SUM(price),0) FROM tickets WHERE date = ?', [date]);
+    const revenue = revR[0] ? revR[0].values[0][0] : 0;
+
+    const expR = this.db.exec(
+      "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE paid=1 AND payment_source='cash' AND paid_date=?",
+      [date]);
+    const cashPaidExpenses = expR[0] ? expR[0].values[0][0] : 0;
+
+    return { revenue, cashPaidExpenses, net: revenue - cashPaidExpenses };
+  }
+
+  /**
+   * Total amount already collected from a specific date across ALL past collection
+   * events. Uses collection_days.amount (the per-day allocation stored at collection
+   * time). Legacy rows with amount=0 from before the migration are treated as 0.
+   */
+  getCollectedAmountForDate(date) {
+    const r = this.db.exec(
+      'SELECT COALESCE(SUM(amount),0) FROM collection_days WHERE date = ?', [date]);
+    return r[0] ? r[0].values[0][0] : 0;
+  }
+
+  /**
+   * Available collection amount for a date:
+   *   available(D) = dayCashFlow(D).net − SUM(already collected from D)
+   * A date appears as available when available > 0 (positive cash, partially or
+   * fully uncollected). A date with available ≤ 0 is non-collectible but may still
+   * be shown in the UI.
+   * The same date CAN be collected multiple times as new cash accumulates (e.g.
+   * Day 8: collect 600 → later +400 revenue → available = 400 again).
+   */
+  getAvailableAmountForDate(date) {
+    const { net } = this.getDayCashFlow(date);
+    const collected = this.getCollectedAmountForDate(date);
+    return net - collected;
+  }
+
+  /**
+   * Build the complete available-days list used by the Money Collection modal.
+   * Returns all dates in the data window with their cash-flow breakdown, already-
+   * collected total, available amount, and day status. The renderer decides which
+   * are selectable (available > 0) and which are shown-but-disabled (available ≤ 0).
+   * Limit defaults to 60 days (wider than the summary ledger's 30 days).
+   */
+  getAvailableCollectionDays(limit = 60) {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Build window: all dates from earliest data date up to today.
+    const earliestR = this.db.exec(`
+      SELECT MIN(date) FROM (
+        SELECT MIN(date) as date FROM tickets
+        UNION ALL SELECT MIN(date) as date FROM expenses
+        UNION ALL SELECT MIN(date) as date FROM collections
+      ) WHERE date IS NOT NULL`);
+    let earliest = today;
+    if (earliestR[0] && earliestR[0].values[0][0]) earliest = earliestR[0].values[0][0];
+
+    // Generate date list (today included — partial-day collection supported).
+    const allDates = [];
+    const start = new Date(earliest + 'T12:00:00');
+    const end = new Date(today + 'T12:00:00');
+    for (let d = new Date(end); d >= start; d.setDate(d.getDate() - 1)) {
+      const iso = d.toISOString().split('T')[0];
+      allDates.push(iso);
+      if (allDates.length >= limit) break;
+    }
+
+    // Day status map
+    const dsR = this.db.exec("SELECT date, status FROM day_status");
+    const dsMap = {};
+    if (dsR[0]) dsR[0].values.forEach(([dt, st]) => dsMap[dt] = st);
+
+    // Per-date revenue and cash-paid expenses (by paid_date) — one pass.
+    const revR = this.db.exec(
+      'SELECT date, COALESCE(SUM(price),0) FROM tickets GROUP BY date');
+    const revMap = {};
+    if (revR[0]) revR[0].values.forEach(([dt, v]) => revMap[dt] = v);
+
+    const expR = this.db.exec(
+      "SELECT paid_date, COALESCE(SUM(amount),0) FROM expenses WHERE paid=1 AND payment_source='cash' GROUP BY paid_date");
+    const expMap = {};
+    if (expR[0]) expR[0].values.forEach(([dt, v]) => expMap[dt] = v);
+
+    // Per-date already-collected totals.
+    const colR = this.db.exec(
+      'SELECT date, COALESCE(SUM(amount),0) FROM collection_days GROUP BY date');
+    const colMap = {};
+    if (colR[0]) colR[0].values.forEach(([dt, v]) => colMap[dt] = v);
+
+    return allDates.map(date => {
+      const revenue = revMap[date] || 0;
+      const cashPaidExpenses = expMap[date] || 0;
+      const net = revenue - cashPaidExpenses;
+      const alreadyCollected = colMap[date] || 0;
+      const available = net - alreadyCollected;
+      return {
+        date,
+        revenue,
+        cashPaidExpenses,
+        net,
+        alreadyCollected,
+        available,
+        day_status: dsMap[date] || null
+      };
+    });
+  }
+
   getCollections(startDate = null, endDate = null) {
     let sql = 'SELECT * FROM collections';
     const params = [];
@@ -715,6 +865,75 @@ class StorageManager {
       cols.forEach((col, i) => obj[col] = row[i]);
       return obj;
     });
+  }
+
+  // ── Zakat tracking ────────────────────────────────────────────────────────
+  // Zakat is informational/personal only. These methods NEVER affect getCashInHand,
+  // collections, expenses, or any business financial calculation.
+
+  /**
+   * Get the set-aside status for a collection_days row.
+   * Returns { setAside: bool, setAsideAt: string|null } or null if no record.
+   */
+  getZakatSetAside(collectionDayId) {
+    const r = this.db.exec(
+      'SELECT set_aside, set_aside_at FROM zakat_tracking WHERE collection_day_id = ?',
+      [collectionDayId]);
+    if (!r[0] || r[0].values.length === 0) return { setAside: false, setAsideAt: null };
+    return { setAside: !!r[0].values[0][0], setAsideAt: r[0].values[0][1] };
+  }
+
+  /**
+   * Mark (or unmark) a collection_days row's Zakat amount as set aside.
+   * This is informational only — no cash or collection record is created.
+   */
+  setZakatSetAside(collectionDayId, setAside) {
+    const flag = setAside ? 1 : 0;
+    const at = setAside ? new Date().toISOString() : null;
+    this.db.run(`
+      INSERT INTO zakat_tracking (collection_day_id, set_aside, set_aside_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(collection_day_id) DO UPDATE SET set_aside = excluded.set_aside, set_aside_at = excluded.set_aside_at
+    `, [collectionDayId, flag, at]);
+    this.save();
+    return { success: true };
+  }
+
+  /**
+   * Get all Zakat records joined with their collection_days amounts for reporting.
+   * Returns rows: { collection_day_id, date, collection_id, amount, set_aside, set_aside_at }
+   * sorted newest-date first. Pure read — no financial effect.
+   */
+  getZakatHistory() {
+    const r = this.db.exec(`
+      SELECT cd.id, cd.date, cd.collection_id, cd.amount,
+             COALESCE(zt.set_aside, 0) as set_aside,
+             zt.set_aside_at
+      FROM collection_days cd
+      LEFT JOIN zakat_tracking zt ON zt.collection_day_id = cd.id
+      WHERE cd.amount > 0
+      ORDER BY cd.date DESC, cd.id DESC
+    `);
+    if (!r[0]) return [];
+    const cols = r[0].columns;
+    return r[0].values.map(row => {
+      const obj = {};
+      cols.forEach((col, i) => obj[col] = row[i]);
+      obj.zakat = Math.round(obj.amount * 0.025 * 100) / 100; // 2.5% fixed
+      return obj;
+    });
+  }
+
+  /**
+   * Two independent Zakat visibility settings (one per ledger table).
+   * Keys: 'zakat_visible_sales_ledger' and 'zakat_visible_admin_ledger'.
+   * Values: '1' = visible, '0' = hidden.
+   */
+  getZakatVisibility() {
+    const keys = ['zakat_visible_sales_ledger', 'zakat_visible_admin_ledger'];
+    const result = {};
+    keys.forEach(k => { result[k] = this.getSetting(k, '0') === '1'; });
+    return result;
   }
 
   /**

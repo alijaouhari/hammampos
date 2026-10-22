@@ -2149,6 +2149,39 @@
                 </div>
             </div>
 
+            <!-- Zakat visibility settings — two independent per-table switches.
+                 Zakat is informational only; these toggles never affect financials. -->
+            <div class="settings-section">
+                <h4>🌙 إعدادات الزكاة</h4>
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0;">
+                    الزكاة = 2.5% من المبالغ المحصّلة فعلاً. إعلامية فقط — لا تؤثر على النقد أو التحصيل.
+                </p>
+                <div class="dashboard-toggle-row">
+                    <div class="dashboard-toggle-label">
+                        <span>إظهار عمود الزكاة في الملخص اليومي للمبيعات</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="zakat-toggle-sales-ledger">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="dashboard-toggle-row" style="margin-top: 0.5rem;">
+                    <div class="dashboard-toggle-label">
+                        <span>إظهار عمود الزكاة في الملخص اليومي للإدارة</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="zakat-toggle-admin-ledger">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-section" style="margin-top: 1rem; border-top: none; padding-top: 0;">
+                    <h4 style="margin-bottom: 0.5rem;">سجل الزكاة (المبالغ المحصّلة)</h4>
+                    <div id="zakat-history-container" style="max-height: 260px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.5rem;">
+                        <div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">جاري التحميل...</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Reusable expense types management -->
             <div class="settings-section">
                 <h4>أنواع المصاريف</h4>
@@ -2377,10 +2410,16 @@
                 getExpensesForDate: (date) => ipcRenderer.invoke('storage:getExpensesForDate', date),
                 getExpenses: (startDate, endDate) => ipcRenderer.invoke('storage:getExpenses', startDate, endDate),
                 collectMoney: (amount, notes) => ipcRenderer.invoke('storage:collectMoney', amount, notes),
-                collectMoneyForDays: (amount, notes, days) => ipcRenderer.invoke('storage:collectMoneyForDays', amount, notes, days),
+                collectMoneyForDays: (amount, notes, days, dayAmounts) => ipcRenderer.invoke('storage:collectMoneyForDays', amount, notes, days, dayAmounts),
                 getCollections: (startDate, endDate) => ipcRenderer.invoke('storage:getCollections', startDate, endDate),
                 getCollectedDays: () => ipcRenderer.invoke('storage:getCollectedDays'),
                 getCollectionDays: (collectionId) => ipcRenderer.invoke('storage:getCollectionDays', collectionId),
+                getCollectionDaysWithAmounts: (collectionId) => ipcRenderer.invoke('storage:getCollectionDaysWithAmounts', collectionId),
+                getAvailableCollectionDays: (limit) => ipcRenderer.invoke('storage:getAvailableCollectionDays', limit),
+                getZakatSetAside: (collectionDayId) => ipcRenderer.invoke('storage:getZakatSetAside', collectionDayId),
+                setZakatSetAside: (collectionDayId, setAside) => ipcRenderer.invoke('storage:setZakatSetAside', collectionDayId, setAside),
+                getZakatHistory: () => ipcRenderer.invoke('storage:getZakatHistory'),
+                getZakatVisibility: () => ipcRenderer.invoke('storage:getZakatVisibility'),
                 addCategory: (name, price) => ipcRenderer.invoke('storage:addCategory', name, price),
                 updateCategory: (id, name, price) => ipcRenderer.invoke('storage:updateCategory', id, name, price),
                 toggleCategory: (id, active) => ipcRenderer.invoke('storage:toggleCategory', id, active),
@@ -3853,7 +3892,9 @@
         async function updateDailyLedger() {
             try {
                 console.log('🔄 Updating daily ledger...');
-                const summaries = await api.storage.getDailySummariesWithDetails(30); // Last 30 days
+                const summaries = await api.storage.getDailySummariesWithDetails(30);
+                const zakatVis = await api.storage.getZakatVisibility();
+                const showZakat = zakatVis.zakat_visible_sales_ledger;
                 
                 const ledgerTbody = document.getElementById('ledger-tbody');
                 if (!ledgerTbody) return;
@@ -3872,9 +3913,9 @@
                         <th>الإيرادات</th>
                         <th>المصروفات</th>
                         <th>الصافي</th>
+                        ${showZakat ? '<th>الزكاة (2.5%)</th>' : ''}
                     `;
                     tableHeader.innerHTML = newHeaderHTML;
-                    console.log('✅ Daily ledger table headers updated');
                 }
 
                 // Update table footer
@@ -3887,32 +3928,25 @@
                         <td id="total-revenue">0</td>
                         <td id="total-expenses">0</td>
                         <td id="total-balance">0</td>
+                        ${showZakat ? '<td id="total-zakat">—</td>' : ''}
                     `;
                     tableFooter.innerHTML = newFooterHTML;
-                    console.log('✅ Daily ledger table footer updated');
                 }
 
                 ledgerTbody.innerHTML = '';
 
-                let totals = {
-                    tickets: 0, revenue: 0, expenses: 0
-                };
-                
-                // Initialize category totals
-                allCategories.forEach(cat => {
-                    totals[cat.name] = 0;
-                });
+                let totals = { tickets: 0, revenue: 0, expenses: 0 };
+                allCategories.forEach(cat => { totals[cat.name] = 0; });
 
                 summaries.forEach(summary => {
                     const row = document.createElement('tr');
                     row.dataset.date = summary.date;
                     
-                    // Row highlighting based on day status
                     const dayStatus = summary.day_status || 'working';
                     if (dayStatus === 'holiday') {
-                        row.style.background = '#dbeafe'; // blue highlight
+                        row.style.background = '#dbeafe';
                     } else if (dayStatus === 'repair') {
-                        row.style.background = '#fee2e2'; // red highlight
+                        row.style.background = '#fee2e2';
                     } else if (summary.revenue > 0 && summary.expenses > 0) {
                         row.className = 'has-both';
                     } else if (summary.revenue > 0) {
@@ -3933,46 +3967,43 @@
                         totals[cat.name] += count;
                     });
                     
+                    // Zakat is informational only — based on collected money, not on
+                    // this day's revenue. The column is shown here as a reminder cell.
+                    // The actual Zakat values appear in the collection history view.
+                    const zakatNote = showZakat
+                        ? `<td style="color:#92400e; font-size:0.8rem;">بعد التحصيل</td>`
+                        : '';
+
                     rowHTML += `
                         <td>${summary.total_tickets || ''}</td>
                         <td>${summary.revenue ? ltrNum(summary.revenue, { color: '#059669', weight: 600 }) : ''}</td>
                         <td>${summary.expenses ? ltrNum(summary.expenses, { color: '#dc2626', weight: 600 }) : ''}</td>
                         <td>${ltrNum(balance, { color: balance >= 0 ? '#059669' : '#dc2626', weight: 700 })}</td>
+                        ${zakatNote}
                     `;
                     
                     row.innerHTML = rowHTML;
                     
                     // Add click handler for day details
-                    row.addEventListener('click', () => {
-                        showDayDetails(summary.date);
-                    });
-                    
+                    row.addEventListener('click', () => { showDayDetails(summary.date); });
                     ledgerTbody.appendChild(row);
-
-                    // Update totals
                     totals.tickets += summary.total_tickets || 0;
                     totals.revenue += summary.revenue || 0;
                     totals.expenses += summary.expenses || 0;
                 });
 
-                // Update totals footer
                 allCategories.forEach(cat => {
-                    const totalElement = document.getElementById(`total-${cat.name}`);
-                    if (totalElement) {
-                        totalElement.textContent = totals[cat.name];
-                    }
+                    const el = document.getElementById(`total-${cat.name}`);
+                    if (el) el.textContent = totals[cat.name];
                 });
-                
                 const totalTicketsEl = document.getElementById('total-tickets');
                 const totalRevenueEl = document.getElementById('total-revenue');
                 const totalExpensesEl = document.getElementById('total-expenses');
                 const totalBalanceEl = document.getElementById('total-balance');
-                
                 if (totalTicketsEl) totalTicketsEl.textContent = totals.tickets;
                 if (totalRevenueEl) totalRevenueEl.innerHTML = ltrNum(totals.revenue);
                 if (totalExpensesEl) totalExpensesEl.innerHTML = ltrNum(totals.expenses);
                 if (totalBalanceEl) totalBalanceEl.innerHTML = ltrNum(totals.revenue - totals.expenses);
-
                 console.log('Daily ledger updated with dynamic categories');
 
             } catch (error) {
@@ -4206,16 +4237,16 @@
         async function loadAdminDailyLedger() {
             try {
                 console.log('🔄 Loading admin daily ledger...');
-                const summaries = await api.storage.getDailySummariesWithDetails(30); // Last 30 days
+                const summaries = await api.storage.getDailySummariesWithDetails(30);
+                const zakatVis = await api.storage.getZakatVisibility();
+                const showZakat = zakatVis.zakat_visible_admin_ledger;
                 
                 const ledgerTbody = document.getElementById('admin-ledger-tbody');
                 if (!ledgerTbody) return;
 
-                // Get active categories to build dynamic table headers
                 const allCategories = await api.storage.getCategories(true);
                 console.log('📋 Active categories for admin daily ledger:', allCategories.map(c => c.name));
                 
-                // Update admin table headers dynamically
                 const adminTableHeader = document.querySelector('#admin-daily-ledger-table thead tr');
                 if (adminTableHeader) {
                     const newHeaderHTML = `
@@ -4225,12 +4256,11 @@
                         <th>الإيرادات</th>
                         <th>المصروفات</th>
                         <th>الصافي</th>
+                        ${showZakat ? '<th>الزكاة (2.5%)</th>' : ''}
                     `;
                     adminTableHeader.innerHTML = newHeaderHTML;
-                    console.log('✅ Admin daily ledger table headers updated');
                 }
 
-                // Update admin table footer
                 const adminTableFooter = document.querySelector('#admin-daily-ledger-table tfoot tr');
                 if (adminTableFooter) {
                     const newFooterHTML = `
@@ -4240,33 +4270,24 @@
                         <td id="admin-total-revenue">0</td>
                         <td id="admin-total-expenses">0</td>
                         <td id="admin-total-balance">0</td>
+                        ${showZakat ? '<td id="admin-total-zakat">—</td>' : ''}
                     `;
                     adminTableFooter.innerHTML = newFooterHTML;
-                    console.log('✅ Admin daily ledger table footer updated');
                 }
 
                 ledgerTbody.innerHTML = '';
-
-                let totals = {
-                    tickets: 0, revenue: 0, expenses: 0
-                };
-                
-                // Initialize category totals
-                allCategories.forEach(cat => {
-                    totals[cat.name] = 0;
-                });
+                let totals = { tickets: 0, revenue: 0, expenses: 0 };
+                allCategories.forEach(cat => { totals[cat.name] = 0; });
 
                 summaries.forEach(summary => {
                     const row = document.createElement('tr');
                     row.dataset.date = summary.date;
                     
-                    // Add visual indicators
-                    // Row highlighting based on day status
                     const dayStatus = summary.day_status || 'working';
                     if (dayStatus === 'holiday') {
-                        row.style.background = '#dbeafe'; // blue highlight
+                        row.style.background = '#dbeafe';
                     } else if (dayStatus === 'repair') {
-                        row.style.background = '#fee2e2'; // red highlight
+                        row.style.background = '#fee2e2';
                     } else if (summary.revenue > 0 && summary.expenses > 0) {
                         row.className = 'has-both';
                     } else if (summary.revenue > 0) {
@@ -4278,27 +4299,27 @@
                     const displayDate = new Date(summary.date).toLocaleDateString('ar-MA');
                     const balance = summary.revenue - summary.expenses;
                     
-                    // Build row HTML with dynamic categories (no status column/dropdown)
                     let rowHTML = `<td style="font-weight: 600;">${displayDate}</td>`;
-                    
                     allCategories.forEach(cat => {
                         const count = summary[cat.name] || 0;
                         rowHTML += `<td>${count || ''}</td>`;
                         totals[cat.name] += count;
                     });
+
+                    const zakatNote = showZakat
+                        ? `<td style="color:#92400e; font-size:0.8rem;">بعد التحصيل</td>`
+                        : '';
                     
                     rowHTML += `
                         <td>${summary.total_tickets || ''}</td>
                         <td>${summary.revenue ? ltrNum(summary.revenue, { color: '#059669', weight: 600 }) : ''}</td>
                         <td>${summary.expenses ? ltrNum(summary.expenses, { color: '#dc2626', weight: 600 }) : ''}</td>
                         <td>${ltrNum(balance, { color: balance >= 0 ? '#059669' : '#dc2626', weight: 700 })}</td>
+                        ${zakatNote}
                     `;
                     
                     row.innerHTML = rowHTML;
-                    
-                    // Add click handler for admin day details
-                    row.addEventListener('click', () => {
-                        showAdminDayDetails(summary.date);
+                    row.addEventListener('click', () => { showAdminDayDetails(summary.date);
                     });
                     
                     ledgerTbody.appendChild(row);
@@ -4954,9 +4975,11 @@
                 // Load reusable expense types list
                 await loadExpenseTypesList();
 
-                // Load wood sellers list. (Unpaid/outstanding wood moved out of
-                // Settings into the Expenses wood table in the admin area.)
+                // Load wood sellers list.
                 await loadWoodSellersList();
+
+                // Load Zakat settings + history
+                await loadZakatSettings();
                 
                 // Show modal
                 const modal = document.getElementById('settings-modal');
@@ -4968,7 +4991,71 @@
             }
         }
 
-        // ─── UPDATE UI FUNCTIONS ──────────────────────────────────────────
+        async function loadZakatSettings() {
+            try {
+                const vis = await api.storage.getZakatVisibility();
+                const salesToggle = document.getElementById('zakat-toggle-sales-ledger');
+                const adminToggle = document.getElementById('zakat-toggle-admin-ledger');
+                if (salesToggle) {
+                    salesToggle.checked = vis.zakat_visible_sales_ledger;
+                    salesToggle.onchange = async () => {
+                        await api.settings.setSetting('zakat_visible_sales_ledger', salesToggle.checked ? '1' : '0');
+                        await updateDailyLedger();
+                    };
+                }
+                if (adminToggle) {
+                    adminToggle.checked = vis.zakat_visible_admin_ledger;
+                    adminToggle.onchange = async () => {
+                        await api.settings.setSetting('zakat_visible_admin_ledger', adminToggle.checked ? '1' : '0');
+                        await loadAdminDailyLedger();
+                    };
+                }
+                await loadZakatHistory();
+            } catch (error) {
+                console.error('Failed to load Zakat settings:', error);
+            }
+        }
+
+        async function loadZakatHistory() {
+            const container = document.getElementById('zakat-history-container');
+            if (!container) return;
+            try {
+                const rows = await api.storage.getZakatHistory();
+                if (!rows || rows.length === 0) {
+                    container.innerHTML = '<div style="padding:1rem; text-align:center; color:#6b7280; font-size:0.85rem;">لا توجد عمليات تحصيل مسجّلة بعد.</div>';
+                    return;
+                }
+                let totalZakat = 0;
+                let totalSetAside = 0;
+                const items = rows.map(r => {
+                    let disp = r.date;
+                    try { disp = new Date(r.date).toLocaleDateString('ar-MA'); } catch (_) {}
+                    totalZakat += r.zakat;
+                    if (r.set_aside) totalSetAside += r.zakat;
+                    const aside = r.set_aside
+                        ? '<span style="color:#059669;">✓ تم الإفراز</span>'
+                        : `<button class="btn btn-secondary" style="padding:0.15rem 0.5rem; font-size:0.75rem;" onclick="toggleZakatSetAside(${r.id}, true)">إفراز</button>`;
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.5rem;border-bottom:1px solid #f0f0f0;font-size:0.85rem;">
+                        <span>${disp} — ${formatMoney(r.amount)}</span>
+                        <span style="color:#92400e;font-weight:600;">${formatMoney(r.zakat)} ${aside}</span>
+                    </div>`;
+                }).join('');
+                const notAside = totalZakat - totalSetAside;
+                container.innerHTML = `
+                    <div style="background:#fef3c7;padding:0.5rem 0.75rem;border-radius:4px;margin-bottom:0.5rem;font-size:0.85rem;display:flex;justify-content:space-between;">
+                        <span>إجمالي الزكاة: <strong style="color:#92400e;">${formatMoney(Math.round(totalZakat*100)/100)}</strong></span>
+                        <span>لم يُفرز بعد: <strong style="color:#dc2626;">${formatMoney(Math.round(notAside*100)/100)}</strong></span>
+                    </div>${items}`;
+            } catch (error) {
+                container.innerHTML = '<div style="padding:1rem; color:#dc2626;">خطأ في تحميل سجل الزكاة</div>';
+            }
+        }
+
+        async function toggleZakatSetAside(collectionDayId, setAside) {
+            // Informational only — zero financial effect.
+            await api.storage.setZakatSetAside(collectionDayId, setAside);
+            await loadZakatHistory();
+        }
 
         async function loadUpdateStatus() {
             try {
@@ -5631,7 +5718,7 @@
 
         // Money Collection Functions
         let selectedDays = new Set();
-        let uncollectedDaysData = [];
+        let uncollectedDaysData = []; // Uses getAvailableCollectionDays() format
 
         async function showMoneyCollectionModal() {
             try {
@@ -5643,7 +5730,7 @@
                 const currentCash = await api.storage.getCashInHand();
                 setMoney(document.getElementById('current-cash-display'), currentCash);
                 
-                // Load uncollected days
+                // Load uncollected days using the new cash-flow model
                 await loadUncollectedDays();
                 
                 // Show modal
@@ -5664,23 +5751,18 @@
                 const container = document.getElementById('uncollected-days-container');
                 container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #6b7280;"><div class="loading"></div>جاري تحميل الأيام المتاحة...</div>';
                 
-                // Get daily summaries for last 30 days
-                const summaries = await api.storage.getDailySummariesWithDetails(30);
-
-                // Get the set of days already collected (persisted in the database).
-                // A day is available only if it has NOT already been collected.
-                const collectedDays = await api.storage.getCollectedDays();
-                const collectedSet = new Set(collectedDays || []);
-
-                // Show EVERY day in the window that has not already been collected —
-                // including zero-sales, holiday, repair, and expense-only days. Days
-                // are no longer silently dropped because their net is not positive
-                // (that was the "missing days" bug). Collectible amount is still the
-                // net; days with net <= 0 are shown but cannot be selected (nothing to
-                // collect), so the displayed total always equals the sum of the
-                // selected, shown days.
-                uncollectedDaysData = summaries.filter(day => !collectedSet.has(day.date));
+                // New cash-flow model: each day's available amount =
+                //   dayCashFlow(D).net − already collected from D
+                // where dayCashFlow uses ticket revenue and cash-paid-expenses by
+                // PAID DATE, not expense date. Out-of-pocket and unpaid never count.
+                const allDays = await api.storage.getAvailableCollectionDays(60);
                 
+                // Keep all days for display; filter out days with both no activity
+                // AND already fully collected (nothing useful to show).
+                uncollectedDaysData = allDays.filter(d =>
+                    d.revenue > 0 || d.cashPaidExpenses > 0 || d.alreadyCollected > 0 || d.available > 0
+                );
+
                 if (uncollectedDaysData.length === 0) {
                     container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #6b7280;">لا توجد أيام متاحة للتحصيل</div>';
                     return;
@@ -5689,8 +5771,7 @@
                 // Render day items
                 container.innerHTML = '';
                 uncollectedDaysData.forEach((day, index) => {
-                    const netAmount = (day.revenue || 0) - (day.expenses || 0);
-                    const collectible = netAmount > 0;
+                    const collectible = day.available > 0;
                     const displayDate = new Date(day.date).toLocaleDateString('ar-MA');
                     const status = day.day_status || 'working';
                     let statusBadge = '';
@@ -5702,21 +5783,17 @@
                     dayItem.dataset.date = day.date;
                     if (!collectible) dayItem.style.opacity = '0.7';
                     
-                    // Non-collectible days (net <= 0) are represented but their checkbox
-                    // is disabled so they never contribute to the total.
                     const checkboxHtml = collectible
                         ? `<input type="checkbox" id="day-${index}" onchange="setDaySelection('${day.date}', this.checked)">`
-                        : `<input type="checkbox" id="day-${index}" disabled title="لا يوجد مبلغ للتحصيل في هذا اليوم">`;
+                        : `<input type="checkbox" id="day-${index}" disabled title="لا يوجد مبلغ متاح للتحصيل">`;
                     
-                    // Layout: top row = date (start) + checkbox (end); second row =
-                    // amount on its own line. Structure only — no data changes.
                     dayItem.innerHTML = `
                         <div class="day-item-content">
                             <div class="day-item-top">
                                 <div class="day-item-date">${displayDate}${statusBadge}</div>
                                 ${checkboxHtml}
                             </div>
-                            <div class="day-item-amount">${formatMoney(netAmount)}</div>
+                            <div class="day-item-amount">${formatMoney(day.available)}</div>
                         </div>
                     `;
                     
@@ -5726,7 +5803,6 @@
                 // Setup single select-all/clear toggle + collect button
                 document.getElementById('toggle-select-all-days').onclick = toggleSelectAllDays;
                 document.getElementById('collect-money-btn').onclick = submitMoneyCollection;
-                // Initialize the toggle label for the freshly loaded list
                 updateSelectAllToggleLabel();
                 
             } catch (error) {
@@ -5763,9 +5839,9 @@
             updateCollectionTotals();
         }
 
-        // A day is collectible only if its net (revenue - expenses) is positive.
+        // A day is collectible if its available cash-flow amount is positive.
         function isCollectibleDay(day) {
-            return ((day.revenue || 0) - (day.expenses || 0)) > 0;
+            return (day.available || 0) > 0;
         }
 
         function selectAllDays() {
@@ -5833,8 +5909,7 @@
             selectedDays.forEach(date => {
                 const dayData = uncollectedDaysData.find(d => d.date === date);
                 if (dayData) {
-                    const netAmount = (dayData.revenue || 0) - (dayData.expenses || 0);
-                    totalAmount += netAmount;
+                    totalAmount += dayData.available || 0;
                     selectedCount++;
                 }
             });
@@ -5844,8 +5919,7 @@
             setMoney(document.getElementById('selected-amount-display'), totalAmount);
             document.getElementById('selected-days-count').textContent = `${selectedCount} يوم`;
             
-            // Update remaining cash. Read the numeric value from the current-cash
-            // element's dataset (set by setMoney) rather than parsing display text.
+            // Update remaining cash.
             const cashEl = document.getElementById('current-cash-display');
             const currentCash = cashEl && cashEl.dataset.amount != null
                 ? parseFloat(cashEl.dataset.amount)
@@ -5857,7 +5931,6 @@
             const collectBtn = document.getElementById('collect-money-btn');
             collectBtn.disabled = selectedCount === 0 || totalAmount <= 0;
 
-            // Keep the single select-all/clear toggle label in sync with selection.
             updateSelectAllToggleLabel();
         }
 
@@ -5950,13 +6023,15 @@
             try {
                 let totalAmount = 0;
                 const selectedDaysArray = Array.from(selectedDays);
+                const dayAmounts = {};
                 
-                // Calculate total amount
+                // Calculate total amount using available (cash-flow model)
                 selectedDaysArray.forEach(date => {
                     const dayData = uncollectedDaysData.find(d => d.date === date);
                     if (dayData) {
-                        const netAmount = (dayData.revenue || 0) - (dayData.expenses || 0);
-                        totalAmount += netAmount;
+                        const amt = dayData.available || 0;
+                        totalAmount += amt;
+                        dayAmounts[date] = amt;
                     }
                 });
                 
@@ -5977,9 +6052,9 @@
                 const notes = document.getElementById('collection-notes').value.trim() || 
                     `تحصيل ${selectedDaysArray.length} أيام: ${selectedDaysArray.join(', ')}`;
                 
-                // Add collection to database, persisting the exact selected days
-                // so they are excluded from future available-days lists.
-                await api.storage.collectMoneyForDays(totalAmount, notes, selectedDaysArray);
+                // Add collection to database, persisting the per-day amounts for
+                // Zakat tracking and partial re-collection support.
+                await api.storage.collectMoneyForDays(totalAmount, notes, selectedDaysArray, dayAmounts);
                 
                 // Show success feedback
                 showToast(`تم تحصيل ${totalAmount} درهم من الصندوق (${selectedDaysArray.length} أيام)`, 'success');
@@ -6294,14 +6369,18 @@
         // Reuses the existing .modal / .modal-content Arabic UI style.
         async function showCollectionDetails(collectionId, amount, date, time, notes) {
             try {
-                const days = await api.storage.getCollectionDays(collectionId);
+                const days = await api.storage.getCollectionDaysWithAmounts(collectionId);
 
                 let daysHtml;
                 if (days && days.length > 0) {
+                    const ZAKAT_RATE = 0.025;
                     const items = days.map(d => {
-                        let disp = d;
-                        try { disp = new Date(d).toLocaleDateString('ar-MA'); } catch (_) {}
-                        return `<li style="padding: 0.35rem 0; border-bottom: 1px solid #e5e7eb;">${disp}</li>`;
+                        let disp = d.date;
+                        try { disp = new Date(d.date).toLocaleDateString('ar-MA'); } catch (_) {}
+                        const amtPart = d.amount > 0
+                            ? ` — <strong style="color:#059669;">${formatMoney(d.amount)}</strong> (زكاة: ${formatMoney(Math.round(d.amount * ZAKAT_RATE * 100) / 100)})`
+                            : '';
+                        return `<li style="padding: 0.35rem 0; border-bottom: 1px solid #e5e7eb;">${disp}${amtPart}</li>`;
                     }).join('');
                     daysHtml = `<ul style="list-style: none; padding: 0; margin: 0;">${items}</ul>`;
                 } else {
