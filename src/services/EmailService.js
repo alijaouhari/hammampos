@@ -68,6 +68,30 @@ class EmailService {
   }
 
   /**
+   * Send a one-off security email (e.g. password reset code) using the saved SMTP
+   * settings. Independent of the daily-report toggle; needs address + app password.
+   */
+  async sendSecurityEmail(to, subject, html) {
+    const user = this.storage.getSetting('email_address');
+    const pass = this.storage.getSetting('email_password');
+    const host = this.storage.getSetting('email_smtp_host') || 'smtp.gmail.com';
+    const port = parseInt(this.storage.getSetting('email_smtp_port')) || 587;
+    if (!user || !pass) throw new Error('email_not_configured');
+
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
+    });
+    await transporter.sendMail({ from: user, to, subject, html });
+    this.storage.logAudit('EMAIL_SENT', 'email', null, 'Security email sent');
+  }
+
+  /**
    * Test email connection
    */
   async testConnection(emailConfig = null) {

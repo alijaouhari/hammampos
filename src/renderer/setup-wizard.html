@@ -813,8 +813,14 @@
             finishBtn.innerHTML = '<div class="loading"></div> جاري الإعداد...';
             
             try {
-                await ipcRenderer.invoke('setup:complete', setupData);
-                
+                const result = await ipcRenderer.invoke('setup:complete', setupData);
+
+                // Show the recovery key once; the app opens only after it's acknowledged.
+                if (result && result.recoveryKey) {
+                    showRecoveryKeyScreen(result.recoveryKey);
+                    return;
+                }
+
                 // Close setup wizard and open main app
                 ipcRenderer.send('setup:finished');
                 
@@ -824,6 +830,31 @@
                 finishBtn.disabled = false;
                 finishBtn.textContent = 'بدء الاستخدام';
             }
+        }
+
+        function showRecoveryKeyScreen(key) {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;background:#f8fafc;z-index:99999;display:flex;align-items:center;justify-content:center;padding:2rem;';
+            overlay.innerHTML = `
+                <div style="max-width:520px;width:100%;text-align:center;font-family:inherit;">
+                    <h2 style="margin:0 0 1rem 0;color:#1e293b;">🔐 مفتاح الاسترداد</h2>
+                    <p style="color:#374151;line-height:1.9;margin:0 0 1rem 0;">
+                        إذا نسيت كلمة مرور الإدارة فهذا المفتاح هو وسيلتك لاستردادها بدون إنترنت.
+                    </p>
+                    <div id="wizard-key" style="font-family:Consolas,'Courier New',monospace;font-size:1.7rem;font-weight:700;letter-spacing:0.15em;direction:ltr;background:#fffbeb;border:2px dashed #f59e0b;border-radius:10px;padding:1.1rem 0.5rem;user-select:all;">${key}</div>
+                    <p style="color:#991b1b;font-size:0.9rem;margin:1rem 0;">
+                        ⚠️ يظهر مرة واحدة فقط. اكتبه أو صوّره واحفظه في مكان آمن بعيداً عن الصندوق.
+                    </p>
+                    <div style="display:flex;gap:0.75rem;justify-content:center;">
+                        <button type="button" id="wizard-key-copy" class="btn btn-secondary">نسخ</button>
+                        <button type="button" id="wizard-key-done" class="btn btn-primary">حفظته، بدء الاستخدام</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            document.getElementById('wizard-key-copy').onclick = async () => {
+                try { await navigator.clipboard.writeText(key); document.getElementById('wizard-key-copy').textContent = 'تم النسخ ✓'; } catch (_) {}
+            };
+            document.getElementById('wizard-key-done').onclick = () => ipcRenderer.send('setup:finished');
         }
     </script>
 </body>

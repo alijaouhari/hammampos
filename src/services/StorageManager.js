@@ -14,6 +14,7 @@ const initSqlJs = require('sql.js');
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 class StorageManager {
   constructor(dbPath = null) {
@@ -221,6 +222,14 @@ class StorageManager {
       FOREIGN KEY (collection_day_id) REFERENCES collection_days(id)
     )`);
 
+    // zakat_days: per-calendar-day Zakat set-aside flag. Zakat = 2.5% of that day's
+    // ticket income (not profit, independent of collections). Informational only.
+    this.db.run(`CREATE TABLE IF NOT EXISTS zakat_days (
+      date TEXT PRIMARY KEY,
+      set_aside INTEGER NOT NULL DEFAULT 0,
+      set_aside_at TEXT
+    )`);
+
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_date ON tickets(date)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_tickets_year ON tickets(year)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`);
@@ -279,6 +288,131 @@ class StorageManager {
   changeAdminPassword(newPassword) {
     const hash = bcrypt.hashSync(newPassword, 10);
     this.setSetting('admin_password', hash);
+  }
+
+  // ── Admin password recovery ───────────────────────────────────────────
+  // Two ways to reset the admin password without knowing it:
+  //   1. Recovery key (offline): XXXX-XXXX-XXXX-XXXX, shown once, only its bcrypt
+  //      hash is stored.
+  //   2. Emailed 6-digit code, valid 15 minutes, single use, only its hash is stored.
+  // Failed attempts on either share one counter: 5 failures lock recovery for 15 min.
+  static get RECOVERY_MAX_FAILS() { return 5; }
+  static get RECOVERY_LOCK_MS() { return 15 * 60 * 1000; }
+  static get RESET_CODE_TTL_MS() { return 15 * 60 * 1000; }
+  static get RESET_CODE_MIN_GAP_MS() { return 60 * 1000; }
+
+  getRecoveryLockMs() {
+    const until = parseInt(this.getSetting('recovery_locked_until', '0'), 10) || 0;
+    return Math.max(0, until - Date.now());
+  }
+
+  _recordRecoveryFailure() {
+    const count = (parseInt(this.getSetting('recovery_fail_count', '0'), 10) || 0) + 1;
+    if (count >= StorageManager.RECOVERY_MAX_FAILS) {
+      this.setSetting('recovery_locked_until', String(Date.now() + StorageManager.RECOVERY_LOCK_MS));
+      this.setSetting('recovery_fail_count', '0');
+      this.logAudit('SECURITY', 'recovery', null, 'Recovery locked after too many failed attempts');
+      return { locked: true, attemptsLeft: 0 };
+    }
+    this.setSetting('recovery_fail_count', String(count));
+    return { locked: false, attemptsLeft: StorageManager.RECOVERY_MAX_FAILS - count };
+  }
+
+  _clearRecoveryFailures() {
+    this.setSetting('recovery_fail_count', '0');
+    this.setSetting('recovery_locked_until', '0');
+  }
+
+  hasRecoveryKey() {
+    return !!this.getSetting('recovery_key_hash', '');
+  }
+
+  /** Creates (or replaces) the recovery key. Returns the plain key ONCE. */
+  generateRecoveryKey() {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 chars, no 0/O/1/I
+    const bytes = crypto.randomBytes(16);
+    let raw = '';
+    for (let i = 0; i < 16; i++) raw += alphabet[bytes[i] % 32]; // 256 % 32 == 0: unbiased
+    this.setSetting('recovery_key_hash', bcrypt.hashSync(raw, 10));
+    this.logAudit('SECURITY', 'recovery', null, 'Recovery key generated');
+    return raw.match(/.{4}/g).join('-');
+  }
+
+  verifyRecoveryKey(key) {
+    const lock = this.getRecoveryLockMs();
+    if (lock > 0) return { ok: false, reason: 'locked', retryAfterMs: lock };
+    const hash = this.getSetting('recovery_key_hash', '');
+    if (!hash) return { ok: false, reason: 'no_key' };
+    const norm = String(key || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (norm.length === 16 && bcrypt.compareSync(norm, hash)) {
+      this._clearRecoveryFailures();
+      return { ok: true };
+    }
+    const f = this._recordRecoveryFailure();
+    return f.locked
+      ? { ok: false, reason: 'locked', retryAfterMs: StorageManager.RECOVERY_LOCK_MS }
+      : { ok: false, reason: 'invalid_key', attemptsLeft: f.attemptsLeft };
+  }
+
+  /** Creates a 6-digit reset code (one request per minute). Returns the plain code to email. */
+  createResetCode() {
+    const lock = this.getRecoveryLockMs();
+    if (lock > 0) return { ok: false, reason: 'locked', retryAfterMs: lock };
+    const last = parseInt(this.getSetting('reset_code_requested_at', '0'), 10) || 0;
+    const wait = StorageManager.RESET_CODE_MIN_GAP_MS - (Date.now() - last);
+    if (wait > 0) return { ok: false, reason: 'throttled', retryAfterMs: wait };
+    const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    this.setSetting('reset_code_hash', bcrypt.hashSync(code, 10));
+    this.setSetting('reset_code_expires', String(Date.now() + StorageManager.RESET_CODE_TTL_MS));
+    this.setSetting('reset_code_requested_at', String(Date.now()));
+    return { ok: true, code };
+  }
+
+  clearResetCode() {
+    this.setSetting('reset_code_hash', '');
+    this.setSetting('reset_code_expires', '0');
+  }
+
+  verifyResetCode(code) {
+    const lock = this.getRecoveryLockMs();
+    if (lock > 0) return { ok: false, reason: 'locked', retryAfterMs: lock };
+    const hash = this.getSetting('reset_code_hash', '');
+    if (!hash) return { ok: false, reason: 'no_code' };
+    const expires = parseInt(this.getSetting('reset_code_expires', '0'), 10) || 0;
+    if (Date.now() > expires) {
+      this.clearResetCode();
+      return { ok: false, reason: 'expired' };
+    }
+    const norm = String(code || '').replace(/\D/g, '');
+    if (norm.length === 6 && bcrypt.compareSync(norm, hash)) {
+      this.clearResetCode(); // single use
+      this._clearRecoveryFailures();
+      return { ok: true };
+    }
+    const f = this._recordRecoveryFailure();
+    return f.locked
+      ? { ok: false, reason: 'locked', retryAfterMs: StorageManager.RECOVERY_LOCK_MS }
+      : { ok: false, reason: 'invalid_code', attemptsLeft: f.attemptsLeft };
+  }
+
+  /** Reset with the recovery key. On success the key is rotated; the new key is returned once. */
+  resetAdminPasswordWithKey(key, newPassword) {
+    if (!newPassword || String(newPassword).length < 4) return { ok: false, reason: 'weak' };
+    const v = this.verifyRecoveryKey(key);
+    if (!v.ok) return v;
+    this.changeAdminPassword(newPassword);
+    this.logAudit('SECURITY', 'admin_password', null, 'Admin password reset with recovery key');
+    return { ok: true, newRecoveryKey: this.generateRecoveryKey() };
+  }
+
+  /** Reset with the emailed code. */
+  resetAdminPasswordWithCode(code, newPassword) {
+    if (!newPassword || String(newPassword).length < 4) return { ok: false, reason: 'weak' };
+    const v = this.verifyResetCode(code);
+    if (!v.ok) return v;
+    this.changeAdminPassword(newPassword);
+    this.logAudit('SECURITY', 'admin_password', null, 'Admin password reset with emailed code');
+    return { ok: true };
   }
 
   /**
@@ -937,6 +1071,49 @@ class StorageManager {
   }
 
   /**
+   * Day-based Zakat (2.5% of each day's ticket income). Informational only —
+   * never touches cash, collections or any financial total.
+   */
+  setZakatDay(date, setAside) {
+    const flag = setAside ? 1 : 0;
+    const at = setAside ? new Date().toISOString() : null;
+    this.db.run(`
+      INSERT INTO zakat_days (date, set_aside, set_aside_at) VALUES (?, ?, ?)
+      ON CONFLICT(date) DO UPDATE SET set_aside = excluded.set_aside, set_aside_at = excluded.set_aside_at
+    `, [date, flag, at]);
+    this.save();
+    return { success: true };
+  }
+
+  /** Dates (YYYY-MM-DD) whose Zakat has been marked as set aside. */
+  getZakatSetAsideDates() {
+    const r = this.db.exec('SELECT date FROM zakat_days WHERE set_aside = 1');
+    return r[0] ? r[0].values.map(row => row[0]) : [];
+  }
+
+  /**
+   * Every day that had ticket income, newest first, with its Zakat (2.5% of income)
+   * and whether it was set aside. Days with no income have no Zakat and are omitted.
+   */
+  getZakatDaysHistory() {
+    const r = this.db.exec(`
+      SELECT t.date, SUM(t.price) AS revenue, COALESCE(z.set_aside, 0) AS set_aside
+      FROM tickets t
+      LEFT JOIN zakat_days z ON z.date = t.date
+      GROUP BY t.date
+      HAVING SUM(t.price) > 0
+      ORDER BY t.date DESC
+    `);
+    if (!r[0]) return [];
+    return r[0].values.map(row => ({
+      date: row[0],
+      revenue: row[1],
+      zakat: Math.round(row[1] * 0.025 * 100) / 100,
+      set_aside: row[2]
+    }));
+  }
+
+  /**
    * Financial Calculations
    */
   getCashInHand() {
@@ -986,7 +1163,37 @@ class StorageManager {
   /**
    * Daily Summary and Reports
    */
-  getDailySummariesWithDetails(limit = 30) {
+  /**
+   * Earliest and latest dates the daily ledger can show (YYYY-MM-DD).
+   * latest = max(today, newest data date), same upper bound the ledger window uses.
+   */
+  getLedgerDateBounds() {
+    const pad = (n) => String(n).padStart(2, '0');
+    const now = new Date();
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const q = (fn) => this.db.exec(`
+      SELECT ${fn}(date) FROM (
+        SELECT ${fn}(date) as date FROM tickets
+        UNION ALL SELECT ${fn}(date) FROM expenses
+        UNION ALL SELECT ${fn}(date) FROM collections
+      ) WHERE date IS NOT NULL
+    `);
+    const minRes = q('MIN');
+    const maxRes = q('MAX');
+    const earliest = (minRes.length && minRes[0].values[0][0]) || today;
+    let latest = today;
+    if (maxRes.length && maxRes[0].values[0][0] && maxRes[0].values[0][0] > latest) {
+      latest = maxRes[0].values[0][0];
+    }
+    return { earliest, latest };
+  }
+
+  /**
+   * @param {number} limit  number of days (newest first) when no range is given
+   * @param {{start:string,end:string}|null} range  optional YYYY-MM-DD range (e.g. one month);
+   *        clamped to the ledger's earliest/latest dates. When set, limit is ignored.
+   */
+  getDailySummariesWithDetails(limit = 30, range = null) {
     // First, get all active categories to build dynamic columns
     const categoriesResult = this.db.exec('SELECT name FROM categories WHERE active = 1 ORDER BY id');
     const categoryNames = categoriesResult[0] ? categoriesResult[0].values.map(row => row[0]) : [];
@@ -1031,15 +1238,25 @@ class StorageManager {
     
     // Generate all calendar dates from earliestDate to windowEnd (inclusive), newest first.
     const allDates = [];
-    const startDate = new Date(earliestDate + 'T12:00:00');
-    const endDate = new Date(windowEnd + 'T12:00:00');
+    let startDate = new Date(earliestDate + 'T12:00:00');
+    let endDate = new Date(windowEnd + 'T12:00:00');
+    let maxDays = limit;
+    if (range && range.start && range.end) {
+      // Month (or other) range: clamp to the days the ledger actually covers.
+      const rangeStart = new Date(range.start + 'T12:00:00');
+      const rangeEnd = new Date(range.end + 'T12:00:00');
+      if (rangeStart > startDate) startDate = rangeStart;
+      if (rangeEnd < endDate) endDate = rangeEnd;
+      maxDays = Infinity;
+    }
     for (let d = new Date(endDate); d >= startDate; d.setDate(d.getDate() - 1)) {
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const dd = String(d.getDate()).padStart(2, '0');
       allDates.push(`${yyyy}-${mm}-${dd}`);
-      if (allDates.length >= limit) break;
+      if (allDates.length >= maxDays) break;
     }
+    if (allDates.length === 0) return []; // range entirely outside the ledger window
     
     // Build a VALUES clause for all dates using bound parameters (one '?' per date).
     // Dates are internally generated, but parameterized for consistency and safety.

@@ -118,9 +118,21 @@ function createWindow() {
     }
   });
 
-  // Set title with version
-  const packageJson = require('../../package.json');
-  mainWindow.setTitle(`HammamPOS v${packageJson.version}`);
+  // Window title always shows the app version. The page's own <title> would
+  // otherwise overwrite it on load, so intercept title changes and insert the
+  // version after the "HammamPOS" prefix (same version source as UpdateManager).
+  const appVersion = require('../../package.json').version;
+  const withVersion = (pageTitle) => {
+    const title = pageTitle || 'HammamPOS';
+    return /^HammamPOS/.test(title)
+      ? title.replace(/^HammamPOS/, `HammamPOS v${appVersion}`)
+      : `HammamPOS v${appVersion} - ${title}`;
+  };
+  mainWindow.setTitle(withVersion(''));
+  mainWindow.on('page-title-updated', (event, pageTitle) => {
+    event.preventDefault();
+    mainWindow.setTitle(withVersion(pageTitle));
+  });
 
   // Load the main HammamPOS HTML
   const htmlPath = path.join(__dirname, '../renderer/hammampos.html');
@@ -173,6 +185,26 @@ app.commandLine.appendSwitch('force-device-scale-factor', '1');
 // Initialize backend services
 app.whenReady().then(async () => {
   console.log('HammamPOS Main Process Started');
+
+  // Desktop shortcut shows the version ("HammamPOS v2.8.27"). Installed app only;
+  // never in development (npm start runs electron.exe, not HammamPOS.exe).
+  if (app.isPackaged && process.platform === 'win32') {
+    setTimeout(() => {
+      try {
+        const { shell } = require('electron');
+        const { syncDesktopShortcutName } = require('./desktopShortcut');
+        syncDesktopShortcutName({
+          shell,
+          desktopDirs: [app.getPath('desktop'), path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'Desktop')],
+          exePath: process.execPath,
+          version: require('../../package.json').version,
+          log: (m) => console.log('🖥️ ' + m)
+        });
+      } catch (error) {
+        console.warn('Desktop shortcut sync skipped:', error.message);
+      }
+    }, 5000);
+  }
   
   try {
     // Initialize License Manager FIRST
@@ -516,8 +548,12 @@ ipcMain.handle('storage:getLifetimeRevenue', () => {
   return storage.getLifetimeRevenue();
 });
 
-ipcMain.handle('storage:getDailySummariesWithDetails', (event, limit) => {
-  return storage.getDailySummariesWithDetails(limit);
+ipcMain.handle('storage:getDailySummariesWithDetails', (event, limit, range) => {
+  return storage.getDailySummariesWithDetails(limit, range || null);
+});
+
+ipcMain.handle('storage:getLedgerDateBounds', () => {
+  return storage.getLedgerDateBounds();
 });
 
 ipcMain.handle('storage:getTicketsForDate', (event, date) => {
@@ -695,6 +731,17 @@ ipcMain.handle('storage:getZakatHistory', () => {
 });
 ipcMain.handle('storage:getZakatVisibility', () => {
   return storage.getZakatVisibility();
+});
+
+// Day-based Zakat (2.5% of each day's income)
+ipcMain.handle('storage:setZakatDay', (event, date, setAside) => {
+  return storage.setZakatDay(date, setAside);
+});
+ipcMain.handle('storage:getZakatSetAsideDates', () => {
+  return storage.getZakatSetAsideDates();
+});
+ipcMain.handle('storage:getZakatDaysHistory', () => {
+  return storage.getZakatDaysHistory();
 });
 
 // Day status operations
@@ -1167,6 +1214,7 @@ ipcMain.handle('setup:complete', async (event, setupData) => {
     // Save hammam settings
     storage.setSetting('hammam_name', setupData.hammamName);
     storage.changeAdminPassword(setupData.adminPassword);
+    const recoveryKey = storage.generateRecoveryKey();
     storage.setSetting('printer_name', setupData.printer || '');
     
     // Save email settings
@@ -1198,12 +1246,68 @@ ipcMain.handle('setup:complete', async (event, setupData) => {
     await printer.initialize(setupData.printer || null);
     
     console.log('✅ Setup completed successfully');
-    return { success: true };
+    return { success: true, recoveryKey };
     
   } catch (error) {
     console.error('Setup completion failed:', error);
     throw error;
   }
+});
+
+// ── Admin password recovery ─────────────────────────────────────────────
+const maskEmail = (e) => {
+  const [name, domain] = String(e || '').split('@');
+  if (!name || !domain) return null;
+  return name.slice(0, 1) + '***@' + domain;
+};
+
+ipcMain.handle('recovery:getStatus', () => {
+  const hasMail = !!(storage.getSetting('email_address') && storage.getSetting('email_password'));
+  return {
+    hasKey: storage.hasRecoveryKey(),
+    maskedEmail: hasMail ? maskEmail(storage.getSetting('email_address')) : null,
+    lockedMs: storage.getRecoveryLockMs()
+  };
+});
+
+// Creating a new key needs the current admin password.
+ipcMain.handle('recovery:generateKey', (event, currentPassword) => {
+  if (!storage.verifyAdminPassword(String(currentPassword || ''))) {
+    return { ok: false, reason: 'wrong_password' };
+  }
+  return { ok: true, key: storage.generateRecoveryKey() };
+});
+
+ipcMain.handle('recovery:sendCode', async () => {
+  const to = storage.getSetting('email_address');
+  if (!to || !storage.getSetting('email_password')) return { ok: false, reason: 'not_configured' };
+  const created = storage.createResetCode();
+  if (!created.ok) return created;
+  try {
+    if (!emailService) emailService = new EmailService(storage);
+    const name = storage.getSetting('hammam_name') || 'HammamPOS';
+    await emailService.sendSecurityEmail(
+      to,
+      'رمز استرداد كلمة مرور الإدارة - ' + name,
+      '<div dir="rtl" style="font-family:Arial,sans-serif;font-size:16px;">' +
+      '<p>رمز استرداد كلمة مرور الإدارة:</p>' +
+      '<p style="font-size:32px;font-weight:bold;letter-spacing:6px;direction:ltr;">' + created.code + '</p>' +
+      '<p>صالح لمدة 15 دقيقة ويُستعمل مرة واحدة. إذا لم تطلبه فتجاهل هذه الرسالة.</p></div>'
+    );
+    return { ok: true, maskedEmail: maskEmail(to) };
+  } catch (error) {
+    console.error('Reset code email failed:', error.message);
+    storage.clearResetCode();
+    return { ok: false, reason: 'send_failed' };
+  }
+});
+
+ipcMain.handle('recovery:resetWithKey', (event, key, newPassword) => {
+  return storage.resetAdminPasswordWithKey(key, newPassword);
+});
+
+ipcMain.handle('recovery:resetWithCode', (event, code, newPassword) => {
+  return storage.resetAdminPasswordWithCode(code, newPassword);
 });
 
 // Update system handlers

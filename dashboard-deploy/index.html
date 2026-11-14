@@ -44,16 +44,43 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 .msg{padding:0.5rem;border-radius:4px;margin-top:0.5rem;font-size:0.9rem}
 .msg-ok{background:#d1fae5;color:#065f46}
 .msg-err{background:#fee2e2;color:#991b1b}
+.login-box .link-btn{background:none;color:#2563eb;width:auto;padding:0;margin-top:1rem;font-weight:500;text-decoration:underline;font-size:0.95rem}
+.login-box button:disabled{opacity:0.6;cursor:wait}
+.login-box p.sub{margin-bottom:1.5rem;color:#64748b}
+.login-box .msg{margin:0 0 1rem 0;text-align:right}
 </style>
 </head>
 <body>
-<div id="login-view" class="login-container">
+<div id="loading-view" class="login-container">
+<p style="color:#64748b">جاري التحميل...</p>
+</div>
+<div id="login-view" class="login-container hidden">
 <div class="login-box">
 <h1>HammamPOS</h1>
-<p style="margin-bottom:1.5rem;color:#64748b">لوحة المراقبة</p>
-<input type="password" id="password" placeholder="كلمة المرور">
-<button onclick="login()">دخول</button>
-<p id="login-error" style="color:#ef4444;margin-top:0.5rem;display:none">كلمة المرور غير صحيحة</p>
+<p class="sub">لوحة المراقبة</p>
+<div id="login-msg"></div>
+<input type="password" id="password" placeholder="كلمة المرور" autocomplete="current-password">
+<button id="login-btn" onclick="login()">دخول</button>
+<button type="button" class="link-btn" onclick="showForgot()">نسيت كلمة المرور؟</button>
+</div>
+</div>
+<div id="forgot-view" class="login-container hidden">
+<div class="login-box">
+<h1>استرداد كلمة المرور</h1>
+<p class="sub">سيُرسل رابط لإعادة تعيين كلمة المرور إلى:<br><strong dir="ltr" id="forgot-email"></strong></p>
+<div id="forgot-msg"></div>
+<button id="forgot-btn" onclick="sendResetLink()">إرسال الرابط</button>
+<button type="button" class="link-btn" onclick="showLogin()">العودة لتسجيل الدخول</button>
+</div>
+</div>
+<div id="reset-view" class="login-container hidden">
+<div class="login-box">
+<h1>كلمة مرور جديدة</h1>
+<p class="sub">اختر كلمة مرور جديدة للوحة المراقبة (6 أحرف على الأقل).</p>
+<div id="reset-msg"></div>
+<input type="password" id="reset-new" placeholder="كلمة المرور الجديدة" autocomplete="new-password">
+<input type="password" id="reset-confirm" placeholder="تأكيد كلمة المرور الجديدة" autocomplete="new-password">
+<button id="reset-btn" onclick="submitNewPassword()">حفظ كلمة المرور</button>
 </div>
 </div>
 <div id="dashboard-view" class="hidden">
@@ -82,8 +109,10 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 <h2 style="margin-bottom:1rem">⚙️ الإعدادات</h2>
 <div class="settings-section">
 <h3>تغيير كلمة المرور</h3>
-<input type="password" id="new-password" placeholder="كلمة المرور الجديدة">
-<br><button class="btn-blue" onclick="changePassword()">حفظ</button>
+<input type="password" id="current-password" placeholder="كلمة المرور الحالية" autocomplete="current-password">
+<br><input type="password" id="new-password" placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)" autocomplete="new-password">
+<br><input type="password" id="confirm-password" placeholder="تأكيد كلمة المرور الجديدة" autocomplete="new-password">
+<br><button class="btn-blue" id="pw-btn" onclick="changePassword()">حفظ</button>
 <div id="pw-msg"></div>
 </div>
 <div class="settings-section">
@@ -94,20 +123,90 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 </div>
 </div>
 <script>
-const SUPABASE_URL='https://ddocgqwzagbwasufnvfi.supabase.co';
-const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkb2NncXd6YWdid2FzdWZudmZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzQxMzksImV4cCI6MjA5ODA1MDEzOX0.5yfqhWGzQuXzT654OuWT6aw50vX23qwoHI4dOJFrkQA';
-let PASSWORD=localStorage.getItem('hammampos_pw')||'admin2024';
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+// ═══ Per-installation settings: the only lines to change for a new client ═══
+const CONFIG = {
+  SUPABASE_URL: 'https://ddocgqwzagbwasufnvfi.supabase.co',
+  SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkb2NncXd6YWdid2FzdWZudmZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzQxMzksImV4cCI6MjA5ODA1MDEzOX0.5yfqhWGzQuXzT654OuWT6aw50vX23qwoHI4dOJFrkQA',
+  LOGIN_EMAIL: 'alijaouhari50@gmail.com'   // the Supabase Auth user; receives the reset link
+};
+// ═════════════════════════════════════════════════════════════════════════════
+
+// Read the URL fragment before the Supabase client consumes it (reset links put
+// the session or an error in it).
+const INITIAL_HASH = location.hash;
+const sb=supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_KEY);
 let locations=[];
 
-function login(){
-  if(document.getElementById('password').value===PASSWORD){
-    document.getElementById('login-view').classList.add('hidden');
-    document.getElementById('dashboard-view').classList.remove('hidden');
-    loadDashboard();subscribeRealtime();
-  }else{document.getElementById('login-error').style.display='block';}
+// ── Auth (Supabase Auth, one user, password-only screen) ──
+const VIEWS=['loading-view','login-view','forgot-view','reset-view','dashboard-view'];
+function show(view){VIEWS.forEach(id=>document.getElementById(id).classList.toggle('hidden',id!==view));}
+function setMsg(id,text,ok){document.getElementById(id).innerHTML=text?'<div class="msg '+(ok?'msg-ok':'msg-err')+'">'+text+'</div>':'';}
+function clearAndFocus(...ids){ids.forEach(id=>{document.getElementById(id).value='';});document.getElementById(ids[0]).focus();}
+function maskEmail(e){const[n,d]=String(e).split('@');return n.slice(0,1)+'***@'+d;}
+function authErrorText(error){
+  const code=(error&&error.code)||'';const msg=((error&&error.message)||'').toLowerCase();
+  if(code==='invalid_credentials'||msg.includes('invalid login'))return 'كلمة المرور غير صحيحة';
+  if(code==='over_email_send_rate_limit'||code==='over_request_rate_limit'||(error&&error.status===429))return 'محاولات كثيرة. انتظر قليلاً ثم حاول مجدداً';
+  if(code==='weak_password'||msg.includes('password should'))return 'كلمة المرور ضعيفة: 6 أحرف على الأقل';
+  if(code==='same_password')return 'كلمة المرور الجديدة مطابقة للحالية';
+  if(code==='session_not_found'||msg.includes('session missing'))return 'انتهت صلاحية الرابط. اطلب رابطاً جديداً';
+  if(msg.includes('fetch')||msg.includes('network'))return 'تعذر الاتصال بالإنترنت';
+  return 'حدث خطأ: '+((error&&error.message)||'');
 }
-function logout(){location.reload();}
+
+let dashboardStarted=false;
+function enterDashboard(){
+  show('dashboard-view');
+  if(!dashboardStarted){dashboardStarted=true;loadDashboard();subscribeRealtime();}
+}
+function showLogin(){setMsg('login-msg','');show('login-view');document.getElementById('password').focus();}
+function showForgot(){document.getElementById('forgot-email').textContent=maskEmail(CONFIG.LOGIN_EMAIL);setMsg('forgot-msg','');show('forgot-view');}
+
+async function login(){
+  const input=document.getElementById('password');const btn=document.getElementById('login-btn');
+  if(!input.value){input.focus();return;}
+  btn.disabled=true;setMsg('login-msg','');
+  const{error}=await sb.auth.signInWithPassword({email:CONFIG.LOGIN_EMAIL,password:input.value});
+  btn.disabled=false;
+  if(error){setMsg('login-msg',authErrorText(error));clearAndFocus('password');return;}
+  input.value='';enterDashboard();
+}
+async function logout(){await sb.auth.signOut();location.reload();}
+
+async function sendResetLink(){
+  const btn=document.getElementById('forgot-btn');btn.disabled=true;setMsg('forgot-msg','');
+  const{error}=await sb.auth.resetPasswordForEmail(CONFIG.LOGIN_EMAIL,{redirectTo:location.origin+location.pathname});
+  btn.disabled=false;
+  if(error){setMsg('forgot-msg',authErrorText(error));return;}
+  setMsg('forgot-msg','تم إرسال الرابط إلى '+maskEmail(CONFIG.LOGIN_EMAIL)+'. افتح بريدك واضغط على الرابط (تحقق من البريد غير المرغوب فيه).',true);
+}
+
+async function submitNewPassword(){
+  const np=document.getElementById('reset-new').value;const cf=document.getElementById('reset-confirm').value;
+  if(np!==cf){setMsg('reset-msg','كلمات المرور غير متطابقة');clearAndFocus('reset-new','reset-confirm');return;}
+  if(np.length<6){setMsg('reset-msg','6 أحرف على الأقل');clearAndFocus('reset-new','reset-confirm');return;}
+  const btn=document.getElementById('reset-btn');btn.disabled=true;
+  const{error}=await sb.auth.updateUser({password:np});
+  btn.disabled=false;
+  if(error){setMsg('reset-msg',authErrorText(error));clearAndFocus('reset-new','reset-confirm');return;}
+  document.getElementById('reset-new').value='';document.getElementById('reset-confirm').value='';
+  history.replaceState(null,'',location.pathname);
+  enterDashboard();
+}
+
+// Startup: decide which screen to show.
+(async()=>{
+  const hash=new URLSearchParams(INITIAL_HASH.replace(/^#/,''));
+  if(hash.get('error_code')||hash.get('error')){
+    history.replaceState(null,'',location.pathname);
+    showLogin();
+    setMsg('login-msg','رابط إعادة التعيين غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً.');
+    return;
+  }
+  const{data:{session}}=await sb.auth.getSession();
+  if(hash.get('type')==='recovery'&&session){show('reset-view');document.getElementById('reset-new').focus();return;}
+  if(session)enterDashboard();else showLogin();
+})();
 
 async function loadDashboard(){
   const{data:locs}=await sb.from('locations').select('*');
@@ -164,12 +263,21 @@ async function showSettings(){
   document.getElementById('locations-manage').innerHTML=html||'<p>لا توجد فروع</p>';
 }
 
-function changePassword(){
+async function changePassword(){
+  const cur=document.getElementById('current-password').value;
   const np=document.getElementById('new-password').value;
-  if(!np||np.length<4){document.getElementById('pw-msg').innerHTML='<div class="msg msg-err">4 أحرف على الأقل</div>';return;}
-  PASSWORD=np;localStorage.setItem('hammampos_pw',np);
-  document.getElementById('pw-msg').innerHTML='<div class="msg msg-ok">تم تغيير كلمة المرور</div>';
-  document.getElementById('new-password').value='';
+  const cf=document.getElementById('confirm-password').value;
+  if(!cur){setMsg('pw-msg','أدخل كلمة المرور الحالية');document.getElementById('current-password').focus();return;}
+  if(np!==cf){setMsg('pw-msg','كلمات المرور الجديدة غير متطابقة');clearAndFocus('new-password','confirm-password');return;}
+  if(np.length<6){setMsg('pw-msg','6 أحرف على الأقل');clearAndFocus('new-password','confirm-password');return;}
+  const btn=document.getElementById('pw-btn');btn.disabled=true;
+  const{error:e1}=await sb.auth.signInWithPassword({email:CONFIG.LOGIN_EMAIL,password:cur});
+  if(e1){btn.disabled=false;setMsg('pw-msg',e1.code==='invalid_credentials'?'كلمة المرور الحالية غير صحيحة':authErrorText(e1));clearAndFocus('current-password','new-password','confirm-password');return;}
+  const{error:e2}=await sb.auth.updateUser({password:np});
+  btn.disabled=false;
+  if(e2){setMsg('pw-msg',authErrorText(e2));clearAndFocus('new-password','confirm-password');return;}
+  ['current-password','new-password','confirm-password'].forEach(id=>{document.getElementById(id).value='';});
+  setMsg('pw-msg','تم تغيير كلمة المرور',true);
 }
 
 async function deleteLocation(id,name){
@@ -189,6 +297,7 @@ function subscribeRealtime(){
 }
 
 document.getElementById('password').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+document.getElementById('reset-confirm').addEventListener('keydown',e=>{if(e.key==='Enter')submitNewPassword();});
 </script>
 </body>
 </html>

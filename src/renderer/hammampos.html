@@ -198,6 +198,43 @@
             border: 2px solid #2563eb;
         }
 
+        /* Sticky top portion of a table section: title (+ month nav) stays visible
+           while the section is on screen; the column header sticks right below it.
+           --sticky-head-h is set from JS (initStickySections). */
+        .sticky-head {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background: #ffffff;
+            padding-bottom: 0.5rem;
+        }
+        .sticky-head h3 { margin-bottom: 0.75rem; }
+        .sticky-head .month-nav { margin-bottom: 0.25rem; }
+        .summary-table thead th {
+            position: sticky;
+            top: var(--sticky-head-h, 0px);
+            z-index: 20;
+            box-shadow: inset 0 -2px 0 #9ca3af;
+        }
+
+        /* Month navigation above the daily ledger */
+        .month-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin: 0 0 1rem 0;
+            flex-wrap: wrap;
+        }
+        .month-nav-label {
+            min-width: 160px;
+            text-align: center;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .month-nav .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
         /* Daily Summary Table */
         .daily-summary-section {
             padding: 2rem;
@@ -217,7 +254,9 @@
         }
 
         .summary-table-container {
-            overflow-x: auto;
+            /* visible (not auto): a scrolling container would stop the sticky header
+               from sticking to the page/dashboard scroll. */
+            overflow: visible;
             border: 2px solid #d1d5db;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -468,6 +507,7 @@
             font-weight: 700;
             border-bottom: 3px solid #2563eb;
             padding-bottom: 0.75rem;
+            padding-inline-end: 2.5rem;
         }
 
         .modal-content form {
@@ -499,6 +539,109 @@
             justify-content: flex-end;
             margin-top: 1.5rem;
         }
+
+        /* Floating close (X) button. The zero-height sticky bar keeps the button
+           pinned to the top of the modal while the modal content scrolls. */
+        .modal-x-bar {
+            position: sticky;
+            top: 0.5rem;
+            height: 0;
+            margin-top: -1.5rem;
+            z-index: 10;
+        }
+        .modal-x-btn {
+            position: absolute;
+            top: 0;
+            inset-inline-end: 0;
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            background: #ffffff;
+            color: #475569;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        }
+        .modal-x-btn:hover {
+            background: #dc2626;
+            color: #ffffff;
+        }
+        #forgot-password-modal { z-index: 25100; }
+        #recovery-key-modal { z-index: 25400; }
+        .recovery-key-box {
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 1.7rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            direction: ltr;
+            text-align: center;
+            background: #fffbeb;
+            border: 2px dashed #f59e0b;
+            border-radius: 10px;
+            padding: 1.1rem 0.5rem;
+            user-select: all;
+        }
+        .forgot-link {
+            background: none;
+            border: none;
+            padding: 0;
+            color: #2563eb;
+            cursor: pointer;
+            text-decoration: underline;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+        .forgot-msg {
+            padding: 0.7rem 0.9rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.92rem;
+            line-height: 1.7;
+        }
+        .forgot-msg.error { background: #fee2e2; color: #991b1b; }
+        .forgot-msg.info  { background: #dbeafe; color: #1e40af; }
+        .forgot-msg.ok    { background: #d1fae5; color: #065f46; }
+
+        /* Modals opened from inside other modals (e.g. from Settings) must draw above them. */
+        #category-management-modal, #clear-data-modal { z-index: 25100; }
+        #edit-category-modal { z-index: 25200; }
+        #confirm-modal { z-index: 25300; }
+        /* Old dismiss-only buttons (Cancel / Close) are replaced by the X. */
+        .modal-dismiss-hidden {
+            display: none !important;
+        }
+
+        /* Settings tabs */
+        .settings-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .settings-tab-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #475569;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .settings-tab-btn:hover { background: #eff6ff; }
+        .settings-tab-btn.active {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #ffffff;
+        }
+        .settings-tab-panel { display: none; }
+        .settings-tab-panel.active { display: block; }
 
         .btn-secondary {
             background: #6b7280;
@@ -1217,6 +1360,7 @@
             <h1 id="hammam-name">حمام جديد</h1>
             <div class="header-actions">
                 <button id="add-expense-btn" class="btn btn-warning">إضافة مصروف</button>
+                <button id="header-update-btn" class="btn btn-secondary" data-state="idle" title="التحقق من التحديثات">🔄 تحديث</button>
                 <button id="admin-btn" class="btn btn-success">إدارة</button>
             </div>
         </div>
@@ -1241,7 +1385,13 @@
 
         <!-- Daily Summary Table -->
         <div id="daily-summary-section" class="daily-summary-section" style="display: none;">
-            <h3>الملخص اليومي للمبيعات</h3>
+            <div class="sticky-head"><h3>الملخص اليومي للمبيعات</h3>
+            <div class="month-nav" id="ledger-month-nav">
+                <button type="button" id="ledger-prev-month" class="btn btn-secondary">الشهر السابق</button>
+                <span id="ledger-month-label" class="month-nav-label"></span>
+                <button type="button" id="ledger-next-month" class="btn btn-secondary">الشهر التالي</button>
+                <button type="button" id="ledger-current-month" class="btn btn-primary" style="display:none;">الشهر الحالي</button>
+            </div></div>
             <div class="summary-table-container">
                 <table class="summary-table" id="daily-ledger-table">
                     <thead>
@@ -1279,7 +1429,7 @@
 
         <!-- Wood Purchases (Teller view) — same data + payment as Manager -->
         <div id="teller-wood-section" class="daily-summary-section" style="display: none;">
-            <h3>🪵 مشتريات الخشب</h3>
+            <div class="sticky-head"><h3>🪵 مشتريات الخشب</h3></div>
             <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0; text-align: center;">
                 الخشب غير المدفوع (آجل) لا يُخصم من النقد حتى تضغط "تم الدفع".
             </p>
@@ -1570,6 +1720,9 @@
                     <button type="button" id="cancel-admin-password" class="btn btn-secondary">إلغاء</button>
                 </div>
             </form>
+            <div style="text-align:center; margin-top:1rem;">
+                <button type="button" id="forgot-password-link" class="forgot-link">نسيت كلمة المرور؟</button>
+            </div>
         </div>
     </div>
 
@@ -1637,9 +1790,15 @@
 
             <!-- Admin Daily Summary Table (Same as main screen but with delete buttons) -->
             <div class="admin-daily-summary">
-                <h3>📊 الملخص اليومي - إدارة المعاملات
+                <div class="sticky-head"><h3>📊 الملخص اليومي - إدارة المعاملات
                     <span id="toggle-charts" class="charts-toggle-icon" role="button" tabindex="0" title="إظهار/إخفاء الرسوم البيانية">📈</span>
                 </h3>
+                <div class="month-nav" id="admin-ledger-month-nav">
+                    <button type="button" id="admin-ledger-prev-month" class="btn btn-secondary">الشهر السابق</button>
+                    <span id="admin-ledger-month-label" class="month-nav-label"></span>
+                    <button type="button" id="admin-ledger-next-month" class="btn btn-secondary">الشهر التالي</button>
+                    <button type="button" id="admin-ledger-current-month" class="btn btn-primary" style="display:none;">الشهر الحالي</button>
+                </div></div>
                 <div class="summary-table-container">
                     <table class="summary-table" id="admin-daily-ledger-table">
                         <thead>
@@ -1677,7 +1836,7 @@
 
             <!-- Money Collections Table -->
             <div class="admin-daily-summary">
-                <h3>💰 سجل تحصيل الأموال</h3>
+                <div class="sticky-head"><h3>💰 سجل تحصيل الأموال</h3></div>
                 <div class="summary-table-container">
                     <table class="summary-table" id="admin-collections-table">
                         <thead>
@@ -1698,7 +1857,7 @@
 
             <!-- Wood Purchases Table (Expenses area) -->
             <div class="admin-daily-summary">
-                <h3>🪵 مشتريات الخشب</h3>
+                <div class="sticky-head"><h3>🪵 مشتريات الخشب</h3></div>
                 <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0;">
                     كل مشتريات الخشب. الخشب غير المدفوع (آجل) لا يُخصم من النقد حتى تضغط "تم الدفع".
                 </p>
@@ -1779,6 +1938,75 @@
             </div>
         </div>
     </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgot-password-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>🔑 استرداد كلمة المرور</h3>
+            <div class="settings-tabs" id="forgot-tabs">
+                <button type="button" class="settings-tab-btn active" data-method="key">مفتاح الاسترداد</button>
+                <button type="button" class="settings-tab-btn" data-method="email">رمز عبر البريد</button>
+            </div>
+            <div id="forgot-msg" class="forgot-msg" style="display:none;"></div>
+
+            <div id="forgot-panel-key">
+                <div class="form-group">
+                    <label>مفتاح الاسترداد:</label>
+                    <input type="text" id="forgot-key-input" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" style="direction:ltr; text-align:left; text-transform:uppercase;">
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور الجديدة:</label>
+                    <input type="password" id="forgot-key-new" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label>تأكيد كلمة المرور الجديدة:</label>
+                    <input type="password" id="forgot-key-confirm" autocomplete="new-password">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="forgot-key-submit" class="btn btn-primary">إعادة تعيين كلمة المرور</button>
+                </div>
+            </div>
+
+            <div id="forgot-panel-email" style="display:none;">
+                <p id="forgot-email-info" style="color:#374151; margin:0 0 1rem 0;"></p>
+                <button type="button" id="forgot-send-code" class="btn btn-info">إرسال الرمز إلى البريد</button>
+                <div id="forgot-code-fields" style="display:none; margin-top:1.25rem;">
+                    <div class="form-group">
+                        <label>الرمز (6 أرقام):</label>
+                        <input type="text" id="forgot-code-input" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="000000" style="direction:ltr; text-align:center; letter-spacing:0.4em;">
+                    </div>
+                    <div class="form-group">
+                        <label>كلمة المرور الجديدة:</label>
+                        <input type="password" id="forgot-code-new" autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label>تأكيد كلمة المرور الجديدة:</label>
+                        <input type="password" id="forgot-code-confirm" autocomplete="new-password">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" id="forgot-code-submit" class="btn btn-primary">إعادة تعيين كلمة المرور</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recovery Key Display Modal -->
+    <div id="recovery-key-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>🔐 مفتاح الاسترداد</h3>
+            <p id="recovery-key-note" style="color:#374151; line-height:1.8; margin:0 0 1rem 0;"></p>
+            <div id="recovery-key-value" class="recovery-key-box"></div>
+            <p style="color:#991b1b; font-size:0.9rem; margin:1rem 0;">
+                ⚠️ يظهر هذا المفتاح مرة واحدة فقط ولا يمكن استرجاعه لاحقاً. اكتبه أو صوّره واحفظه في مكان آمن بعيداً عن الصندوق.
+            </p>
+            <div class="modal-actions" style="justify-content:center;">
+                <button type="button" id="recovery-key-copy" class="btn btn-secondary">نسخ</button>
+                <button type="button" id="recovery-key-done" class="btn btn-primary">حفظته، متابعة</button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Category Management Modal -->
     <div id="category-management-modal" class="modal hidden">
@@ -1986,29 +2214,25 @@
         <div class="modal-content category-modal-content">
             <h3>⚙️ إعدادات النظام</h3>
             
+            <div class="settings-tabs" id="settings-tabs">
+                <button type="button" class="settings-tab-btn active" data-tab="general">عام</button>
+                <button type="button" class="settings-tab-btn" data-tab="security">الأمان</button>
+                <button type="button" class="settings-tab-btn" data-tab="email">البريد</button>
+                <button type="button" class="settings-tab-btn" data-tab="cloud">السحابة</button>
+                <button type="button" class="settings-tab-btn" data-tab="updates">التحديثات</button>
+                <button type="button" class="settings-tab-btn" data-tab="zakat">الزكاة</button>
+                <button type="button" class="settings-tab-btn" data-tab="expenses">المصاريف</button>
+                <button type="button" class="settings-tab-btn" data-tab="wood">موردو الخشب</button>
+                <button type="button" class="settings-tab-btn" data-tab="data">البيانات</button>
+            </div>
+
+            <div class="settings-tab-panel active" data-tab="general">
             <!-- Business Settings Section -->
             <div class="category-section">
                 <h4>إعدادات العمل</h4>
                 <div class="form-group">
                     <label>اسم الحمام:</label>
                     <input type="text" id="settings-hammam-name" placeholder="اسم الحمام">
-                </div>
-            </div>
-
-            <!-- Security Settings Section -->
-            <div class="category-section">
-                <h4>إعدادات الأمان</h4>
-                <div class="form-group">
-                    <label>كلمة مرور الإدارة الحالية:</label>
-                    <input type="password" id="settings-current-password" placeholder="كلمة المرور الحالية">
-                </div>
-                <div class="form-group">
-                    <label>كلمة مرور الإدارة الجديدة:</label>
-                    <input type="password" id="settings-new-password" placeholder="كلمة المرور الجديدة (اتركها فارغة إذا لم تريد تغييرها)">
-                </div>
-                <div class="form-group">
-                    <label>تأكيد كلمة المرور الجديدة:</label>
-                    <input type="password" id="settings-confirm-password" placeholder="تأكيد كلمة المرور الجديدة">
                 </div>
             </div>
 
@@ -2032,6 +2256,46 @@
                 </div>
             </div>
 
+            <div class="modal-actions">
+                    <button type="button" id="save-settings-general" class="btn btn-primary">حفظ</button>
+                </div>
+</div>
+
+            <div class="settings-tab-panel" data-tab="security">
+            <!-- Security Settings Section -->
+            <div class="category-section">
+                <h4>إعدادات الأمان</h4>
+                <div class="form-group">
+                    <label>كلمة مرور الإدارة الحالية:</label>
+                    <input type="password" id="settings-current-password" placeholder="كلمة المرور الحالية">
+                </div>
+                <div class="form-group">
+                    <label>كلمة مرور الإدارة الجديدة:</label>
+                    <input type="password" id="settings-new-password" placeholder="كلمة المرور الجديدة">
+                </div>
+                <div class="form-group">
+                    <label>تأكيد كلمة المرور الجديدة:</label>
+                    <input type="password" id="settings-confirm-password" placeholder="تأكيد كلمة المرور الجديدة">
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                    <button type="button" id="save-settings-security" class="btn btn-primary">تغيير كلمة المرور</button>
+                </div>
+
+            <div class="category-section" id="recovery-settings-section" style="margin-top:1.5rem;">
+                <h4>🔑 استرداد كلمة المرور</h4>
+                <div id="recovery-status" style="margin-bottom:1rem; line-height:1.9; color:#374151;"></div>
+                <div class="form-group">
+                    <label>كلمة مرور الإدارة الحالية (لإنشاء مفتاح جديد):</label>
+                    <input type="password" id="recovery-gen-password" placeholder="كلمة المرور الحالية" autocomplete="off">
+                </div>
+                <button type="button" id="recovery-generate-btn" class="btn btn-primary">إنشاء مفتاح استرداد جديد</button>
+                <small style="display:block; color:#6b7280; margin-top:0.5rem;">إنشاء مفتاح جديد يلغي المفتاح القديم. يُرسل رمز البريد إلى العنوان المحفوظ في تبويب «البريد».</small>
+            </div>
+</div>
+
+            <div class="settings-tab-panel" data-tab="email">
             <!-- Email Settings Section -->
             <div class="category-section">
                 <h4>📧 إعدادات البريد الإلكتروني</h4>
@@ -2076,6 +2340,12 @@
                 </div>
             </div>
 
+            <div class="modal-actions">
+                    <button type="button" id="save-settings-email" class="btn btn-primary">حفظ</button>
+                </div>
+</div>
+
+            <div class="settings-tab-panel" data-tab="cloud">
             <!-- Cloud Sync Settings Section -->
             <div class="category-section">
                 <h4>☁️ المزامنة السحابية (Cloud Sync)</h4>
@@ -2099,6 +2369,12 @@
                 <div id="cloud-sync-status" style="margin-top: 0.5rem; padding: 0.5rem; border-radius: 4px; display: none;"></div>
             </div>
 
+            <div class="modal-actions">
+                    <button type="button" id="save-settings-cloud" class="btn btn-primary">حفظ</button>
+                </div>
+</div>
+
+            <div class="settings-tab-panel" data-tab="updates">
             <!-- Update Section -->
             <div class="category-section">
                 <h4>🔄 تحديثات النظام</h4>
@@ -2149,12 +2425,15 @@
                 </div>
             </div>
 
+            </div>
+
+            <div class="settings-tab-panel" data-tab="zakat">
             <!-- Zakat visibility settings — two independent per-table switches.
                  Zakat is informational only; these toggles never affect financials. -->
             <div class="settings-section">
                 <h4>🌙 إعدادات الزكاة</h4>
                 <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0;">
-                    الزكاة = 2.5% من المبالغ المحصّلة فعلاً. إعلامية فقط — لا تؤثر على النقد أو التحصيل.
+                    الزكاة = 2.5% من دخل كل يوم (إيرادات المبيعات)، بغض النظر عن المصروفات أو الربح. إعلامية فقط — لا تؤثر على النقد أو التحصيل.
                 </p>
                 <div class="dashboard-toggle-row">
                     <div class="dashboard-toggle-label">
@@ -2175,13 +2454,16 @@
                     </label>
                 </div>
                 <div class="settings-section" style="margin-top: 1rem; border-top: none; padding-top: 0;">
-                    <h4 style="margin-bottom: 0.5rem;">سجل الزكاة (المبالغ المحصّلة)</h4>
+                    <h4 style="margin-bottom: 0.5rem;">سجل الزكاة (حسب دخل كل يوم)</h4>
                     <div id="zakat-history-container" style="max-height: 260px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.5rem;">
                         <div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">جاري التحميل...</div>
                     </div>
                 </div>
             </div>
 
+            </div>
+
+            <div class="settings-tab-panel" data-tab="expenses">
             <!-- Reusable expense types management -->
             <div class="settings-section">
                 <h4>أنواع المصاريف</h4>
@@ -2197,6 +2479,9 @@
                 </div>
             </div>
 
+            </div>
+
+            <div class="settings-tab-panel" data-tab="wood">
             <!-- Wood sellers management -->
             <div class="settings-section">
                 <h4>موردو الخشب</h4>
@@ -2216,6 +2501,9 @@
                 </div>
             </div>
 
+            </div>
+
+            <div class="settings-tab-panel" data-tab="data">
             <div class="settings-section">
                 <h4>الفئات والبيانات</h4>
                 <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
@@ -2224,11 +2512,9 @@
                 </div>
             </div>
 
-            <div class="modal-actions">
-                <button type="button" id="save-settings" class="btn btn-primary">حفظ الإعدادات</button>
-                <button type="button" id="close-settings" class="btn btn-secondary">إلغاء</button>
             </div>
-        </div>
+
+            </div>
     </div>
 
     <!-- Data Export Modal -->
@@ -2404,7 +2690,8 @@
                 payExpense: (expenseId, opts) => ipcRenderer.invoke('storage:payExpense', expenseId, opts),
                 getExpense: (id) => ipcRenderer.invoke('storage:getExpense', id),
                 getOutstandingExpenses: () => ipcRenderer.invoke('storage:getOutstandingExpenses'),
-                getDailySummariesWithDetails: (limit) => ipcRenderer.invoke('storage:getDailySummariesWithDetails', limit),
+                getDailySummariesWithDetails: (limit, range) => ipcRenderer.invoke('storage:getDailySummariesWithDetails', limit, range),
+                getLedgerDateBounds: () => ipcRenderer.invoke('storage:getLedgerDateBounds'),
                 getTicketsForDate: (date) => ipcRenderer.invoke('storage:getTicketsForDate', date),
                 getTickets: (startDate, endDate) => ipcRenderer.invoke('storage:getTickets', startDate, endDate),
                 getExpensesForDate: (date) => ipcRenderer.invoke('storage:getExpensesForDate', date),
@@ -2420,6 +2707,9 @@
                 setZakatSetAside: (collectionDayId, setAside) => ipcRenderer.invoke('storage:setZakatSetAside', collectionDayId, setAside),
                 getZakatHistory: () => ipcRenderer.invoke('storage:getZakatHistory'),
                 getZakatVisibility: () => ipcRenderer.invoke('storage:getZakatVisibility'),
+                setZakatDay: (date, setAside) => ipcRenderer.invoke('storage:setZakatDay', date, setAside),
+                getZakatSetAsideDates: () => ipcRenderer.invoke('storage:getZakatSetAsideDates'),
+                getZakatDaysHistory: () => ipcRenderer.invoke('storage:getZakatDaysHistory'),
                 addCategory: (name, price) => ipcRenderer.invoke('storage:addCategory', name, price),
                 updateCategory: (id, name, price) => ipcRenderer.invoke('storage:updateCategory', id, name, price),
                 toggleCategory: (id, active) => ipcRenderer.invoke('storage:toggleCategory', id, active),
@@ -2441,6 +2731,13 @@
             },
             email: {
                 testConnection: (emailConfig) => ipcRenderer.invoke('email:testConnection', emailConfig)
+            },
+            recovery: {
+                getStatus: () => ipcRenderer.invoke('recovery:getStatus'),
+                generateKey: (currentPassword) => ipcRenderer.invoke('recovery:generateKey', currentPassword),
+                sendCode: () => ipcRenderer.invoke('recovery:sendCode'),
+                resetWithKey: (key, newPassword) => ipcRenderer.invoke('recovery:resetWithKey', key, newPassword),
+                resetWithCode: (code, newPassword) => ipcRenderer.invoke('recovery:resetWithCode', code, newPassword)
             },
             settings: {
                 verifyAdminPassword: (password) => ipcRenderer.invoke('settings:verifyAdminPassword', password),
@@ -2882,15 +3179,18 @@
                 };
             }
 
-            // Settings modal handlers
-            const closeSettings = document.getElementById('close-settings');
-            const saveSettings = document.getElementById('save-settings');
-
-            if (closeSettings) {
-                closeSettings.onclick = () => {
-                    document.getElementById('settings-modal').classList.add('hidden');
-                };
-            }
+            // Settings tabs + per-tab save buttons
+            document.querySelectorAll('#settings-tabs .settings-tab-btn').forEach(btn => {
+                btn.onclick = () => switchSettingsTab(btn.dataset.tab);
+            });
+            const bindSave = (id, fn) => {
+                const el = document.getElementById(id);
+                if (el) el.onclick = fn;
+            };
+            bindSave('save-settings-general', saveGeneralSettings);
+            bindSave('save-settings-security', saveSecuritySettings);
+            bindSave('save-settings-email', saveEmailSettings);
+            bindSave('save-settings-cloud', saveCloudSettings);
 
             // Expense-type management (inside Settings)
             const addExpenseTypeBtn = document.getElementById('add-expense-type-btn');
@@ -2926,12 +3226,6 @@
                 };
             }
 
-            if (saveSettings) {
-                saveSettings.onclick = () => {
-                    saveSystemSettings();
-                };
-            }
-            
             console.log('Event listeners set up');
         }
         
@@ -3889,12 +4183,94 @@
             document.getElementById('wood-calculation-details').textContent = '';
         }
         
+        // ── Ledger month navigation (used by the seller and admin ledgers) ────
+        // Each ledger keeps its own selected month; null = newest month. The month
+        // is kept across refreshes and clamped to the months that have data.
+        function makeLedgerMonthNav(ids, reload) {
+            let month = null;
+            const pad = (n) => String(n).padStart(2, '0');
+            const idx = (y, m) => y * 12 + m;
+            const fromDate = (s) => ({ year: parseInt(s.slice(0, 4), 10), month: parseInt(s.slice(5, 7), 10) - 1 });
+            const el = (k) => document.getElementById(ids[k]);
+
+            async function shift(delta) {
+                if (!month) return;
+                const d = new Date(month.year, month.month + delta, 1);
+                month = { year: d.getFullYear(), month: d.getMonth() };
+                await reload();
+            }
+
+            return {
+                // Returns {start,end} for the selected month and refreshes the nav bar.
+                async getRange() {
+                    const bounds = await api.storage.getLedgerDateBounds();
+                    const earliest = fromDate(bounds.earliest);
+                    const latest = fromDate(bounds.latest);
+                    if (!month) month = latest;
+                    if (idx(month.year, month.month) < idx(earliest.year, earliest.month)) month = earliest;
+                    if (idx(month.year, month.month) > idx(latest.year, latest.month)) month = latest;
+                    const cur = idx(month.year, month.month);
+
+                    const label = el('label');
+                    if (label) {
+                        label.textContent = new Date(month.year, month.month, 1)
+                            .toLocaleDateString('ar-MA', { month: 'long', year: 'numeric' });
+                    }
+                    const prev = el('prev'), next = el('next'), curBtn = el('current');
+                    if (prev) prev.disabled = cur <= idx(earliest.year, earliest.month);
+                    if (next) next.disabled = cur >= idx(latest.year, latest.month);
+                    if (curBtn) curBtn.style.display = cur === idx(latest.year, latest.month) ? 'none' : '';
+
+                    const last = new Date(month.year, month.month + 1, 0).getDate();
+                    return {
+                        start: `${month.year}-${pad(month.month + 1)}-01`,
+                        end: `${month.year}-${pad(month.month + 1)}-${pad(last)}`
+                    };
+                },
+                init() {
+                    const prev = el('prev'), next = el('next'), curBtn = el('current');
+                    if (prev) prev.onclick = () => shift(-1);
+                    if (next) next.onclick = () => shift(1);
+                    if (curBtn) curBtn.onclick = async () => { month = null; await reload(); };
+                }
+            };
+        }
+
+        const sellerLedgerNav = makeLedgerMonthNav(
+            { prev: 'ledger-prev-month', next: 'ledger-next-month', current: 'ledger-current-month', label: 'ledger-month-label' },
+            () => updateDailyLedger());
+        const adminLedgerNav = makeLedgerMonthNav(
+            { prev: 'admin-ledger-prev-month', next: 'admin-ledger-next-month', current: 'admin-ledger-current-month', label: 'admin-ledger-month-label' },
+            () => loadAdminDailyLedger());
+
+        // Keep each section's column header just below its sticky title bar.
+        function initStickySections() {
+            const apply = (head) => {
+                const parent = head.parentElement;
+                if (parent) parent.style.setProperty('--sticky-head-h', head.offsetHeight + 'px');
+            };
+            const ro = new ResizeObserver((entries) => entries.forEach(e => apply(e.target)));
+            document.querySelectorAll('.sticky-head').forEach(head => { apply(head); ro.observe(head); });
+        }
+
+        function initLedgerNavs() {
+            sellerLedgerNav.init();
+            adminLedgerNav.init();
+            initStickySections();
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initLedgerNavs);
+        } else {
+            initLedgerNavs();
+        }
+
         async function updateDailyLedger() {
             try {
                 console.log('🔄 Updating daily ledger...');
-                const summaries = await api.storage.getDailySummariesWithDetails(30);
+                const summaries = await api.storage.getDailySummariesWithDetails(0, await sellerLedgerNav.getRange());
                 const zakatVis = await api.storage.getZakatVisibility();
                 const showZakat = zakatVis.zakat_visible_sales_ledger;
+                const zakatAside = showZakat ? await loadZakatAsideDates() : null;
                 
                 const ledgerTbody = document.getElementById('ledger-tbody');
                 if (!ledgerTbody) return;
@@ -3922,7 +4298,7 @@
                 const tableFooter = document.querySelector('#daily-ledger-table tfoot tr');
                 if (tableFooter) {
                     const newFooterHTML = `
-                        <td><strong>الإجمالي</strong></td>
+                        <td><strong>إجمالي الشهر</strong></td>
                         ${allCategories.map(cat => `<td id="total-${cat.name}">0</td>`).join('')}
                         <td id="total-tickets">0</td>
                         <td id="total-revenue">0</td>
@@ -3934,6 +4310,10 @@
                 }
 
                 ledgerTbody.innerHTML = '';
+                if (showZakat) {
+                    const zEl = document.getElementById('total-zakat');
+                    if (zEl) zEl.innerHTML = ltrNum(sumLedgerZakat(summaries));
+                }
 
                 let totals = { tickets: 0, revenue: 0, expenses: 0 };
                 allCategories.forEach(cat => { totals[cat.name] = 0; });
@@ -3970,9 +4350,7 @@
                     // Zakat is informational only — based on collected money, not on
                     // this day's revenue. The column is shown here as a reminder cell.
                     // The actual Zakat values appear in the collection history view.
-                    const zakatNote = showZakat
-                        ? `<td style="color:#92400e; font-size:0.8rem;">بعد التحصيل</td>`
-                        : '';
+                    const zakatNote = showZakat ? zakatCellHtml(summary.date, summary.revenue, zakatAside) : '';
 
                     rowHTML += `
                         <td>${summary.total_tickets || ''}</td>
@@ -4071,12 +4449,113 @@
             }
         }
 
+        // Clear one or more inputs after a failed entry and focus the first one.
+        function clearAndFocus(...ids) {
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const first = document.getElementById(ids[0]);
+            if (first) first.focus();
+        }
+
+        // ── Modal close (X), Esc and outside-click ───────────────────────────
+        // The X triggers the modal's own Cancel/Close button when it has one, so
+        // each modal's existing cleanup logic still runs.
+        const MODAL_DISMISS_SELECTOR =
+            '.modal-actions button[id^="cancel-"], .modal-actions button[id^="close-"], ' +
+            '.modal-actions button[id$="-close"], #confirm-modal-no';
+
+        function getModalDismissButton(modal) {
+            return modal.querySelector(MODAL_DISMISS_SELECTOR);
+        }
+
+        // Modals with input fields: only the X closes them, so Esc or a stray click
+        // outside can't discard typed data. Remove an id here once an
+        // unsaved-changes warning exists for it.
+        const MODAL_X_ONLY_IDS = new Set([
+            'expense-modal', 'wood-modal', 'settings-modal', 'edit-category-modal',
+            'category-management-modal', 'change-float-modal', 'admin-password-modal',
+            'forgot-password-modal', 'recovery-key-modal'
+        ]);
+
+        function closeModalViaDismiss(modal) {
+            const btn = getModalDismissButton(modal);
+            if (btn) btn.click();
+            else modal.classList.add('hidden');
+        }
+
+        function ensureModalCloseButton(modal) {
+            const content = modal.querySelector('.modal-content');
+            if (!content || content.querySelector(':scope > .modal-x-bar')) return;
+
+            const bar = document.createElement('div');
+            bar.className = 'modal-x-bar';
+            const x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'modal-x-btn';
+            x.setAttribute('aria-label', 'إغلاق');
+            x.title = 'إغلاق';
+            x.textContent = '×';
+            x.addEventListener('click', () => closeModalViaDismiss(modal));
+            bar.appendChild(x);
+            content.insertBefore(bar, content.firstChild);
+
+            // Hide the dismiss-only button, except on yes/no confirmation dialogs
+            // where the second button is a real choice.
+            if (modal.id !== 'confirm-modal' && modal.id !== 'clear-data-modal') {
+                const dismiss = getModalDismissButton(modal);
+                if (dismiss) dismiss.classList.add('modal-dismiss-hidden');
+                modal.querySelectorAll('.modal-actions').forEach(actions => {
+                    const visible = [...actions.children].some(c => !c.classList.contains('modal-dismiss-hidden'));
+                    if (!visible) actions.classList.add('modal-dismiss-hidden');
+                });
+            }
+        }
+
+        function initModalClose() {
+            const scan = () => document.querySelectorAll('.modal').forEach(ensureModalCloseButton);
+            scan();
+            // Catches modals created or re-rendered by JavaScript later.
+            new MutationObserver(scan).observe(document.body, { childList: true, subtree: true });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                const open = [...document.querySelectorAll('.modal:not(.hidden)')];
+                if (!open.length) return;
+                // Top-most = highest z-index; later in the page wins a tie.
+                const z = (m) => parseInt(getComputedStyle(m).zIndex, 10) || 0;
+                const top = open.reduce((a, b) => (z(b) >= z(a) ? b : a));
+                if (MODAL_X_ONLY_IDS.has(top.id)) return;
+                closeModalViaDismiss(top);
+            });
+
+            // Close on a click outside the modal box, but not when a text selection
+            // drag started inside it and ended on the backdrop.
+            let downTarget = null;
+            document.addEventListener('mousedown', (e) => { downTarget = e.target; });
+            document.addEventListener('click', (e) => {
+                const t = e.target;
+                if (t.classList && t.classList.contains('modal') && downTarget === t
+                    && !MODAL_X_ONLY_IDS.has(t.id)) {
+                    closeModalViaDismiss(t);
+                }
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initModalClose);
+        } else {
+            initModalClose();
+        }
+
         // Admin Dashboard Functions
         function showAdminPasswordModal() {
             const modal = document.getElementById('admin-password-modal');
             if (modal) {
                 modal.classList.remove('hidden');
-                document.getElementById('admin-password-input').focus();
+                const input = document.getElementById('admin-password-input');
+                input.value = '';
+                input.focus();
             }
         }
 
@@ -4100,7 +4579,7 @@
                     await showAdminDashboard();
                 } else {
                     showToast('كلمة مرور خاطئة', 'error');
-                    document.getElementById('admin-password-input').focus();
+                    clearAndFocus('admin-password-input');
                 }
             } catch (error) {
                 console.error('Failed to verify admin password:', error);
@@ -4237,9 +4716,10 @@
         async function loadAdminDailyLedger() {
             try {
                 console.log('🔄 Loading admin daily ledger...');
-                const summaries = await api.storage.getDailySummariesWithDetails(30);
+                const summaries = await api.storage.getDailySummariesWithDetails(0, await adminLedgerNav.getRange());
                 const zakatVis = await api.storage.getZakatVisibility();
                 const showZakat = zakatVis.zakat_visible_admin_ledger;
+                const zakatAside = showZakat ? await loadZakatAsideDates() : null;
                 
                 const ledgerTbody = document.getElementById('admin-ledger-tbody');
                 if (!ledgerTbody) return;
@@ -4264,7 +4744,7 @@
                 const adminTableFooter = document.querySelector('#admin-daily-ledger-table tfoot tr');
                 if (adminTableFooter) {
                     const newFooterHTML = `
-                        <td><strong>الإجمالي</strong></td>
+                        <td><strong>إجمالي الشهر</strong></td>
                         ${allCategories.map(cat => `<td id="admin-total-${cat.name}">0</td>`).join('')}
                         <td id="admin-total-tickets">0</td>
                         <td id="admin-total-revenue">0</td>
@@ -4276,6 +4756,10 @@
                 }
 
                 ledgerTbody.innerHTML = '';
+                if (showZakat) {
+                    const zEl = document.getElementById('admin-total-zakat');
+                    if (zEl) zEl.innerHTML = ltrNum(sumLedgerZakat(summaries));
+                }
                 let totals = { tickets: 0, revenue: 0, expenses: 0 };
                 allCategories.forEach(cat => { totals[cat.name] = 0; });
 
@@ -4306,9 +4790,7 @@
                         totals[cat.name] += count;
                     });
 
-                    const zakatNote = showZakat
-                        ? `<td style="color:#92400e; font-size:0.8rem;">بعد التحصيل</td>`
-                        : '';
+                    const zakatNote = showZakat ? zakatCellHtml(summary.date, summary.revenue, zakatAside) : '';
                     
                     rowHTML += `
                         <td>${summary.total_tickets || ''}</td>
@@ -4981,6 +5463,8 @@
                 // Load Zakat settings + history
                 await loadZakatSettings();
                 
+                switchSettingsTab('general');
+                await refreshRecoveryStatus();
                 // Show modal
                 const modal = document.getElementById('settings-modal');
                 modal.classList.remove('hidden');
@@ -5016,13 +5500,67 @@
             }
         }
 
+        // ── Day-based Zakat: 2.5% of each day's ticket income ────────────────
+        // One set-aside checkbox per day that had income, regardless of expenses or
+        // whether the day's money was collected. Informational only: it never touches
+        // cash, collections or any financial total.
+        const ZAKAT_RATE = 0.025;
+        const zakatOf = (income) => Math.round(income * ZAKAT_RATE * 100) / 100;
+
+        async function loadZakatAsideDates() {
+            const dates = await api.storage.getZakatSetAsideDates();
+            const set = {};
+            (dates || []).forEach(d => { set[d] = true; });
+            return set;
+        }
+
+        function sumLedgerZakat(summaries) {
+            return Math.round(summaries.reduce((a, row) => a + zakatOf(row.revenue || 0), 0) * 100) / 100;
+        }
+
+        function zakatCellHtml(date, income, asideSet) {
+            if (!income || income <= 0) return '<td style="color:#9ca3af;">—</td>';
+            const checked = !!asideSet[date];
+            const color = checked ? '#059669' : '#92400e';
+            return `<td onclick="event.stopPropagation()">
+                <label style="display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer; font-weight:600; color:${color};" title="تم إفراز زكاة هذا اليوم">
+                    <input type="checkbox" data-date="${date}" ${checked ? 'checked' : ''}
+                           onchange="toggleDayZakat(this)" style="width:auto; margin:0; cursor:pointer;">
+                    ${ltrNum(zakatOf(income))}
+                </label></td>`;
+        }
+
+        // fromSettings = true when ticked inside the Settings list: the ledgers behind
+        // it are then refreshed so their checkboxes match.
+        async function toggleDayZakat(checkbox, fromSettings = false) {
+            const date = checkbox.dataset.date;
+            const want = checkbox.checked;
+            checkbox.disabled = true;
+            try {
+                await api.storage.setZakatDay(date, want);
+                if (checkbox.parentElement && checkbox.parentElement.tagName === 'LABEL') {
+                    checkbox.parentElement.style.color = want ? '#059669' : '#92400e';
+                }
+                if (fromSettings) {
+                    await Promise.all([updateDailyLedger(), loadAdminDailyLedger()]);
+                }
+                await loadZakatHistory(); // keeps the Settings list and its totals in sync
+            } catch (error) {
+                console.error('Failed to update zakat:', error);
+                checkbox.checked = !want;
+                showToast('خطأ في تحديث حالة الزكاة', 'error');
+            } finally {
+                checkbox.disabled = false;
+            }
+        }
+
         async function loadZakatHistory() {
             const container = document.getElementById('zakat-history-container');
             if (!container) return;
             try {
-                const rows = await api.storage.getZakatHistory();
+                const rows = await api.storage.getZakatDaysHistory();
                 if (!rows || rows.length === 0) {
-                    container.innerHTML = '<div style="padding:1rem; text-align:center; color:#6b7280; font-size:0.85rem;">لا توجد عمليات تحصيل مسجّلة بعد.</div>';
+                    container.innerHTML = '<div style="padding:1rem; text-align:center; color:#6b7280; font-size:0.85rem;">لا توجد مبيعات مسجّلة بعد.</div>';
                     return;
                 }
                 let totalZakat = 0;
@@ -5032,12 +5570,14 @@
                     try { disp = new Date(r.date).toLocaleDateString('ar-MA'); } catch (_) {}
                     totalZakat += r.zakat;
                     if (r.set_aside) totalSetAside += r.zakat;
-                    const aside = r.set_aside
-                        ? '<span style="color:#059669;">✓ تم الإفراز</span>'
-                        : `<button class="btn btn-secondary" style="padding:0.15rem 0.5rem; font-size:0.75rem;" onclick="toggleZakatSetAside(${r.id}, true)">إفراز</button>`;
+                    const color = r.set_aside ? '#059669' : '#92400e';
                     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.5rem;border-bottom:1px solid #f0f0f0;font-size:0.85rem;">
-                        <span>${disp} — ${formatMoney(r.amount)}</span>
-                        <span style="color:#92400e;font-weight:600;">${formatMoney(r.zakat)} ${aside}</span>
+                        <span>${disp} — الدخل: ${formatMoney(r.revenue)}</span>
+                        <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-weight:600;color:${color};">
+                            <input type="checkbox" data-date="${r.date}" ${r.set_aside ? 'checked' : ''}
+                                   onchange="toggleDayZakat(this, true)" style="width:auto;margin:0;cursor:pointer;">
+                            ${formatMoney(r.zakat)}
+                        </label>
                     </div>`;
                 }).join('');
                 const notAside = totalZakat - totalSetAside;
@@ -5051,10 +5591,231 @@
             }
         }
 
-        async function toggleZakatSetAside(collectionDayId, setAside) {
-            // Informational only — zero financial effect.
-            await api.storage.setZakatSetAside(collectionDayId, setAside);
-            await loadZakatHistory();
+        // ── Admin password recovery (recovery key + emailed code) ────────────
+        function recoveryReasonText(r) {
+            const mins = (ms) => Math.max(1, Math.ceil((ms || 0) / 60000));
+            switch (r.reason) {
+                case 'locked': return 'تم تجاوز عدد المحاولات المسموح بها. حاول بعد ' + mins(r.retryAfterMs) + ' دقيقة.';
+                case 'invalid_key': return 'مفتاح الاسترداد غير صحيح. المحاولات المتبقية: ' + r.attemptsLeft;
+                case 'invalid_code': return 'الرمز غير صحيح. المحاولات المتبقية: ' + r.attemptsLeft;
+                case 'expired': return 'انتهت صلاحية الرمز. اطلب رمزاً جديداً.';
+                case 'no_code': return 'لا يوجد رمز نشط. اطلب رمزاً جديداً.';
+                case 'no_key': return 'لا يوجد مفتاح استرداد على هذا الجهاز. استخدم الرمز عبر البريد.';
+                case 'weak': return 'كلمة المرور الجديدة يجب أن تكون 4 أحرف على الأقل.';
+                case 'not_configured': return 'لم يتم إعداد البريد الإلكتروني. أضفه من الإعدادات ← البريد.';
+                case 'throttled': return 'انتظر ' + Math.max(1, Math.ceil((r.retryAfterMs || 0) / 1000)) + ' ثانية قبل طلب رمز جديد.';
+                case 'send_failed': return 'تعذر إرسال البريد. تحقق من الاتصال بالإنترنت وإعدادات البريد.';
+                case 'wrong_password': return 'كلمة المرور الحالية غير صحيحة.';
+                default: return 'حدث خطأ غير متوقع.';
+            }
+        }
+
+        function forgotMsg(text, kind = 'error') {
+            const el = document.getElementById('forgot-msg');
+            if (!el) return;
+            if (!text) { el.style.display = 'none'; return; }
+            el.className = 'forgot-msg ' + kind;
+            el.textContent = text;
+            el.style.display = 'block';
+        }
+
+        function setForgotMethod(method) {
+            document.querySelectorAll('#forgot-tabs .settings-tab-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.method === method);
+            });
+            document.getElementById('forgot-panel-key').style.display = method === 'key' ? 'block' : 'none';
+            document.getElementById('forgot-panel-email').style.display = method === 'email' ? 'block' : 'none';
+            forgotMsg('');
+        }
+
+        async function openForgotPassword() {
+            document.getElementById('admin-password-modal').classList.add('hidden');
+            ['forgot-key-input', 'forgot-key-new', 'forgot-key-confirm',
+             'forgot-code-input', 'forgot-code-new', 'forgot-code-confirm'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            document.getElementById('forgot-code-fields').style.display = 'none';
+            setForgotMethod('key');
+            document.getElementById('forgot-password-modal').classList.remove('hidden');
+
+            try {
+                const st = await api.recovery.getStatus();
+                const info = document.getElementById('forgot-email-info');
+                const sendBtn = document.getElementById('forgot-send-code');
+                if (st.maskedEmail) {
+                    info.textContent = 'سيُرسل رمز من 6 أرقام إلى: ' + st.maskedEmail;
+                    sendBtn.disabled = false;
+                } else {
+                    info.textContent = 'لم يتم إعداد البريد الإلكتروني على هذا الجهاز، لذلك لا يمكن إرسال الرمز.';
+                    sendBtn.disabled = true;
+                }
+                if (st.lockedMs > 0) {
+                    forgotMsg(recoveryReasonText({ reason: 'locked', retryAfterMs: st.lockedMs }));
+                } else if (!st.hasKey) {
+                    forgotMsg('لا يوجد مفتاح استرداد على هذا الجهاز. استخدم «رمز عبر البريد».', 'info');
+                }
+                (st.hasKey ? document.getElementById('forgot-key-input') : null)?.focus();
+            } catch (error) {
+                console.error('Failed to load recovery status:', error);
+            }
+        }
+
+        function finishPasswordReset() {
+            document.getElementById('forgot-password-modal').classList.add('hidden');
+            showToast('تم تغيير كلمة مرور الإدارة. يمكنك الدخول الآن.', 'success');
+        }
+
+        async function submitForgotWithKey() {
+            const key = document.getElementById('forgot-key-input').value.trim();
+            const np = document.getElementById('forgot-key-new').value;
+            const cf = document.getElementById('forgot-key-confirm').value;
+            if (!key) { forgotMsg('أدخل مفتاح الاسترداد.'); document.getElementById('forgot-key-input').focus(); return; }
+            if (np !== cf) {
+                forgotMsg('كلمات المرور الجديدة غير متطابقة.');
+                clearAndFocus('forgot-key-new', 'forgot-key-confirm');
+                return;
+            }
+            try {
+                const r = await api.recovery.resetWithKey(key, np);
+                if (!r.ok) {
+                    forgotMsg(recoveryReasonText(r));
+                    if (r.reason === 'weak') clearAndFocus('forgot-key-new', 'forgot-key-confirm');
+                    else clearAndFocus('forgot-key-input', 'forgot-key-new', 'forgot-key-confirm');
+                    return;
+                }
+                finishPasswordReset();
+                showRecoveryKeyModal(r.newRecoveryKey, 'تم استعمال مفتاحك القديم، وهذا مفتاح الاسترداد الجديد. المفتاح القديم لم يعد صالحاً.');
+            } catch (error) {
+                console.error('Reset with key failed:', error);
+                forgotMsg('حدث خطأ غير متوقع.');
+            }
+        }
+
+        async function sendForgotCode() {
+            const btn = document.getElementById('forgot-send-code');
+            btn.disabled = true;
+            forgotMsg('جاري إرسال الرمز...', 'info');
+            try {
+                const r = await api.recovery.sendCode();
+                if (!r.ok) { forgotMsg(recoveryReasonText(r)); return; }
+                document.getElementById('forgot-code-fields').style.display = 'block';
+                forgotMsg('تم إرسال الرمز إلى ' + r.maskedEmail + '. صالح لمدة 15 دقيقة.', 'ok');
+                document.getElementById('forgot-code-input').focus();
+            } catch (error) {
+                console.error('Send code failed:', error);
+                forgotMsg(recoveryReasonText({ reason: 'send_failed' }));
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function submitForgotWithCode() {
+            const code = document.getElementById('forgot-code-input').value.trim();
+            const np = document.getElementById('forgot-code-new').value;
+            const cf = document.getElementById('forgot-code-confirm').value;
+            if (!/^\d{6}$/.test(code)) { forgotMsg('أدخل الرمز المكوّن من 6 أرقام.'); document.getElementById('forgot-code-input').focus(); return; }
+            if (np !== cf) {
+                forgotMsg('كلمات المرور الجديدة غير متطابقة.');
+                clearAndFocus('forgot-code-new', 'forgot-code-confirm');
+                return;
+            }
+            try {
+                const r = await api.recovery.resetWithCode(code, np);
+                if (!r.ok) {
+                    forgotMsg(recoveryReasonText(r));
+                    if (r.reason === 'weak') clearAndFocus('forgot-code-new', 'forgot-code-confirm');
+                    else clearAndFocus('forgot-code-input', 'forgot-code-new', 'forgot-code-confirm');
+                    return;
+                }
+                finishPasswordReset();
+            } catch (error) {
+                console.error('Reset with code failed:', error);
+                forgotMsg('حدث خطأ غير متوقع.');
+            }
+        }
+
+        function showRecoveryKeyModal(key, note) {
+            document.getElementById('recovery-key-note').textContent = note || '';
+            document.getElementById('recovery-key-value').textContent = key;
+            document.getElementById('recovery-key-modal').classList.remove('hidden');
+        }
+
+        async function refreshRecoveryStatus() {
+            const el = document.getElementById('recovery-status');
+            if (!el) return;
+            try {
+                const st = await api.recovery.getStatus();
+                el.innerHTML =
+                    (st.hasKey ? '✅ مفتاح الاسترداد: تم إنشاؤه' : '⚠️ مفتاح الاسترداد: <strong>غير موجود</strong>. أنشئ واحداً الآن.') + '<br>' +
+                    (st.maskedEmail ? '✅ البريد المستخدم لإرسال الرمز: <span dir="ltr">' + st.maskedEmail + '</span>'
+                                    : '⚠️ البريد غير مُعدّ (تبويب «البريد»). لن يعمل الاسترداد عبر الرمز.');
+            } catch (error) {
+                el.textContent = 'تعذر تحميل حالة الاسترداد.';
+            }
+        }
+
+        async function generateRecoveryKeyUI() {
+            const input = document.getElementById('recovery-gen-password');
+            const pw = input.value;
+            if (!pw) { showToast('أدخل كلمة مرور الإدارة الحالية', 'error'); input.focus(); return; }
+            try {
+                const r = await api.recovery.generateKey(pw);
+                if (!r.ok) {
+                    showToast(recoveryReasonText(r), 'error');
+                    clearAndFocus('recovery-gen-password');
+                    return;
+                }
+                input.value = '';
+                showRecoveryKeyModal(r.key, 'تم إنشاء مفتاح استرداد جديد. أي مفتاح قديم لم يعد صالحاً.');
+                await refreshRecoveryStatus();
+            } catch (error) {
+                console.error('Generate key failed:', error);
+                showToast('خطأ في إنشاء المفتاح', 'error');
+            }
+        }
+
+        // Turns whatever was typed or pasted into XXXX-XXXX-XXXX-XXXX (letters/digits only,
+        // upper-case, max 16 characters, dash added after every 4th character).
+        function formatRecoveryKeyInput(raw) {
+            const clean = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
+            return clean.match(/.{1,4}/g)?.join('-') || '';
+        }
+
+        function initPasswordRecoveryUI() {
+            const keyInput = document.getElementById('forgot-key-input');
+            if (keyInput) {
+                keyInput.addEventListener('input', () => {
+                    const formatted = formatRecoveryKeyInput(keyInput.value);
+                    if (keyInput.value !== formatted) keyInput.value = formatted;
+                });
+            }
+            const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+            on('forgot-password-link', openForgotPassword);
+            on('forgot-key-submit', submitForgotWithKey);
+            on('forgot-send-code', sendForgotCode);
+            on('forgot-code-submit', submitForgotWithCode);
+            on('recovery-generate-btn', generateRecoveryKeyUI);
+            on('recovery-key-done', () => document.getElementById('recovery-key-modal').classList.add('hidden'));
+            on('recovery-key-copy', async () => {
+                try {
+                    await navigator.clipboard.writeText(document.getElementById('recovery-key-value').textContent);
+                    showToast('تم نسخ المفتاح', 'success');
+                } catch (_) { showToast('تعذر النسخ، انسخه يدوياً', 'error'); }
+            });
+            document.querySelectorAll('#forgot-tabs .settings-tab-btn').forEach(b => {
+                b.onclick = () => setForgotMethod(b.dataset.method);
+            });
+            [['forgot-key-input', submitForgotWithKey], ['forgot-key-confirm', submitForgotWithKey],
+             ['forgot-code-input', submitForgotWithCode], ['forgot-code-confirm', submitForgotWithCode]].forEach(([id, fn]) => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); fn(); } });
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPasswordRecoveryUI);
+        } else {
+            initPasswordRecoveryUI();
         }
 
         async function loadUpdateStatus() {
@@ -5281,82 +6042,109 @@
             }
         }
 
-        async function saveSystemSettings() {
+        // ── Settings tabs: each tab saves only its own fields ────────────────
+        function switchSettingsTab(name) {
+            document.querySelectorAll('#settings-tabs .settings-tab-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.tab === name);
+            });
+            document.querySelectorAll('#settings-modal .settings-tab-panel').forEach(p => {
+                p.classList.toggle('active', p.dataset.tab === name);
+            });
+        }
+
+        async function saveGeneralSettings() {
             try {
-                // Validate password change if requested
+                const hammamName = document.getElementById('settings-hammam-name').value.trim();
+                await api.settings.updateSettings({
+                    hammam_name: hammamName,
+                    printer_name: document.getElementById('settings-printer-name').value
+                });
+                if (hammamName) {
+                    document.getElementById('hammam-name').textContent = hammamName;
+                }
+                showToast('تم حفظ الإعدادات العامة', 'success');
+            } catch (error) {
+                console.error('Failed to save general settings:', error);
+                showToast('خطأ في حفظ الإعدادات', 'error');
+            }
+        }
+
+        async function saveSecuritySettings() {
+            try {
                 const currentPassword = document.getElementById('settings-current-password').value;
                 const newPassword = document.getElementById('settings-new-password').value;
                 const confirmPassword = document.getElementById('settings-confirm-password').value;
-                
-                if (newPassword) {
-                    if (!currentPassword) {
-                        showToast('يرجى إدخال كلمة المرور الحالية', 'error');
-                        return;
-                    }
-                    
-                    // Verify current password
-                    const isValidPassword = await api.settings.verifyAdminPassword(currentPassword);
-                    if (!isValidPassword) {
-                        showToast('كلمة المرور الحالية غير صحيحة', 'error');
-                        return;
-                    }
-                    
-                    if (newPassword !== confirmPassword) {
-                        showToast('كلمات المرور الجديدة غير متطابقة', 'error');
-                        return;
-                    }
-                    
-                    if (newPassword.length < 4) {
-                        showToast('كلمة المرور الجديدة يجب أن تكون 4 أحرف على الأقل', 'error');
-                        return;
-                    }
+
+                if (!newPassword) {
+                    showToast('يرجى إدخال كلمة المرور الجديدة', 'error');
+                    document.getElementById('settings-new-password').focus();
+                    return;
                 }
-                
-                // Collect settings
-                const settings = {
-                    hammam_name: document.getElementById('settings-hammam-name').value.trim(),
-                    printer_name: document.getElementById('settings-printer-name').value,
-                    email_enabled: document.getElementById('settings-email-enabled').checked ? 'true' : 'false',
-                    cloud_url: document.getElementById('settings-cloud-url').value.trim(),
-                    cloud_key: document.getElementById('settings-cloud-key').value.trim(),
-                    location_name: document.getElementById('settings-location-name').value.trim()
-                };
-                
-                // Add email settings if enabled
-                if (document.getElementById('settings-email-enabled').checked) {
+                if (!currentPassword) {
+                    showToast('يرجى إدخال كلمة المرور الحالية', 'error');
+                    document.getElementById('settings-current-password').focus();
+                    return;
+                }
+
+                const isValidPassword = await api.settings.verifyAdminPassword(currentPassword);
+                if (!isValidPassword) {
+                    showToast('كلمة المرور الحالية غير صحيحة', 'error');
+                    clearAndFocus('settings-current-password', 'settings-new-password', 'settings-confirm-password');
+                    return;
+                }
+                if (newPassword !== confirmPassword) {
+                    showToast('كلمات المرور الجديدة غير متطابقة', 'error');
+                    clearAndFocus('settings-new-password', 'settings-confirm-password');
+                    return;
+                }
+                if (newPassword.length < 4) {
+                    showToast('كلمة المرور الجديدة يجب أن تكون 4 أحرف على الأقل', 'error');
+                    clearAndFocus('settings-new-password', 'settings-confirm-password');
+                    return;
+                }
+
+                await api.settings.setSetting('admin_password_change', newPassword);
+                clearAndFocus('settings-current-password', 'settings-new-password', 'settings-confirm-password');
+                document.getElementById('settings-current-password').blur();
+                showToast('تم تغيير كلمة المرور', 'success');
+            } catch (error) {
+                console.error('Failed to change password:', error);
+                showToast('خطأ في تغيير كلمة المرور', 'error');
+            }
+        }
+
+        async function saveEmailSettings() {
+            try {
+                const enabled = document.getElementById('settings-email-enabled').checked;
+                const settings = { email_enabled: enabled ? 'true' : 'false' };
+                if (enabled) {
                     settings.email_address = document.getElementById('settings-email-address').value.trim();
                     settings.email_smtp_host = document.getElementById('settings-smtp-host').value.trim();
                     settings.email_smtp_port = document.getElementById('settings-smtp-port').value;
-                    
                     const emailPassword = document.getElementById('settings-email-password').value;
                     if (emailPassword) {
                         settings.email_password = emailPassword;
                     }
                 }
-                
-                // Save settings
                 await api.settings.updateSettings(settings);
-                
-                // Save new password if provided
-                if (newPassword) {
-                    await api.settings.setSetting('admin_password_change', newPassword);
-                }
-                
-                // Update UI if hammam name changed
-                if (settings.hammam_name) {
-                    document.getElementById('hammam-name').textContent = settings.hammam_name;
-                }
-                
-                // Close modal
-                document.getElementById('settings-modal').classList.add('hidden');
-                
-                // Show success message
-                showToast('تم حفظ الإعدادات بنجاح', 'success');
-                
-                console.log('Settings saved successfully');
-                
+                document.getElementById('settings-email-password').value = '';
+                showToast('تم حفظ إعدادات البريد', 'success');
             } catch (error) {
-                console.error('Failed to save settings:', error);
+                console.error('Failed to save email settings:', error);
+                showToast('خطأ في حفظ الإعدادات', 'error');
+            }
+        }
+
+        async function saveCloudSettings() {
+            try {
+                await api.settings.updateSettings({
+                    cloud_url: document.getElementById('settings-cloud-url').value.trim(),
+                    cloud_key: document.getElementById('settings-cloud-key').value.trim(),
+                    location_name: document.getElementById('settings-location-name').value.trim()
+                });
+                showToast('تم حفظ إعدادات المزامنة', 'success');
+            } catch (error) {
+                console.error('Failed to save cloud settings:', error);
                 showToast('خطأ في حفظ الإعدادات', 'error');
             }
         }
@@ -6590,6 +7378,113 @@
             });
         }
         
+        // ── Header update button (seller view) ───────────────────────────────
+        // idle -> click checks for updates; available -> click confirms, downloads
+        // and installs (the app restarts itself). Uses the same api.update.* calls
+        // as the Settings → Updates tab.
+        let headerUpdateBusy = false;
+
+        async function refreshHeaderUpdateButton() {
+            const btn = document.getElementById('header-update-btn');
+            if (!btn || headerUpdateBusy) return;
+            try {
+                const status = await api.update.getStatus();
+                if (status.latestRelease) {
+                    btn.className = 'btn btn-primary';
+                    btn.textContent = '⬆️ تحديث متاح v' + status.latestRelease.version;
+                    btn.title = 'اضغط لتثبيت التحديث';
+                    btn.dataset.state = 'available';
+                } else {
+                    btn.className = 'btn btn-secondary';
+                    btn.textContent = '🔄 تحديث';
+                    btn.title = 'التحقق من التحديثات';
+                    btn.dataset.state = 'idle';
+                }
+            } catch (error) {
+                console.error('Failed to refresh update button:', error);
+            }
+        }
+
+        async function onHeaderUpdateClick() {
+            const btn = document.getElementById('header-update-btn');
+            if (!btn || headerUpdateBusy) return;
+
+            // Idle: check for an update.
+            if (btn.dataset.state !== 'available') {
+                headerUpdateBusy = true;
+                btn.disabled = true;
+                btn.textContent = 'جاري التحقق...';
+                try {
+                    const update = await api.update.check();
+                    headerUpdateBusy = false;
+                    await refreshHeaderUpdateButton();
+                    showToast(update ? ('يوجد تحديث جديد v' + update.version) : 'التطبيق محدث لآخر إصدار',
+                              update ? 'info' : 'success');
+                } catch (error) {
+                    headerUpdateBusy = false;
+                    await refreshHeaderUpdateButton();
+                    showToast('فشل التحقق من التحديثات', 'error');
+                } finally {
+                    headerUpdateBusy = false;
+                    btn.disabled = false;
+                }
+                return;
+            }
+
+            // Available: confirm, download, install.
+            const status = await api.update.getStatus();
+            const version = status.latestRelease ? status.latestRelease.version : '';
+            const confirmed = await showConfirm(
+                `سيتم تحميل التحديث v${version} ثم إعادة تشغيل التطبيق تلقائياً.\nتأكد من عدم وجود عملية بيع جارية.`,
+                '🔄 تحديث التطبيق',
+                'تحديث الآن'
+            );
+            if (!confirmed) return;
+
+            headerUpdateBusy = true;
+            btn.disabled = true;
+            btn.textContent = 'جاري التحميل 0%';
+            let progressTimer = null;
+            try {
+                const downloadPromise = api.update.download();
+                progressTimer = setInterval(async () => {
+                    try {
+                        const p = await api.update.getProgress();
+                        btn.textContent = 'جاري التحميل ' + p + '%';
+                    } catch (_) {}
+                }, 500);
+                await downloadPromise;
+                clearInterval(progressTimer);
+                btn.textContent = 'جاري التثبيت...';
+                await api.update.apply(); // app quits and relaunches itself
+            } catch (error) {
+                if (progressTimer) clearInterval(progressTimer);
+                headerUpdateBusy = false;
+                btn.disabled = false;
+                await refreshHeaderUpdateButton();
+                showToast('فشل التحديث: ' + error.message, 'error');
+            }
+        }
+
+        function initHeaderUpdateButton() {
+            const btn = document.getElementById('header-update-btn');
+            if (!btn) return;
+            btn.onclick = onHeaderUpdateClick;
+            // Show an update the startup check already found, then re-check every
+            // 30 minutes so a release published while you're away shows up.
+            setTimeout(refreshHeaderUpdateButton, 3000);
+            setInterval(async () => {
+                if (headerUpdateBusy) return;
+                try { await api.update.check(); } catch (_) {}
+                refreshHeaderUpdateButton();
+            }, 30 * 60 * 1000);
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initHeaderUpdateButton);
+        } else {
+            initHeaderUpdateButton();
+        }
+
         // Start the app when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
             console.log('DOM ready, initializing app...');
