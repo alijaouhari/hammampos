@@ -17,6 +17,18 @@ const ExpenseTemplateManager = require('../services/ExpenseTemplateManager');
 const PluginManager = require('../plugins/core/PluginManager');
 const LicenseManager = require('../plugins/core/LicenseManager');
 const CloudSync = require('../services/CloudSync');
+// Last errors, shown in the diagnostics and sent to the dashboard with the heartbeat.
+const recentErrors = [];
+{
+  const origError = console.error.bind(console);
+  console.error = (...args) => {
+    try {
+      recentErrors.push(new Date().toISOString() + ' ' + args.map(a => (a && a.message) || String(a)).join(' ').slice(0, 300));
+      if (recentErrors.length > 30) recentErrors.shift();
+    } catch (_) {}
+    origError(...args);
+  };
+}
 const UpdateManager = require('../services/UpdateManager');
 const MoneyService = require('../services/MoneyService');
 
@@ -184,8 +196,25 @@ Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
 // Force DPI scale factor to 1 so thermal printer bitmaps are always 1:1 pixel ratio
 app.commandLine.appendSwitch('force-device-scale-factor', '1');
 
+// Only ONE copy of the app may run. Two copies each keep their own copy of the
+// database in memory and the last one to save erases what the other recorded.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const win = mainWindow || BrowserWindow.getAllWindows()[0];
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
+  });
+}
+
 // Initialize backend services
 app.whenReady().then(async () => {
+  if (!gotSingleInstanceLock) return;
   console.log('HammamPOS Main Process Started');
 
   // Desktop shortcut shows the version ("HammamPOS v2.8.27"). Installed app only;
@@ -371,7 +400,7 @@ async function initializeServices() {
   }
   
   // Initialize Cloud Sync (optional — only if configured)
-  cloudSync = new CloudSync(storage);
+  cloudSync = newCloudSync();
   try {
     await cloudSync.initialize();
   } catch (error) {
@@ -468,6 +497,88 @@ ipcMain.handle('storage:createTicket', async (event, categoryId) => {
   
   return ticket;
 });
+
+// ── Cloud sync helpers ─────────────────────────────────────────────────
+function cloudLocalRows() {
+  return {
+    tickets: storage.getTickets('2000-01-01', '2099-12-31').filter(t => !t.refunded_at),
+    expenses: storage.getExpenses('2000-01-01', '2099-12-31'),
+    collections: storage.getCollections('2000-01-01', '2099-12-31')
+  };
+}
+
+let historyCache = null;
+function historyDiagnostics() {
+  if (historyCache && Date.now() - historyCache.at < 3600000) return historyCache.data;
+  let data = null;
+  try {
+    data = storage.getHistoryDiagnostics(75);
+    data.backupCsv = backupManager && backupManager.getTicketCsvCoverage ? backupManager.getTicketCsvCoverage(data.since) : null;
+    data.backupDir = backupManager ? backupManager.backupDir : null;
+    data.safetyCopies = storage.listSafetyCopies();
+  } catch (error) {
+    data = { error: error.message };
+  }
+  historyCache = { at: Date.now(), data };
+  return data;
+}
+
+function deviceInfo() {
+  let dbSize = null;
+  try { dbSize = require('fs').statSync(storage.dbPath).size; } catch (_) {}
+  return {
+    version: app.getVersion(),
+    platform: process.platform,
+    dbPath: storage.dbPath,
+    dbSize,
+    counts: storage.getTableCounts(),
+    switchedOver: money ? money.isSwitchedOver() : null,
+    refundsEnabled: money ? money.getRefundsEnabled() : null,
+    recentErrors: recentErrors.slice(-10),
+    lastDbConflict: storage.lastConflict || null,
+    history: historyDiagnostics(),
+    uptimeMin: Math.round(process.uptime() / 60)
+  };
+}
+
+function newCloudSync() {
+  return new CloudSync(storage, { appVersion: app.getVersion(), getDeviceInfo: deviceInfo, getLocalRows: cloudLocalRows });
+}
+
+// Called after anything that deletes / edits / refunds / cancels: the cloud copy is compared soon.
+function cloudChanged() {
+  if (cloudSync) cloudSync.scheduleReconcile();
+}
+
+ipcMain.handle('cloud:getStatus', () => (cloudSync ? cloudSync.getStatus() : { enabled: false }));
+ipcMain.handle('cloud:testConnection', async (event, url, key) => {
+  const locationId = storage.getSetting('location_id') || null;
+  const sameProject = !url || url === storage.getSetting('cloud_url');
+  return CloudSync.testConnection(url || storage.getSetting('cloud_url'), key || storage.getSetting('cloud_key'), sameProject ? locationId : null);
+});
+ipcMain.handle('cloud:reconnect', async () => {
+  if (cloudSync) { try { await cloudSync.stop(); } catch (_) {} }
+  cloudSync = newCloudSync();
+  const res = await cloudSync.initialize();
+  return { ...res, status: cloudSync.getStatus() };
+});
+ipcMain.handle('cloud:fullSync', async () => {
+  if (!cloudSync || !cloudSync.enabled) return { ok: false, error: 'السحابة غير مفعلة' };
+  return cloudSync.reconcile();
+});
+ipcMain.handle('cloud:applyConnectionCode', async (event, code) => {
+  let c;
+  try { c = CloudSync.decodeConnection(code); } catch (e) { return { ok: false, error: e.message }; }
+  storage.setSetting('cloud_url', c.url);
+  storage.setSetting('cloud_key', c.key);
+  if (c.locationId) storage.setSetting('location_id', c.locationId);
+  if (c.name) storage.setSetting('location_name', c.name);
+  if (cloudSync) { try { await cloudSync.stop(); } catch (_) {} }
+  cloudSync = newCloudSync();
+  const res = await cloudSync.initialize();
+  return { ok: !!res.success, name: c.name, status: cloudSync.getStatus() };
+});
+ipcMain.handle('diagnostics:get', () => ({ ...deviceInfo(), cloud: cloudSync ? cloudSync.getStatus() : null, appData: process.env.APPDATA || null }));
 
 ipcMain.handle('storage:getTodayTickets', () => {
   return storage.getTodayTickets();
@@ -622,15 +733,21 @@ ipcMain.handle('money:getCollections', (event, opts) => {
   return money.getCollections(opts || {});
 });
 ipcMain.handle('money:cancelCollection', (event, id, reason) => {
-  return money.cancelCollection(id, reason);
+  const res = money.cancelCollection(id, reason);
+  cloudChanged();
+  return res;
 });
 
 // Refunds: seller refunds (same day, ≤ 2 hours); manager can undo.
 ipcMain.handle('money:refundTicket', (event, ticketId, reason) => {
-  return money.refundTicket(ticketId, reason);
+  const res = money.refundTicket(ticketId, reason);
+  cloudChanged();
+  return res;
 });
 ipcMain.handle('money:undoRefund', (event, ticketId) => {
-  return money.undoRefund(ticketId);
+  const res = money.undoRefund(ticketId);
+  cloudChanged();
+  return res;
 });
 // Refund on/off switch (manager)
 ipcMain.handle('money:getRefundsEnabled', () => money.getRefundsEnabled());
@@ -643,13 +760,15 @@ ipcMain.handle('money:previewDeleteExpense', (event, oldId) => {
 });
 ipcMain.handle('money:editExpense', (event, oldId, fields) => {
   const e = money.getExpenseByMirror(oldId);
-  return e ? money.editExpense(e.id, fields) : { success: false, error: 'هذا المصروف قديم ولا يمكن تعديله هنا' };
+  const res = e ? money.editExpense(e.id, fields) : { success: false, error: 'هذا المصروف قديم ولا يمكن تعديله هنا' };
+  cloudChanged();
+  return res;
 });
 ipcMain.handle('money:previewDeleteCollection', (event, oldId) => {
   const c = money.getCollectionByMirror(oldId);
   return c ? money.previewCancelCollection(c.id) : { success: false, error: 'not-linked' };
 });
-ipcMain.handle('money:editCollection', (event, id, fields) => money.editCollection(id, fields));
+ipcMain.handle('money:editCollection', (event, id, fields) => { const res = money.editCollection(id, fields); cloudChanged(); return res; });
 ipcMain.handle('money:getHistory', (event, opts) => money.getHistory(opts || {}));
 ipcMain.handle('money:getDaySummary', (event, date) => money.getDaySummary(date));
 ipcMain.handle('money:getRefundStatusForDate', (event, date) => {
@@ -1001,6 +1120,7 @@ ipcMain.handle('storage:toggleCategory', async (event, id, active) => {
 // Delete operations (Admin only)
 ipcMain.handle('storage:deleteTicket', async (event, ticketId) => {
   const deletedTicket = storage.deleteTicket(ticketId);
+  cloudChanged();
   // Note: Deleted tickets are not removed from backups for audit trail
   return deletedTicket;
 });
@@ -1008,6 +1128,7 @@ ipcMain.handle('storage:deleteTicket', async (event, ticketId) => {
 ipcMain.handle('storage:deleteExpense', async (event, expenseId) => {
   const deletedExpense = storage.deleteExpense(expenseId);
   if (money) money.onMirrorExpenseDeleted(expenseId);
+  cloudChanged();
   // Note: Deleted expenses are not removed from backups for audit trail
   return deletedExpense;
 });
@@ -1015,6 +1136,7 @@ ipcMain.handle('storage:deleteExpense', async (event, expenseId) => {
 ipcMain.handle('storage:deleteCollection', async (event, collectionId) => {
   const deletedCollection = storage.deleteCollection(collectionId);
   if (money) money.onMirrorCollectionDeleted(collectionId);
+  cloudChanged();
   // Note: Deleted collections are not removed from backups for audit trail
   return deletedCollection;
 });
@@ -1252,16 +1374,39 @@ ipcMain.handle('storage:clearAllData', async () => {
   if (money) { money.clearMoneyData(); storage.save(); }
   
   // Also clear backup files
+  let backupsCleared = !backupManager;
   if (backupManager) {
     try {
       await backupManager.clearAllBackups();
-      console.log('✅ Backup files cleared');
+      backupsCleared = true;
+      console.log('Backup files cleared');
     } catch (error) {
-      console.warn('⚠️ Failed to clear backup files:', error.message);
+      console.warn('Failed to clear backup files:', error.message);
     }
   }
-  
-  return result;
+
+  // The Excel file is rebuilt from the (now empty) database, otherwise it keeps every old row.
+  let excelCleared = !excelManager;
+  if (excelManager) {
+    try {
+      await excelManager.rebuildFromDatabase(storage, money);
+      excelCleared = true;
+    } catch (error) {
+      console.warn('Failed to clear Excel:', error.message);
+    }
+  }
+
+  // The cloud copy of this device. If the internet is down the comparison runs again
+  // as soon as the connection is back, so the old rows never stay in the dashboard.
+  let cloud = { skipped: true };
+  if (cloudSync && cloudSync.enabled) {
+    cloud = await cloudSync.wipeCloud();
+    if (!cloud.ok) cloudSync.scheduleReconcile(10000);
+  }
+
+  // Prove it: re-read the file from disk.
+  const verify = storage.verifyWipe();
+  return { ...result, backupsCleared, excelCleared, cloud, verify };
 });
 
 // Generate test data handler (Testing only)

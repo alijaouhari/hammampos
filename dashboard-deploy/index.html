@@ -87,6 +87,7 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 <div class="header">
 <h1>HammamPOS <span class="live-dot"></span></h1>
 <div class="header-btns">
+<button onclick="showDevices()">📱 الأجهزة</button>
 <button onclick="showDownload()">⬇ تحميل التطبيق</button>
 <button onclick="showSettings()">⚙️ إعدادات</button>
 <button onclick="logout()">خروج</button>
@@ -104,6 +105,22 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 <div class="summary-cards" id="detail-summary"></div>
 <h3 style="margin:1rem 0">تذاكر اليوم</h3>
 <table class="tickets-table"><thead><tr><th>#</th><th>الفئة</th><th>السعر</th><th>الوقت</th></tr></thead><tbody id="tickets-body"></tbody></table>
+</div>
+<div id="devices-view" style="display:none">
+<button class="back-btn" onclick="showLocations()">← العودة</button>
+<h2 style="margin-bottom:1rem">📱 الأجهزة (الفروع)</h2>
+<div class="settings-section">
+<h3>إضافة جهاز جديد</h3>
+<p style="color:#475569;margin-bottom:0.5rem;line-height:1.8">اكتب اسم الفرع ثم اضغط «إنشاء». سيظهر «رمز الربط»: انسخه والصقه في التطبيق على الجهاز: الإعدادات ← السحابة ← «رمز الربط» ← ربط.</p>
+<input type="text" id="new-device-name" placeholder="اسم الفرع، مثال: حمام الهدى - الفرع الثاني">
+<br><button class="btn-blue" onclick="createDevice()">إنشاء</button>
+<div id="new-device-result"></div>
+</div>
+<div class="settings-section">
+<h3>الأجهزة المرتبطة</h3>
+<div id="devices-list"></div>
+<p style="color:#64748b;font-size:0.85rem;margin-top:0.75rem">الجهاز يرسل إشارة كل 15 ثانية. «اختبار الاتصال» يطلب من الجهاز الرد الآن. الأجهزة التي تعمل بنسخة أقدم من 2.8.29 لا ترسل إشارة: حدّثها أولاً.</p>
+</div>
 </div>
 <div id="download-view" style="display:none">
 <button class="back-btn" onclick="showLocations()">← العودة</button>
@@ -254,7 +271,7 @@ async function showDetail(id){
   const loc=locations.find(l=>l.id===id);
   document.getElementById('locations-view').classList.add('hidden');
   document.getElementById('settings-view').style.display='none';
-  document.getElementById('download-view').style.display='none';
+  document.getElementById('download-view').style.display='none';document.getElementById('devices-view').style.display='none';
   document.getElementById('detail-view').style.display='block';
   document.getElementById('detail-title').textContent=loc.name;
   const today=new Date().toISOString().split('T')[0];
@@ -273,14 +290,126 @@ function showLocations(){
   document.getElementById('locations-view').classList.remove('hidden');
   document.getElementById('detail-view').style.display='none';
   document.getElementById('settings-view').style.display='none';
-  document.getElementById('download-view').style.display='none';
+  document.getElementById('download-view').style.display='none';document.getElementById('devices-view').style.display='none';
   loadDashboard();
+}
+
+// ═══ Devices: status, add, connection code, test connection ═══
+function esc(t){return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function makeConnectionCode(loc){
+  const json=JSON.stringify({u:CONFIG.SUPABASE_URL,k:CONFIG.SUPABASE_KEY,l:loc.id,n:loc.name});
+  return 'HPOS1.'+btoa(unescape(encodeURIComponent(json)));
+}
+function agoText(iso){
+  if(!iso)return '—';
+  const s=Math.max(0,Math.round((Date.now()-new Date(iso).getTime())/1000));
+  if(s<60)return 'قبل '+s+' ث';
+  if(s<3600)return 'قبل '+Math.round(s/60)+' د';
+  if(s<86400)return 'قبل '+Math.round(s/3600)+' س';
+  return 'قبل '+Math.round(s/86400)+' يوم';
+}
+function deviceState(l){
+  if(!l.last_seen_at)return{c:'#94a3b8',t:'لا إشارة (لم يرتبط أو نسخة قديمة)'};
+  const s=(Date.now()-new Date(l.last_seen_at).getTime())/1000;
+  if(s<60)return{c:'#16a34a',t:'متصل'};
+  if(s<600)return{c:'#f59e0b',t:'إشارة متأخرة'};
+  return{c:'#dc2626',t:'غير متصل'};
+}
+async function showDevices(){
+  document.getElementById('locations-view').classList.add('hidden');
+  document.getElementById('detail-view').style.display='none';
+  document.getElementById('settings-view').style.display='none';
+  document.getElementById('download-view').style.display='none';
+  document.getElementById('devices-view').style.display='block';
+  await loadDevices();
+}
+let devicesTimer=null;
+async function loadDevices(){
+  const box=document.getElementById('devices-list');
+  const{data,error}=await sb.from('locations').select('*').order('created_at');
+  if(error){box.innerHTML='<div class="msg msg-err">تعذّر تحميل الأجهزة: '+esc(error.message)+'</div>';return;}
+  window.__devices=data||[];
+  if(!data||!data.length){box.innerHTML='<p style="color:#64748b">لا توجد أجهزة</p>';return;}
+  let html='';
+  for(const l of data){
+    const st=deviceState(l);
+    const info=l.device_info||{};
+    const counts=info.counts?('تذاكر '+info.counts.tickets+' · مصروفات '+info.counts.expenses+' · تحصيل '+info.counts.collections):'';
+    html+='<div class="loc-item" style="flex-wrap:wrap;gap:0.5rem" id="dev-'+l.id+'">'+
+      '<div style="min-width:220px"><strong>'+esc(l.name)+'</strong><br>'+
+      '<span style="color:'+st.c+'">● '+st.t+'</span> <span style="color:#64748b;font-size:0.85rem">('+agoText(l.last_seen_at)+')</span><br>'+
+      '<span style="color:#64748b;font-size:0.85rem">النسخة: '+esc(l.app_version||'—')+' · في الانتظار: '+(l.queue_size||0)+' · آخر مزامنة: '+agoText(l.last_sync_at)+'</span>'+
+      (counts?'<br><span style="color:#64748b;font-size:0.85rem">'+counts+'</span>':'')+
+      (l.last_error?'<br><span style="color:#b91c1c;font-size:0.85rem">آخر خطأ: '+esc(l.last_error)+'</span>':'')+
+      '<div class="ping-result" id="ping-'+l.id+'"></div></div>'+
+      '<div><button class="btn-blue" onclick="pingDevice(\''+l.id+'\')">🔌 اختبار الاتصال</button> '+
+      '<button class="btn-blue" style="background:#64748b" onclick="showCode(\''+l.id+'\')">رمز الربط</button> '+
+      '<button class="btn-red" onclick="deleteDevice(\''+l.id+'\')">حذف</button></div></div>';
+  }
+  box.innerHTML=html;
+  clearTimeout(devicesTimer);
+  devicesTimer=setTimeout(()=>{if(document.getElementById('devices-view').style.display==='block'&&!window.__pinging)loadDevices();},15000);
+}
+async function createDevice(){
+  const input=document.getElementById('new-device-name');
+  const name=input.value.trim();
+  const out=document.getElementById('new-device-result');
+  if(!name){out.innerHTML='<div class="msg msg-err">اكتب اسم الفرع</div>';return;}
+  const{data,error}=await sb.from('locations').insert({name}).select('*').single();
+  if(error){out.innerHTML='<div class="msg msg-err">'+esc(error.message)+'</div>';return;}
+  input.value='';
+  renderCode(out,data);
+  loadDevices();
+}
+function renderCode(target,loc){
+  const code=makeConnectionCode(loc);
+  target.innerHTML='<div class="msg msg-ok">رمز الربط للجهاز «'+esc(loc.name)+'»:</div>'+
+    '<textarea readonly style="width:100%;max-width:560px;height:90px;direction:ltr;font-size:0.75rem;margin-top:0.5rem" onclick="this.select()">'+code+'</textarea>'+
+    '<br><button class="btn-blue" onclick="copyText(this.parentNode.querySelector(\'textarea\').value)">نسخ</button>'+
+    '<p style="color:#64748b;font-size:0.85rem;margin-top:0.5rem">الصقه في التطبيق: الإعدادات ← السحابة ← رمز الربط ← ربط. لا تشاركه مع غير مالك الفرع.</p>';
+}
+function copyText(t){navigator.clipboard.writeText(t).then(()=>alert('تم النسخ')).catch(()=>alert('انسخ النص يدوياً'));}
+function showCode(id){
+  const loc=(window.__devices||[]).find(l=>l.id===id);
+  if(!loc)return;
+  const el=document.getElementById('ping-'+id);
+  renderCode(el,loc);
+}
+async function deleteDevice(id){
+  const loc=(window.__devices||[]).find(l=>l.id===id);
+  if(!loc||!confirm('حذف «'+loc.name+'» وكل بياناته من السحابة؟ لا يمكن التراجع.'))return;
+  for(const t of['tickets','expenses','collections']){await sb.from(t).delete().eq('location_id',id);}
+  const{error}=await sb.from('locations').delete().eq('id',id);
+  if(error){alert(error.message);return;}
+  loadDevices();
+}
+async function pingDevice(id){
+  const el=document.getElementById('ping-'+id);
+  window.__pinging=true;
+  el.innerHTML='<div class="msg" style="background:#e0f2fe;color:#075985">جاري الاتصال بالجهاز... (حتى 40 ثانية)</div>';
+  const requested=new Date().toISOString();
+  const t0=Date.now();
+  const{error}=await sb.from('locations').update({ping_requested_at:requested}).eq('id',id);
+  if(error){el.innerHTML='<div class="msg msg-err">'+esc(error.message)+'</div>';window.__pinging=false;return;}
+  while(Date.now()-t0<40000){
+    await new Promise(r=>setTimeout(r,2000));
+    const{data}=await sb.from('locations').select('ping_reply_at,app_version,queue_size,last_error').eq('id',id).maybeSingle();
+    if(data&&data.ping_reply_at&&new Date(data.ping_reply_at)>=new Date(requested)){
+      const secs=((Date.now()-t0)/1000).toFixed(0);
+      el.innerHTML='<div class="msg msg-ok">✅ الجهاز يرد (خلال '+secs+' ث). النسخة '+esc(data.app_version||'—')+' · في الانتظار '+(data.queue_size||0)+(data.last_error?' · آخر خطأ: '+esc(data.last_error):'')+'</div>';
+      window.__pinging=false;
+      return;
+    }
+  }
+  el.innerHTML='<div class="msg msg-err">❌ لا رد خلال 40 ثانية. الجهاز مغلق أو بلا إنترنت، أو يعمل بنسخة أقدم من 2.8.29، أو لم يرتبط بهذه اللوحة.</div>';
+  window.__pinging=false;
 }
 
 async function showDownload(){
   document.getElementById('locations-view').classList.add('hidden');
   document.getElementById('detail-view').style.display='none';
   document.getElementById('settings-view').style.display='none';
+  document.getElementById('devices-view').style.display='none';
   document.getElementById('download-view').style.display='block';
   const v=document.getElementById('dl-version'),a=document.getElementById('dl-link'),sz=document.getElementById('dl-size');
   try{
@@ -302,7 +431,7 @@ async function showSettings(){
   document.getElementById('locations-view').classList.add('hidden');
   document.getElementById('detail-view').style.display='none';
   document.getElementById('settings-view').style.display='block';
-  document.getElementById('download-view').style.display='none';
+  document.getElementById('download-view').style.display='none';document.getElementById('devices-view').style.display='none';
   const{data:locs}=await sb.from('locations').select('*');
   let html='';
   for(const loc of locs||[]){html+='<div class="loc-item"><span>'+loc.name+'</span><button class="btn-red" onclick="deleteLocation(\''+loc.id+'\',\''+loc.name+'\')">حذف</button></div>';}

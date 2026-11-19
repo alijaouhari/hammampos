@@ -2902,6 +2902,18 @@
                     <input type="text" id="settings-location-name" placeholder="حمام الهدى - الفرع الرئيسي">
                 </div>
                 <div id="cloud-sync-status" style="margin-top: 0.5rem; padding: 0.5rem; border-radius: 4px; display: none;"></div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>أو الصق «رمز الربط» الذي أنشأته من لوحة المراقبة:</label>
+                    <div style="display:flex; gap:0.5rem;">
+                        <input type="text" id="settings-cloud-code" placeholder="HPOS1...." style="direction: ltr; text-align: left; flex:1;">
+                        <button type="button" id="cloud-apply-code" class="btn btn-secondary">ربط</button>
+                    </div>
+                </div>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
+                    <button type="button" id="cloud-test-btn" class="btn btn-info">🔌 فحص الاتصال</button>
+                    <button type="button" id="cloud-fullsync-btn" class="btn btn-secondary">🔄 مزامنة كاملة الآن</button>
+                </div>
+                <div id="cloud-test-result" style="margin-top:0.75rem; display:none; line-height:1.9;"></div>
             </div>
 
             <div class="modal-actions">
@@ -3065,7 +3077,9 @@
                 <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
                     <button type="button" id="admin-manage-categories" class="btn btn-primary">📋 إدارة الفئات</button>
                     <button type="button" id="admin-clear-all-data" class="btn" style="background: #dc2626; color: white;">🗑️ مسح جميع البيانات</button>
+                    <button type="button" id="admin-diagnostics-btn" class="btn btn-secondary">🩺 تشخيص هذا الجهاز</button>
                 </div>
+                <pre id="diagnostics-output" style="display:none; direction:ltr; text-align:left; background:#0f172a; color:#e2e8f0; padding:0.75rem; border-radius:6px; margin-top:0.75rem; max-height:280px; overflow:auto; font-size:0.78rem; white-space:pre-wrap;"></pre>
             </div>
 
             </div>
@@ -3314,6 +3328,16 @@
                 editCollection: (id, fields) => ipcRenderer.invoke('money:editCollection', id, fields),
                 getHistory: (opts) => ipcRenderer.invoke('money:getHistory', opts),
                 getDaySummary: (date) => ipcRenderer.invoke('money:getDaySummary', date)
+            },
+            cloud: {
+                getStatus: () => ipcRenderer.invoke('cloud:getStatus'),
+                testConnection: (url, key) => ipcRenderer.invoke('cloud:testConnection', url, key),
+                reconnect: () => ipcRenderer.invoke('cloud:reconnect'),
+                fullSync: () => ipcRenderer.invoke('cloud:fullSync'),
+                applyConnectionCode: (code) => ipcRenderer.invoke('cloud:applyConnectionCode', code)
+            },
+            diagnostics: {
+                get: () => ipcRenderer.invoke('diagnostics:get')
             },
             recovery: {
                 getStatus: () => ipcRenderer.invoke('recovery:getStatus'),
@@ -7941,6 +7965,7 @@
                 p.classList.toggle('active', p.dataset.tab === name);
             });
             if (name === 'money') loadMoneyTab();
+            if (name === 'cloud') refreshCloudStatus();
         }
 
         async function saveGeneralSettings() {
@@ -8026,6 +8051,104 @@
             }
         }
 
+        // ── Cloud: live status, connection test, full sync, connection code ──
+        function fmtAgo(iso) {
+            if (!iso) return '—';
+            const sec = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+            if (sec < 60) return 'قبل ' + sec + ' ث';
+            if (sec < 3600) return 'قبل ' + Math.round(sec / 60) + ' د';
+            return new Date(iso).toLocaleString('ar-MA');
+        }
+
+        async function refreshCloudStatus() {
+            const box = document.getElementById('cloud-sync-status');
+            if (!box) return;
+            try {
+                const st = await api.cloud.getStatus();
+                box.style.display = 'block';
+                if (!st || !st.enabled) {
+                    box.style.background = '#f3f4f6'; box.style.color = '#374151';
+                    box.textContent = '⚪ المزامنة غير مفعلة. أدخل الرابط والمفتاح (أو رمز الربط) ثم احفظ.';
+                    return;
+                }
+                const queue = st.queueSize > 0 ? ` — في الانتظار: ${st.queueSize}` : '';
+                if (st.online) {
+                    box.style.background = '#d1fae5'; box.style.color = '#065f46';
+                    box.textContent = `✅ متصل — آخر مزامنة: ${fmtAgo(st.lastSyncAt)}${queue}`;
+                } else {
+                    box.style.background = '#fee2e2'; box.style.color = '#991b1b';
+                    box.textContent = `❌ غير متصل — ${st.lastError || 'جاري المحاولة'}${queue}. لا يضيع شيء: التغييرات محفوظة وتُرسل عند عودة الاتصال.`;
+                }
+            } catch (error) {
+                console.error('Cloud status failed:', error);
+            }
+        }
+
+        async function cloudTestConnection() {
+            const box = document.getElementById('cloud-test-result');
+            const btn = document.getElementById('cloud-test-btn');
+            box.style.display = 'block';
+            box.textContent = 'جاري الفحص...';
+            btn.disabled = true;
+            try {
+                const url = document.getElementById('settings-cloud-url').value.trim();
+                const key = document.getElementById('settings-cloud-key').value.trim();
+                const r = await api.cloud.testConnection(url, key);
+                box.innerHTML = '';
+                r.steps.forEach(st => {
+                    const line = document.createElement('div');
+                    line.textContent = (st.ok ? '✅ ' : '❌ ') + st.name + ': ' + st.detail;
+                    line.style.color = st.ok ? '#065f46' : '#b91c1c';
+                    box.appendChild(line);
+                });
+                const sum = document.createElement('div');
+                sum.style.fontWeight = '700'; sum.style.marginTop = '0.4rem';
+                sum.textContent = r.ok ? '✅ الاتصال سليم' : '❌ يوجد مشكلة في الاتصال (انظر الأحمر أعلاه)';
+                box.appendChild(sum);
+            } catch (error) {
+                console.error('Cloud test failed:', error);
+                box.textContent = '❌ تعذّر إجراء الفحص';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function cloudFullSync() {
+            const box = document.getElementById('cloud-test-result');
+            const btn = document.getElementById('cloud-fullsync-btn');
+            box.style.display = 'block';
+            box.textContent = 'جاري مقارنة بيانات هذا الجهاز مع السحابة...';
+            btn.disabled = true;
+            try {
+                const r = await api.cloud.fullSync();
+                if (!r.ok) { box.style.color = '#b91c1c'; box.textContent = '❌ ' + (r.error || 'فشلت المزامنة'); return; }
+                const t = r.tables;
+                box.style.color = '#065f46';
+                box.textContent = `✅ تمت المزامنة. تذاكر: ${t.tickets.local} (أُرسل ${t.tickets.sent}، حُذف من السحابة ${t.tickets.removed}) — مصروفات: ${t.expenses.local} (أُرسل ${t.expenses.sent}، حُذف ${t.expenses.removed}) — تحصيل: ${t.collections.local} (أُرسل ${t.collections.sent}، حُذف ${t.collections.removed})`;
+                refreshCloudStatus();
+            } catch (error) {
+                console.error('Full sync failed:', error);
+                box.style.color = '#b91c1c'; box.textContent = '❌ فشلت المزامنة';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function cloudApplyCode() {
+            const input = document.getElementById('settings-cloud-code');
+            const code = input.value.trim();
+            if (!code) { showToast('الصق رمز الربط أولاً', 'error'); return; }
+            const r = await api.cloud.applyConnectionCode(code);
+            if (!r.ok) { showToast(r.error || 'تعذّر الربط، تحقق من الرمز والإنترنت', 'error'); refreshCloudStatus(); return; }
+            input.value = '';
+            const settings = await api.settings.getAll();
+            document.getElementById('settings-cloud-url').value = settings.cloud_url || '';
+            document.getElementById('settings-cloud-key').value = settings.cloud_key || '';
+            document.getElementById('settings-location-name').value = settings.location_name || '';
+            showToast('تم ربط الجهاز' + (r.name ? ': ' + r.name : ''), 'success');
+            refreshCloudStatus();
+        }
+
         async function saveCloudSettings() {
             try {
                 await api.settings.updateSettings({
@@ -8033,12 +8156,40 @@
                     cloud_key: document.getElementById('settings-cloud-key').value.trim(),
                     location_name: document.getElementById('settings-location-name').value.trim()
                 });
-                showToast('تم حفظ إعدادات المزامنة', 'success');
+                const r = await api.cloud.reconnect();
+                if (r && r.success && r.online) showToast('تم الحفظ والاتصال بالسحابة', 'success');
+                else if (r && r.success) showToast('تم الحفظ، لكن الاتصال غير متاح الآن. سيُعاد تلقائياً.', 'info');
+                else showToast('تم الحفظ. المزامنة غير مفعلة (تحقق من الرابط والمفتاح)', 'info');
+                refreshCloudStatus();
             } catch (error) {
                 console.error('Failed to save cloud settings:', error);
                 showToast('خطأ في حفظ الإعدادات', 'error');
             }
         }
+
+        async function showDiagnostics() {
+            const out = document.getElementById('diagnostics-output');
+            out.style.display = 'block';
+            out.textContent = '...';
+            try {
+                const d = await api.diagnostics.get();
+                out.textContent = JSON.stringify(d, null, 2);
+            } catch (error) {
+                out.textContent = String(error);
+            }
+        }
+
+        (function initCloudTools() {
+            const bind = () => {
+                const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+                on('cloud-test-btn', cloudTestConnection);
+                on('cloud-fullsync-btn', cloudFullSync);
+                on('cloud-apply-code', cloudApplyCode);
+                on('admin-diagnostics-btn', showDiagnostics);
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+            else bind();
+        })();
 
         // Data Export Functions
         async function showDataExportModal() {
@@ -8680,12 +8831,16 @@
                 const result = await api.storage.clearAllData();
                 
                 if (result.success) {
+                    const v = result.verify || {};
+                    const left = v.leftovers ? Object.entries(v.leftovers).map(([k, n]) => k + ': ' + n).join('، ') : '';
+                    const cloudLine = result.cloud && result.cloud.skipped ? 'السحابة: غير مفعلة'
+                        : (result.cloud && result.cloud.ok ? 'السحابة: تم المسح' : 'السحابة: لم يمكن المسح الآن (سيُمسح عند عودة الاتصال)');
                     showToast(
-                        `تم مسح البيانات بنجاح:\n` +
-                        `التذاكر: ${result.cleared.tickets}\n` +
-                        `المصروفات: ${result.cleared.expenses}\n` +
-                        `التحصيلات: ${result.cleared.collections}`,
-                        'success'
+                        (v.clean ? 'تم مسح البيانات والتحقق من الملف: فارغ ✔' : ('⚠ تم المسح لكن بقي في الملف: ' + (left || v.error || '?'))) + '\n' +
+                        `التذاكر: ${result.cleared.tickets} — المصروفات: ${result.cleared.expenses} — التحصيلات: ${result.cleared.collections}\n` +
+                        (result.excelCleared ? 'ملف Excel: تم مسحه' : 'ملف Excel: تعذّر مسحه') + ' — ' +
+                        (result.backupsCleared ? 'النسخ الاحتياطية: تم مسحها' : 'النسخ الاحتياطية: تعذّر مسحها') + '\n' + cloudLine,
+                        v.clean ? 'success' : 'error'
                     );
                     
                     // Refresh all displays

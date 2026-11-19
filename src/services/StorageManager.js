@@ -22,15 +22,9 @@ class StorageManager {
     const appDataDir = path.join(process.env.APPDATA || process.env.HOME, 'HammamPOS');
     this.dbPath = dbPath || path.join(appDataDir, 'hammampos.db');
     
-    // Migrate from old location if needed
-    if (!fs.existsSync(this.dbPath)) {
-      const oldPath = path.join(process.cwd(), 'data', 'hammampos.db');
-      if (fs.existsSync(oldPath)) {
-        if (!fs.existsSync(appDataDir)) fs.mkdirSync(appDataDir, { recursive: true });
-        fs.copyFileSync(oldPath, this.dbPath);
-        console.log('📦 Database migrated to AppData');
-      }
-    }
+    // NOTE: the old "copy ./data/hammampos.db into AppData when missing" migration was
+    // removed on purpose. On a fresh install it could resurrect an old database that
+    // happened to sit next to the program, which looked like "the wipe did not work".
     this.db = null;
     this.SQL = null;
   }
@@ -50,6 +44,7 @@ class StorageManager {
       if (fs.existsSync(this.dbPath)) {
         const buffer = fs.readFileSync(this.dbPath);
         this.db = new this.SQL.Database(buffer);
+        this._rememberFileState();
         console.log('✅ Database loaded');
       } else {
         this.db = new this.SQL.Database();
@@ -67,14 +62,101 @@ class StorageManager {
     }
   }
 
+  /**
+   * Write the whole in-memory database to disk.
+   * Safety (v2.8.29): the file is written to a temporary file then swapped in, so a
+   * crash cannot leave a half-written database. If ANOTHER program (e.g. a second copy
+   * of the app that was left open) changed the file since we last read or wrote it,
+   * its version is kept as hammampos.overwritten-<time>.db before we write ours, and
+   * the incident is logged (it shows in the diagnostics and on the dashboard).
+   */
   save() {
     try {
-      const data = this.db.export();
-      const buffer = Buffer.from(data);
-      fs.writeFileSync(this.dbPath, buffer);
+      const buffer = Buffer.from(this.db.export());
+      this._guardForeignChange();
+      const tmp = this.dbPath + '.tmp';
+      fs.writeFileSync(tmp, buffer);
+      try {
+        fs.renameSync(tmp, this.dbPath);
+      } catch (_) {
+        // Rename can fail on Windows if another program holds the file; write directly.
+        fs.writeFileSync(this.dbPath, buffer);
+        try { fs.unlinkSync(tmp); } catch (__) {}
+      }
+      this._rememberFileState();
+      this._dailySnapshot();
     } catch (error) {
       console.error('❌ Save failed:', error);
     }
+  }
+
+  _rememberFileState() {
+    try {
+      const st = fs.statSync(this.dbPath);
+      this._fileState = { mtimeMs: st.mtimeMs, size: st.size };
+    } catch (_) {
+      this._fileState = null;
+    }
+  }
+
+  _guardForeignChange() {
+    if (!this._fileState || !fs.existsSync(this.dbPath)) return;
+    const st = fs.statSync(this.dbPath);
+    if (st.mtimeMs === this._fileState.mtimeMs && st.size === this._fileState.size) return;
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const keep = this.dbPath.replace(/\.db$/i, '') + '.overwritten-' + stamp + '.db';
+    try { fs.copyFileSync(this.dbPath, keep); } catch (_) {}
+    this.lastConflict = { at: new Date().toISOString(), keptAs: keep, foreignSize: st.size, foreignMtime: new Date(st.mtimeMs).toISOString() };
+    console.error('DB_CONFLICT: the database file was changed by another program (a second copy of the app?). Its version was kept in ' + keep);
+  }
+
+  /** Once per day, keep a copy of the database in snapshots/ (last 30 days). */
+  _dailySnapshot() {
+    try {
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, '0');
+      const day = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+      if (this._snapshotDay === day) return;
+      const dir = path.join(path.dirname(this.dbPath), 'snapshots');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, day + '.db');
+      if (!fs.existsSync(file)) fs.copyFileSync(this.dbPath, file);
+      this._snapshotDay = day;
+      const all = fs.readdirSync(dir).filter(f => /^\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort();
+      all.slice(0, Math.max(0, all.length - 30)).forEach(f => { try { fs.unlinkSync(path.join(dir, f)); } catch (_) {} });
+    } catch (error) {
+      console.warn('Snapshot failed:', error.message);
+    }
+  }
+
+  /** Snapshot files on disk (name, size) and the overwritten copies, for diagnostics. */
+  listSafetyCopies() {
+    const dir = path.dirname(this.dbPath);
+    const out = { snapshots: [], overwritten: [] };
+    try { out.snapshots = fs.readdirSync(path.join(dir, 'snapshots')).filter(f => f.endsWith('.db')).sort(); } catch (_) {}
+    try { out.overwritten = fs.readdirSync(dir).filter(f => /\.overwritten-.*\.db$/.test(f)).sort(); } catch (_) {}
+    return out;
+  }
+
+  /**
+   * Per-day evidence for the last `days` days: tickets in the database and audit-log
+   * activity, plus tickets per month for the last 14 months. Used to find lost days.
+   */
+  getHistoryDiagnostics(days = 75) {
+    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    const map = (sql, params) => {
+      const r = this.db.exec(sql, params);
+      const o = {};
+      if (r[0]) r[0].values.forEach(([k, v]) => { o[k] = v; });
+      return o;
+    };
+    return {
+      since,
+      ticketsPerDay: map('SELECT date, COUNT(*) FROM tickets WHERE date >= ? GROUP BY date ORDER BY date', [since]),
+      auditPerDay: map("SELECT substr(timestamp,1,10), COUNT(*) FROM audit_log WHERE timestamp >= ? GROUP BY 1 ORDER BY 1", [since]),
+      ticketsPerMonth: map("SELECT substr(date,1,7), COUNT(*) FROM tickets GROUP BY 1 ORDER BY 1 DESC LIMIT 14", []),
+      clearEvents: map("SELECT timestamp, details FROM audit_log WHERE action LIKE 'CLEAR_ALL_DATA%' ORDER BY id DESC LIMIT 10", [])
+    };
   }
 
   createTables() {
@@ -1551,6 +1633,9 @@ class StorageManager {
       try { this.db.run('DELETE FROM wood_purchases'); } catch (_) {} // Table may not exist on fresh installs
       try { this.db.run('DELETE FROM wood_sellers'); } catch (_) {} // Table may not exist on older installs
       try { this.db.run('DELETE FROM wood_seller_types'); } catch (_) {} // Table may not exist on older installs
+      // Everything else that describes past activity (each guarded: tables differ between versions)
+      ['day_status', 'zakat_days', 'zakat_tracking', 'serial_resets', 'sync_queue', 'sync_status', 'email_log']
+        .forEach(t => { try { this.db.run('DELETE FROM ' + t); } catch (_) {} });
       
       // Reset category serial counters
       this.db.run('UPDATE categories SET serial_counter = 0');
@@ -1580,6 +1665,39 @@ class StorageManager {
       this.logAudit('CLEAR_ALL_DATA_ERROR', 'system', null, error.message);
       throw error;
     }
+  }
+
+  /**
+   * Re-read the database FILE from disk and report any transaction rows that are still
+   * there. Proves a wipe really reached the file, not only the in-memory copy.
+   */
+  verifyWipe() {
+    const tables = ['tickets', 'expenses', 'collections', 'collection_days', 'change_float', 'wood_purchases',
+      'day_status', 'zakat_days', 'money_expenses', 'expense_payments', 'money_collections', 'seller_debts',
+      'seller_debt_payments', 'money_corrections', 'notifications', 'sync_queue'];
+    try {
+      const copy = new this.SQL.Database(fs.readFileSync(this.dbPath));
+      const leftovers = {};
+      for (const t of tables) {
+        try {
+          const n = copy.exec('SELECT COUNT(*) FROM ' + t)[0].values[0][0];
+          if (n > 0) leftovers[t] = n;
+        } catch (_) { /* table does not exist */ }
+      }
+      copy.close();
+      return { persisted: true, clean: Object.keys(leftovers).length === 0, leftovers, dbPath: this.dbPath };
+    } catch (error) {
+      return { persisted: false, clean: false, error: error.message, dbPath: this.dbPath };
+    }
+  }
+
+  /** Row counts of the main tables (for the diagnostics shown to the manager / dashboard). */
+  getTableCounts() {
+    const out = {};
+    for (const t of ['tickets', 'expenses', 'collections', 'categories', 'money_expenses', 'money_collections']) {
+      try { out[t] = this.db.exec('SELECT COUNT(*) FROM ' + t)[0].values[0][0]; } catch (_) { out[t] = null; }
+    }
+    return out;
   }
 
   /**

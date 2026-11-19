@@ -668,6 +668,32 @@ class BackupManager {
   }
 
   /**
+   * Tickets per day found in the backup tickets.csv for dates >= since. The CSV is only
+   * appended to, so it can still hold days that disappeared from the database.
+   */
+  getTicketCsvCoverage(since) {
+    const out = { exists: false, perDay: {}, firstDate: null, lastDate: null, rows: 0 };
+    try {
+      const file = path.join(this.backupDir, 'tickets.csv');
+      if (!fs.existsSync(file)) return out;
+      out.exists = true;
+      const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/).slice(1);
+      for (const line of lines) {
+        const m = line.match(/(\d{4}-\d{2}-\d{2})/);
+        if (!m) continue;
+        out.rows++;
+        const d = m[1];
+        if (!out.firstDate || d < out.firstDate) out.firstDate = d;
+        if (!out.lastDate || d > out.lastDate) out.lastDate = d;
+        if (d >= since) out.perDay[d] = (out.perDay[d] || 0) + 1;
+      }
+    } catch (error) {
+      out.error = error.message;
+    }
+    return out;
+  }
+
+  /**
    * Rebuild all backups from database
    */
   async rebuildFromDatabase(storage, money = null) {
