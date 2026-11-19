@@ -23,6 +23,17 @@ if (-not $isAdmin) {
 }
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+# A 32-bit PowerShell window ("Windows PowerShell (x86)") cannot set up services and
+# settings correctly on 64-bit Windows: run the same script in the 64-bit one.
+if ([Environment]::Is64BitOperatingSystem -and -not [Environment]::Is64BitProcess) {
+    Say 'This is the 32-bit PowerShell. Continuing in the 64-bit PowerShell...' 'Yellow'
+    $ps64 = Join-Path $env:WINDIR 'SysNative\WindowsPowerShell\v1.0\powershell.exe'
+    $arg = if ($Remove) { ' -Remove' } else { '' }
+    $cmd = "[Net.ServicePointManager]::SecurityProtocol='Tls12'; & ([scriptblock]::Create((irm https://hammamposdashboard.vercel.app/remote-setup.ps1)))$arg"
+    & $ps64 -NoProfile -ExecutionPolicy Bypass -Command $cmd
+    return
+}
+
 if ($Remove) {
     Say 'Removing remote support access'
     Get-NetFirewallRule -DisplayName $RuleName -ErrorAction SilentlyContinue | Remove-NetFirewallRule
@@ -71,21 +82,19 @@ if ($state -ne 'Running') {
 }
 Say 'Tailscale connected.' 'Green'
 
-# 2. OpenSSH server
-$cap = Get-WindowsCapability -Online -Name 'OpenSSH.Server*' -ErrorAction SilentlyContinue
-if (-not $cap -or $cap.State -ne 'Installed') {
-    Say 'Installing the Windows OpenSSH server (can take a few minutes)...'
-    try {
-        Add-WindowsCapability -Online -Name 'OpenSSH.Server~~~~0.0.1.0' | Out-Null
-    } catch {
-        Say 'Windows feature install failed, using the official OpenSSH package instead...' 'Yellow'
-        $rel = Invoke-RestMethod 'https://api.github.com/repos/PowerShell/Win32-OpenSSH/releases/latest'
-        $asset = $rel.assets | Where-Object { $_.name -match 'Win64.*\.msi$' } | Select-Object -First 1
-        $msi2 = Join-Path $env:TEMP 'openssh.msi'
-        Invoke-WebRequest -UseBasicParsing $asset.browser_download_url -OutFile $msi2
-        Start-Process msiexec.exe -ArgumentList "/i `"$msi2`" /quiet /norestart" -Wait
-    }
+# 2. OpenSSH server: the official Microsoft package (fast). The Windows-Update
+#    feature install (Add-WindowsCapability) is NOT used: it often hangs for a long time.
+if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {
+    Say 'Installing the OpenSSH server (about 1 minute)...'
+    $rel = Invoke-RestMethod -TimeoutSec 60 'https://api.github.com/repos/PowerShell/Win32-OpenSSH/releases/latest'
+    $asset = $rel.assets | Where-Object { $_.name -match 'Win64.*\.msi$' } | Select-Object -First 1
+    if (-not $asset) { throw 'Could not find the OpenSSH package. Try again later.' }
+    $msi2 = Join-Path $env:TEMP 'openssh.msi'
+    Invoke-WebRequest -UseBasicParsing -TimeoutSec 600 $asset.browser_download_url -OutFile $msi2
+    Start-Process msiexec.exe -ArgumentList "/i `"$msi2`" /quiet /norestart" -Wait
+    Start-Sleep 3
 }
+if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) { throw 'OpenSSH did not install. Send a photo of this window to support.' }
 Start-Service sshd
 Set-Service sshd -StartupType Automatic
 
@@ -113,7 +122,7 @@ New-ItemProperty -Path 'HKLM:\SOFTWARE\OpenSSH' -Name DefaultShell -Value 'C:\Wi
 Restart-Service sshd
 
 # 4. Firewall: SSH from Tailscale addresses only
-Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue | Disable-NetFirewallRule
+Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -ne $RuleName -and ($_.DisplayName -match 'OpenSSH|sshd' -or $_.Name -match 'OpenSSH|sshd') } | Disable-NetFirewallRule
 Get-NetFirewallRule -DisplayName $RuleName -ErrorAction SilentlyContinue | Remove-NetFirewallRule
 New-NetFirewallRule -DisplayName $RuleName -Direction Inbound -Protocol TCP -LocalPort 22 -RemoteAddress '100.64.0.0/10' -Action Allow -Profile Any | Out-Null
 
