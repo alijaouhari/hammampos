@@ -194,6 +194,22 @@ test('in-person preview: cash after cancelling includes the shortage that disapp
   } finally { cleanup(s); }
 });
 
+test('money history lists refunds but not every ticket sale', async () => {
+  const { s, m, at } = await setup();
+  try {
+    m.setRefundsEnabled(true);
+    const c = s.addCategory('y', 20);
+    at(new Date());
+    const t1 = s.createTicket(c);
+    s.createTicket(c);
+    s.createTicket(c);
+    assert.equal(m.refundTicket(t1.id, 'x').success, true);
+    const h = m.getHistory();
+    assert.equal(h.filter(x => x.entity === 'tickets' && x.action === 'CREATE').length, 0);
+    assert.equal(h.filter(x => x.action === 'REFUND').length, 1);
+  } finally { cleanup(s); }
+});
+
 test('old-table delete hook removes the linked money expense with an audit copy', async () => {
   const { s, m, sell } = await setup();
   try {

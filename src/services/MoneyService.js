@@ -1250,6 +1250,7 @@ class MoneyService {
     const marks = entities.map(() => '?').join(',');
     const rows = this._rows(`SELECT id, action, entity, entity_id, details, timestamp FROM audit_log
       WHERE entity IN (${marks}) AND action <> 'DELETE_TICKET'
+        AND NOT (entity = 'tickets' AND action NOT IN ('REFUND', 'UNDO_REFUND'))
       ORDER BY id DESC LIMIT ?`, [...entities, limit]);
     return rows.map(r => {
       let parsed = null;
