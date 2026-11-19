@@ -22,12 +22,14 @@ const QWERTY_ROWS = [
   ['z', 'x', 'c', 'v', 'b', 'n', 'm']
 ];
 
-// Standard Arabic (AZERTY-position-independent) letters, digits row on top.
+// Standard Arabic letters; Western digits on top (the digits used on tickets and prices);
+// hamza forms and Arabic punctuation on the last row.
 const ARABIC_ROWS = [
-  ['١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩', '٠'],
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
   ['ض', 'ص', 'ث', 'ق', 'ف', 'غ', 'ع', 'ه', 'خ', 'ح', 'ج'],
   ['ش', 'س', 'ي', 'ب', 'ل', 'ا', 'ت', 'ن', 'م', 'ك'],
-  ['ظ', 'ط', 'ذ', 'د', 'ز', 'ر', 'و', 'ة', 'ى', 'ء']
+  ['ظ', 'ط', 'ذ', 'د', 'ز', 'ر', 'و', 'ة', 'ى', 'ء'],
+  ['أ', 'إ', 'آ', 'ؤ', 'ئ', '،', '؟', '.', '-', '/']
 ];
 
 const LAYOUTS = {

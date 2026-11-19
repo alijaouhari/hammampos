@@ -698,6 +698,20 @@
         #expense-edit-modal, #collection-edit-modal { z-index: 25150; }
         #expense-edit-modal .modal-actions, #collection-edit-modal .modal-actions { position: sticky; bottom: 0; background: #f8fafc; margin-top: 1rem; padding: 0.75rem 0; border-top: 1px solid #e5e7eb; z-index: 5; }
         .admin-stat-card-small .admin-stat-value { font-size: 1.4rem; }
+        /* Arabic on-screen keyboard */
+        .osk-icon { position: fixed; z-index: 2147482000; display: none; align-items: center; justify-content: center; padding: 0; border: 1px solid #c7d2fe; border-radius: 6px; background: #eef2ff; color: #3730a3; font-size: 15px; line-height: 1; cursor: pointer; }
+        .osk-icon:hover, .osk-icon-active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        input.osk-has-icon, textarea.osk-has-icon { padding-left: 2.3rem !important; }
+        #osk-panel { position: fixed; z-index: 2147483000; background: #1e293b; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); padding: 0 0.5rem 0.5rem; user-select: none; direction: rtl; }
+        #osk-panel[hidden] { display: none; }
+        .osk-head { display: flex; justify-content: space-between; align-items: center; color: #cbd5e1; font-size: 0.8rem; padding: 0.3rem 0.2rem; cursor: move; }
+        .osk-close { background: #475569; color: #fff; border: none; border-radius: 6px; width: 26px; height: 26px; font-size: 17px; cursor: pointer; }
+        .osk-row { display: flex; justify-content: center; gap: 3px; margin-top: 3px; }
+        .osk-key { min-width: 40px; height: 38px; padding: 0 0.4rem; border: none; border-radius: 8px; background: #f8fafc; color: #0f172a; font-size: 1.1rem; font-weight: 600; cursor: pointer; }
+        .osk-key:active { background: #c7d2fe; }
+        .osk-wide { min-width: 80px; font-size: 0.95rem; background: #cbd5e1; }
+        .osk-space { min-width: 220px; font-size: 0.95rem; }
+        .osk-enter { background: #4f46e5; color: #fff; }
         .day-money-summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; padding: 0.75rem 1.5rem; background: #ecfdf5; border-bottom: 1px solid #d1fae5; font-size: 0.92rem; }
         .day-money-summary span b { margin-right: 0.3rem; }
         .refunds-toggle { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; cursor: pointer; }
@@ -3016,7 +3030,18 @@
                     <p style="color:#6b7280; font-size:0.9rem; margin:0 0 0.75rem 0;">
                         عند التفعيل يستطيع البائع استرجاع تذكرة بعها اليوم قبل أقل من ساعتين، مع كتابة السبب. يصلك إشعار بكل استرجاع. يمكنك دائماً إلغاء أي استرجاع من تفاصيل اليوم.
                     </p>
-                    <label class="refunds-toggle"><input type="checkbox" id="settings-refunds-enabled"> السماح للبائع باسترجاع التذاكر</label>
+                    <div class="dashboard-toggle-row">
+                        <div class="dashboard-toggle-label">
+                            <span>السماح للبائع باسترجاع التذاكر</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="settings-refunds-enabled">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div id="refunds-needs-switchover" style="display:none; margin-top:0.6rem; padding:0.6rem 0.8rem; background:#fef3c7; color:#92400e; border-radius:6px; font-size:0.9rem;">
+                        ⚠ الاسترجاع يعمل فقط بعد تفعيل نظام المال الجديد. الخطوات: حصّل المال من شاشة التحصيل الحالية، ثم اضغط «تفعيل» في أعلى لوحة الإدارة.
+                    </div>
                 </div>
                 <div class="category-section">
                     <h4>سجل تعديلات المال</h4>
@@ -6409,10 +6434,20 @@
             }
         }
 
+        async function updateRefundsSwitchoverNote() {
+            const note = document.getElementById('refunds-needs-switchover');
+            const box = document.getElementById('settings-refunds-enabled');
+            if (!note || !box) return;
+            let switched = false;
+            try { switched = !!(await api.money.getBalances()).switchedOver; } catch (_) {}
+            note.style.display = box.checked && !switched ? 'block' : 'none';
+        }
+
         async function loadMoneyTab() {
             try {
                 const box = document.getElementById('settings-refunds-enabled');
                 if (box) box.checked = !!(await api.money.getRefundsEnabled());
+                await updateRefundsSwitchoverNote();
             } catch (e) { console.error(e); }
             await loadMoneyHistory();
         }
@@ -6541,6 +6576,9 @@
                     try {
                         const r = await api.money.setRefundsEnabled(want);
                         showToast(r && r.enabled ? 'تم تفعيل استرجاع التذاكر للبائع' : 'تم إيقاف استرجاع التذاكر', 'success');
+                        await updateRefundsSwitchoverNote();
+                        // A day already open on the main screen picks up the new setting right away.
+                        if (typeof refreshCurrentDayDetails === 'function') refreshCurrentDayDetails();
                     } catch (error) {
                         console.error(error);
                         box.checked = !want;
@@ -9581,6 +9619,237 @@
             }
         });
         
+        // ── Arabic on-screen keyboard (v2.8.30) ─────────────────────────────
+        // A small ⌨ button sits inside every Arabic text field (not numbers, dates,
+        // passwords or left-to-right technical fields). It opens a movable keyboard
+        // that types into that field. The physical keyboard keeps working as usual.
+        (function initArabicKeyboard() {
+            let OSK;
+            try {
+                OSK = require(require('path').join(__dirname, '..', 'services', 'OnScreenKeyboard.js'));
+            } catch (error) {
+                console.error('On-screen keyboard unavailable:', error.message);
+                return;
+            }
+            const SELECTOR = 'input[type="text"], input[type="search"], input:not([type]), textarea';
+            const icons = new Map();          // field -> its ⌨ button
+            let target = null;                // field the keyboard types into
+            let mode = 'ar';
+            let panel = null;
+
+            function eligible(el) {
+                if (!el || !el.matches || !el.matches(SELECTOR)) return false;
+                if (el.disabled || el.readOnly || el.hasAttribute('data-no-osk')) return false;
+                if (el.closest('#osk-panel')) return false;
+                return getComputedStyle(el).direction !== 'ltr';
+            }
+
+            // The field's rectangle if it is visible and not covered by another window.
+            function visibleRect(el) {
+                if (!document.contains(el)) return null;
+                const r = el.getBoundingClientRect();
+                if (r.width < 60 || r.height < 18) return null;
+                if (r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth) return null;
+                const x = r.left + 15, y = r.top + r.height / 2;
+                const hit = document.elementsFromPoint(x, y).find(e => !e.classList.contains('osk-icon'));
+                if (!hit || !(hit === el || el.contains(hit))) return null;
+                return r;
+            }
+
+            function iconFor(el) {
+                let b = icons.get(el);
+                if (b) return b;
+                b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'osk-icon';
+                b.textContent = '⌨';
+                b.title = 'لوحة المفاتيح العربية';
+                b.tabIndex = -1;
+                b.addEventListener('mousedown', (e) => e.preventDefault());
+                b.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (panel && !panel.hidden && target === el) { closePanel(); return; }
+                    target = el;
+                    el.focus();
+                    openPanel();
+                });
+                document.body.appendChild(b);
+                icons.set(el, b);
+                el.classList.add('osk-has-icon');
+                return b;
+            }
+
+            function place() {
+                document.querySelectorAll(SELECTOR).forEach(el => { if (eligible(el)) iconFor(el); });
+                icons.forEach((b, el) => {
+                    if (!document.contains(el)) { b.remove(); icons.delete(el); return; }
+                    const r = eligible(el) ? visibleRect(el) : null;
+                    if (!r) { b.style.display = 'none'; return; }
+                    const size = Math.min(28, r.height - 6);
+                    b.style.width = b.style.height = size + 'px';
+                    b.style.left = (r.left + 4) + 'px';
+                    b.style.top = (r.top + (r.height - size) / 2) + 'px';
+                    b.style.display = 'flex';
+                    b.classList.toggle('osk-icon-active', !!(panel && !panel.hidden && target === el));
+                });
+                // The field disappeared (window closed): close the keyboard too.
+                // Only when the field is really gone (its window closed), not while it is briefly covered or animating.
+                if (panel && !panel.hidden && target && (!document.contains(target) || target.getClientRects().length === 0)) closePanel();
+            }
+
+            let queued = false;
+            function schedule() {
+                if (queued) return;
+                queued = true;
+                requestAnimationFrame(() => { queued = false; place(); });
+            }
+
+            function press(key) {
+                if (!target || !document.contains(target)) return;
+                target.focus();
+                const multiline = target.tagName === 'TEXTAREA';
+                let selStart = target.value.length, selEnd = selStart;
+                try { selStart = target.selectionStart; selEnd = target.selectionEnd; } catch (_) {}
+                const st = OSK.applyKey({ value: target.value, selStart, selEnd }, key, { multiline });
+                if (st.submit) {
+                    target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+                    target.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', bubbles: true }));
+                    return;
+                }
+                target.value = st.value;
+                try { target.setSelectionRange(st.selStart, st.selEnd); } catch (_) {}
+                target.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            function key(label, value, cls) {
+                const k = document.createElement('button');
+                k.type = 'button';
+                k.className = 'osk-key' + (cls ? ' ' + cls : '');
+                k.textContent = label;
+                k.dataset.key = value;
+                return k;
+            }
+
+            function render() {
+                const body = panel.querySelector('.osk-body');
+                body.innerHTML = '';
+                OSK.getLayout(mode).forEach(row => {
+                    const r = document.createElement('div');
+                    r.className = 'osk-row';
+                    row.forEach(ch => r.appendChild(key(ch, ch)));
+                    body.appendChild(r);
+                });
+                const last = document.createElement('div');
+                last.className = 'osk-row';
+                last.appendChild(key(mode === 'ar' ? 'EN' : 'ع', '__switch', 'osk-wide'));
+                last.appendChild(key('مسافة', 'Space', 'osk-space'));
+                last.appendChild(key('⌫ حذف', 'Backspace', 'osk-wide'));
+                last.appendChild(key('↵ إدخال', 'Enter', 'osk-wide osk-enter'));
+                body.appendChild(last);
+            }
+
+            function buildPanel() {
+                panel = document.createElement('div');
+                panel.id = 'osk-panel';
+                panel.hidden = true;
+                panel.innerHTML = '<div class="osk-head"><span>⌨ لوحة المفاتيح — اسحب من هنا لتحريكها</span><button type="button" class="osk-close" title="إغلاق">×</button></div><div class="osk-body"></div>';
+                document.body.appendChild(panel);
+                // Keep the focus (and caret) in the field while using the keyboard.
+                panel.addEventListener('mousedown', (e) => { if (!e.target.closest('.osk-head') || e.target.closest('.osk-close')) e.preventDefault(); });
+                panel.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (e.target.closest('.osk-close')) { closePanel(); return; }
+                    const k = e.target.closest('.osk-key');
+                    if (!k) return;
+                    if (k.dataset.key === '__switch') { mode = OSK.nextLayout(mode); render(); return; }
+                    press(k.dataset.key);
+                });
+                // Drag by the header
+                const head = panel.querySelector('.osk-head');
+                head.addEventListener('mousedown', (e) => {
+                    if (e.target.closest('.osk-close')) return;
+                    e.preventDefault();
+                    const r = panel.getBoundingClientRect();
+                    const dx = e.clientX - r.left, dy = e.clientY - r.top;
+                    const move = (ev) => {
+                        const x = Math.max(0, Math.min(window.innerWidth - r.width, ev.clientX - dx));
+                        const y = Math.max(0, Math.min(window.innerHeight - 40, ev.clientY - dy));
+                        panel.style.left = x + 'px';
+                        panel.style.top = y + 'px';
+                    };
+                    const up = () => {
+                        document.removeEventListener('mousemove', move);
+                        document.removeEventListener('mouseup', up);
+                        try { localStorage.setItem('osk-pos', JSON.stringify({ left: panel.style.left, top: panel.style.top })); } catch (_) {}
+                    };
+                    document.addEventListener('mousemove', move);
+                    document.addEventListener('mouseup', up);
+                });
+                render();
+            }
+
+            const overlaps = (p, r) => p.top < r.bottom && p.bottom > r.top && p.left < r.right && p.right > r.left;
+
+            // Put the keyboard where it does not cover the field: the saved spot, else
+            // below the field, else above it, else at the bottom of the screen with the
+            // field scrolled into view above it.
+            function positionPanel() {
+                const w = panel.offsetWidth, h = panel.offsetHeight;
+                let r = target.getBoundingClientRect();
+                const left = Math.max(0, Math.min(window.innerWidth - w, r.left + r.width / 2 - w / 2));
+                let pos = null;
+                try { pos = JSON.parse(localStorage.getItem('osk-pos') || 'null'); } catch (_) {}
+                if (pos && pos.left) {
+                    panel.style.left = pos.left; panel.style.top = pos.top;
+                    if (!overlaps(panel.getBoundingClientRect(), r)) return;
+                }
+                if (r.bottom + 8 + h <= window.innerHeight) { panel.style.left = left + 'px'; panel.style.top = (r.bottom + 8) + 'px'; return; }
+                if (r.top - h - 8 >= 0) { panel.style.left = left + 'px'; panel.style.top = (r.top - h - 8) + 'px'; return; }
+                const top = Math.max(0, window.innerHeight - h);
+                panel.style.left = left + 'px';
+                panel.style.top = top + 'px';
+                // Scroll the field (inside its window) so it sits just above the keyboard.
+                const shift = r.bottom + 8 - top;
+                let box = target.parentElement;
+                while (box && box !== document.body && !(box.scrollHeight > box.clientHeight && /(auto|scroll)/.test(getComputedStyle(box).overflowY))) box = box.parentElement;
+                if (box && box !== document.body) box.scrollTop += shift;
+                else window.scrollBy(0, shift);
+            }
+
+            function openPanel() {
+                if (!panel) buildPanel();
+                panel.hidden = false;
+                positionPanel();
+                schedule();
+            }
+
+            function closePanel() {
+                if (panel) panel.hidden = true;
+                schedule();
+            }
+
+            // Typing goes to whichever Arabic field the seller taps next.
+            document.addEventListener('focusin', (e) => {
+                if (panel && !panel.hidden && eligible(e.target)) { target = e.target; schedule(); }
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && panel && !panel.hidden) { closePanel(); e.stopPropagation(); }
+            }, true);
+            window.addEventListener('scroll', schedule, true);
+            window.addEventListener('resize', schedule);
+            // Re-place the buttons when the page changes, ignoring our own button/panel
+            // updates (otherwise placing the buttons would trigger itself forever).
+            const ours = (n) => n && n.nodeType === 1 && (n.classList.contains('osk-icon') || n.id === 'osk-panel' || !!n.closest('#osk-panel'));
+            new MutationObserver((list) => {
+                if (list.some(m => !ours(m.target) && !(m.type === 'childList' && [...m.addedNodes, ...m.removedNodes].every(ours) && (m.addedNodes.length + m.removedNodes.length) > 0))) schedule();
+            }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+            setInterval(schedule, 500);
+            schedule();
+
+            window.__osk = { press, open: (el) => { target = el; el.focus(); openPanel(); }, close: closePanel, panel: () => panel, target: () => target };
+        })();
+
         // NOTE: The v2.8.17 global on-screen keyboard (header button + bottom panel)
         // was REJECTED and has been removed in v2.8.20. The replacement design
         // (a keyboard icon inside each input opening a separate resizable window)
