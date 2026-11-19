@@ -18,9 +18,11 @@ const PluginManager = require('../plugins/core/PluginManager');
 const LicenseManager = require('../plugins/core/LicenseManager');
 const CloudSync = require('../services/CloudSync');
 const UpdateManager = require('../services/UpdateManager');
+const MoneyService = require('../services/MoneyService');
 
 // Keep a global reference of the window object
 let mainWindow;
+let money;
 let setupWindow;
 let licenseWindow;
 let storage;
@@ -240,6 +242,11 @@ async function initializeApplication() {
     storage = new StorageManager();
     await storage.initialize();
     console.log('✅ Database loaded');
+
+    // Money system (tables are created on load; balances computed from records)
+    money = new MoneyService(storage);
+    storage.save();
+    console.log('✅ Money service ready' + (money.isSwitchedOver() ? '' : ' (not switched over yet)'));
     
     // Initialize Expense Templates
     try {
@@ -307,6 +314,8 @@ async function initializeServices() {
   
   // Initialize Scheduler
   scheduler = new SchedulerService(storage);
+    // Reports and the end-of-day record use the same cash in hand as the screens.
+    scheduler.getCashInHand = () => (money ? money.getBalances().cashInHand : storage.getCashInHand());
   try {
     scheduler.initialize();
     console.log('✅ Scheduler ready');
@@ -529,6 +538,9 @@ ipcMain.handle('storage:recordExpense', async (event, opts) => {
 
 // Pay a previously-unpaid expense exactly once. opts = { paidDate, paymentSource }.
 ipcMain.handle('storage:payExpense', (event, expenseId, opts) => {
+  if (money && money.isSwitchedOver()) {
+    return { success: false, error: 'دفع الفواتير غير المدفوعة متوفر في الخطوة التالية من نظام المال الجديد' };
+  }
   return storage.payExpense(expenseId, opts || {});
 });
 
@@ -542,6 +554,122 @@ ipcMain.handle('storage:getOutstandingExpenses', () => {
 
 ipcMain.handle('storage:getCashInHand', () => {
   return storage.getCashInHand();
+});
+
+// ── Money system ──────────────────────────────────────────────────────────
+ipcMain.handle('money:getBalances', () => {
+  if (!money) throw new Error('Money service not ready');
+  return money.getBalances();
+});
+
+// Admin only (the renderer calls it from the password-protected admin panel).
+ipcMain.handle('money:switchOver', () => {
+  return money.switchOver();
+});
+
+ipcMain.handle('money:getNotifications', (event, limit) => {
+  return money.getNotifications(limit || 100);
+});
+
+// Copy the old-table mirror of a new expense to backups/Excel/cloud (background,
+// same fields as before so the current dashboard keeps working).
+function mirrorNewExpense(mirrorExpenseId) {
+  const ex = mirrorExpenseId ? storage.getExpense(mirrorExpenseId) : null;
+  if (!ex) return;
+  const expense = {
+    id: ex.id, description: ex.description, amount: ex.amount, date: ex.date, time: ex.time,
+    paid: ex.paid, paid_date: ex.paid_date, payment_source: ex.payment_source
+  };
+  if (backupManager) backupManager.addExpense(expense).catch(err => console.error('backup addExpense failed:', err));
+  if (excelManager) excelManager.addExpense(expense).catch(err => console.error('excel addExpense failed:', err));
+  if (cloudSync) cloudSync.syncExpense(expense).catch(() => {});
+}
+
+// Copy the old-table mirror of a new collection to backups/Excel/cloud (background).
+function mirrorNewCollection(mirrorCollectionId) {
+  const row = mirrorCollectionId ? storage.getCollections().find(c => c.id === mirrorCollectionId) : null;
+  if (!row) return;
+  const collection = { id: row.id, amount: row.amount, notes: row.notes, date: row.date, time: row.time, timestamp: row.timestamp };
+  if (backupManager) backupManager.addCollection(collection).catch(err => console.error('backup addCollection failed:', err));
+  if (excelManager) excelManager.addCollection(collection).catch(err => console.error('excel addCollection failed:', err));
+  if (cloudSync) cloudSync.syncCollection(collection).catch(() => {});
+}
+
+// Seller debts (shortages) and late entries — manager decisions.
+ipcMain.handle('money:getSellerDebts', () => money.getSellerDebts());
+ipcMain.handle('money:markSellerRepayment', (event, amount, note) => money.markSellerRepayment(amount, note));
+ipcMain.handle('money:getLateEntries', (event, opts) => money.getLateEntries(opts || {}));
+ipcMain.handle('money:acceptLateEntry', (event, paymentId) => money.acceptLateEntry(paymentId));
+ipcMain.handle('money:rejectLateEntry', (event, paymentId) => money.rejectLateEntry(paymentId));
+
+// The manager's visit: period summary, then count + collect.
+ipcMain.handle('money:getPeriodSummary', () => {
+  return money.getPeriodSummary();
+});
+ipcMain.handle('money:collectInPerson', (event, opts) => {
+  const res = money.collectInPerson(opts || {});
+  if (res.success && res.collection) mirrorNewCollection(res.collection.mirror_collection_id);
+  return res;
+});
+
+// Deposits / transfers / paid on the manager's behalf. byManager=true from admin.
+ipcMain.handle('money:recordRemoteCollection', (event, opts, byManager) => {
+  const res = money.recordRemoteCollection({ ...(opts || {}), recordedBy: byManager ? 'manager' : 'seller' });
+  if (res.success) mirrorNewCollection(res.mirrorCollectionId);
+  return res;
+});
+ipcMain.handle('money:getCollections', (event, opts) => {
+  return money.getCollections(opts || {});
+});
+ipcMain.handle('money:cancelCollection', (event, id, reason) => {
+  return money.cancelCollection(id, reason);
+});
+
+// Refunds: seller refunds (same day, ≤ 2 hours); manager can undo.
+ipcMain.handle('money:refundTicket', (event, ticketId, reason) => {
+  return money.refundTicket(ticketId, reason);
+});
+ipcMain.handle('money:undoRefund', (event, ticketId) => {
+  return money.undoRefund(ticketId);
+});
+// Refund on/off switch (manager)
+ipcMain.handle('money:getRefundsEnabled', () => money.getRefundsEnabled());
+ipcMain.handle('money:setRefundsEnabled', (event, on) => money.setRefundsEnabled(!!on));
+// Manager edit / delete / history
+ipcMain.handle('money:getExpenseByMirror', (event, oldId) => money.getExpenseByMirror(oldId));
+ipcMain.handle('money:previewDeleteExpense', (event, oldId) => {
+  const e = money.getExpenseByMirror(oldId);
+  return e ? money.previewDeleteExpense(e.id) : { success: false, error: 'not-linked' };
+});
+ipcMain.handle('money:editExpense', (event, oldId, fields) => {
+  const e = money.getExpenseByMirror(oldId);
+  return e ? money.editExpense(e.id, fields) : { success: false, error: 'هذا المصروف قديم ولا يمكن تعديله هنا' };
+});
+ipcMain.handle('money:previewDeleteCollection', (event, oldId) => {
+  const c = money.getCollectionByMirror(oldId);
+  return c ? money.previewCancelCollection(c.id) : { success: false, error: 'not-linked' };
+});
+ipcMain.handle('money:editCollection', (event, id, fields) => money.editCollection(id, fields));
+ipcMain.handle('money:getHistory', (event, opts) => money.getHistory(opts || {}));
+ipcMain.handle('money:getDaySummary', (event, date) => money.getDaySummary(date));
+ipcMain.handle('money:getRefundStatusForDate', (event, date) => {
+  return money.getRefundStatusForDate(date);
+});
+
+ipcMain.handle('money:getBills', (event, opts) => {
+  return money.getBills(opts || {});
+});
+
+// source 'drawer' (seller or manager) | 'manager' (admin panel only: paid from pocket)
+ipcMain.handle('money:payBill', (event, expenseId, amount, source, byManager) => {
+  return money.payBill(expenseId, amount, source, { createdBy: byManager ? 'manager' : 'seller' });
+});
+
+// opts = { date, description, supplier, total, fromDrawer, restAs: 'unpaid'|'manager' }
+ipcMain.handle('money:recordExpense', (event, opts) => {
+  const res = money.recordExpense(opts || {});
+  if (res.success) mirrorNewExpense(res.mirrorExpenseId);
+  return res;
 });
 
 ipcMain.handle('storage:getLifetimeRevenue', () => {
@@ -590,7 +718,7 @@ ipcMain.handle('excel:rebuild', async () => {
   if (!excelManager || !storage) {
     return { error: 'Excel Manager or storage not initialized' };
   }
-  return await excelManager.rebuildFromDatabase(storage);
+  return await excelManager.rebuildFromDatabase(storage, money);
 });
 
 // Backup Manager status and operations
@@ -619,7 +747,7 @@ ipcMain.handle('backup:rebuild', async () => {
   if (!backupManager || !storage) {
     return { error: 'Backup Manager or storage not initialized' };
   }
-  return await backupManager.rebuildFromDatabase(storage);
+  return await backupManager.rebuildFromDatabase(storage, money);
 });
 
 // Clear all backups
@@ -720,15 +848,6 @@ ipcMain.handle('storage:getAvailableCollectionDays', (event, limit) => {
 });
 
 // Zakat tracking (informational only — zero financial effect)
-ipcMain.handle('storage:getZakatSetAside', (event, collectionDayId) => {
-  return storage.getZakatSetAside(collectionDayId);
-});
-ipcMain.handle('storage:setZakatSetAside', (event, collectionDayId, setAside) => {
-  return storage.setZakatSetAside(collectionDayId, setAside);
-});
-ipcMain.handle('storage:getZakatHistory', () => {
-  return storage.getZakatHistory();
-});
 ipcMain.handle('storage:getZakatVisibility', () => {
   return storage.getZakatVisibility();
 });
@@ -888,12 +1007,14 @@ ipcMain.handle('storage:deleteTicket', async (event, ticketId) => {
 
 ipcMain.handle('storage:deleteExpense', async (event, expenseId) => {
   const deletedExpense = storage.deleteExpense(expenseId);
+  if (money) money.onMirrorExpenseDeleted(expenseId);
   // Note: Deleted expenses are not removed from backups for audit trail
   return deletedExpense;
 });
 
 ipcMain.handle('storage:deleteCollection', async (event, collectionId) => {
   const deletedCollection = storage.deleteCollection(collectionId);
+  if (money) money.onMirrorCollectionDeleted(collectionId);
   // Note: Deleted collections are not removed from backups for audit trail
   return deletedCollection;
 });
@@ -1046,6 +1167,12 @@ ipcMain.handle('wood:deleteSeller', (event, id) => {
 
 ipcMain.handle('wood:recordPurchase', (event, opts) => {
   if (!expenseTemplates) return { success: false, error: 'غير متاح' };
+  // New money system: wood follows the same drawer-split rules as any expense.
+  if (money && money.isSwitchedOver()) {
+    const res = money.recordWoodPurchase(expenseTemplates, opts || {});
+    if (res.success) mirrorNewExpense(res.mirrorExpenseId);
+    return res;
+  }
   // recordWoodPurchase persists the row synchronously (storage.save() writes the
   // DB file) BEFORE we return, so the purchase is durable immediately.
   const result = expenseTemplates.recordWoodPurchase(opts);
@@ -1072,6 +1199,9 @@ ipcMain.handle('wood:recordPurchase', (event, opts) => {
 
 ipcMain.handle('wood:payPurchase', (event, woodId, paidDate) => {
   if (!expenseTemplates) return { success: false, error: 'غير متاح' };
+  if (money && money.isSwitchedOver()) {
+    return { success: false, error: 'دفع الفواتير غير المدفوعة متوفر في الخطوة التالية من نظام المال الجديد' };
+  }
   const result = expenseTemplates.payWoodPurchase(woodId, paidDate);
   if (!result.success) return result;
   // Background mirroring (non-blocking) — same reasoning as recordPurchase.
@@ -1118,6 +1248,8 @@ ipcMain.handle('wood:getByType', (event) => {
 ipcMain.handle('storage:clearAllData', async () => {
   // Clear data from database
   const result = storage.clearAllData();
+  // New money system records go too, otherwise cash in hand would stay negative.
+  if (money) { money.clearMoneyData(); storage.save(); }
   
   // Also clear backup files
   if (backupManager) {

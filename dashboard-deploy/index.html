@@ -87,6 +87,7 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 <div class="header">
 <h1>HammamPOS <span class="live-dot"></span></h1>
 <div class="header-btns">
+<button onclick="showDownload()">⬇ تحميل التطبيق</button>
 <button onclick="showSettings()">⚙️ إعدادات</button>
 <button onclick="logout()">خروج</button>
 </div>
@@ -103,6 +104,27 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 <div class="summary-cards" id="detail-summary"></div>
 <h3 style="margin:1rem 0">تذاكر اليوم</h3>
 <table class="tickets-table"><thead><tr><th>#</th><th>الفئة</th><th>السعر</th><th>الوقت</th></tr></thead><tbody id="tickets-body"></tbody></table>
+</div>
+<div id="download-view" style="display:none">
+<button class="back-btn" onclick="showLocations()">← العودة</button>
+<h2 style="margin-bottom:1rem">⬇ تحميل HammamPOS</h2>
+<div class="settings-section">
+<h3>آخر نسخة</h3>
+<p id="dl-version" style="margin-bottom:0.75rem;color:#334155">جاري البحث عن آخر نسخة...</p>
+<a id="dl-link" href="https://github.com/alijaouhari/hammampos/releases/latest" target="_blank" rel="noopener" style="display:inline-block;background:#2563eb;color:white;padding:0.7rem 1.4rem;border-radius:8px;text-decoration:none;font-weight:700">تحميل التطبيق (Windows)</a>
+<p id="dl-size" style="margin-top:0.5rem;color:#64748b;font-size:0.9rem"></p>
+</div>
+<div class="settings-section">
+<h3>طريقة التثبيت على جهاز جديد</h3>
+<ol style="padding-right:1.2rem;line-height:2;color:#334155">
+<li>حمّل الملف من الزر أعلاه (ملف zip).</li>
+<li>انقر عليه بالزر الأيمن واختر «استخراج الكل» إلى مجلد مثل C:\HammamPOS.</li>
+<li>افتح المجلد وشغّل HammamPOS.exe. يمكنك إنشاء اختصار على سطح المكتب.</li>
+<li>عند أول تشغيل: أدخل اسم الحمام، الفئات والأسعار، ثم كلمة مرور الإدارة.</li>
+<li>لربط الجهاز بهذه اللوحة: الإعدادات ← السحابة، وأدخل بيانات الربط.</li>
+</ol>
+<p style="color:#64748b;font-size:0.9rem">إذا ظهر تحذير ويندوز SmartScreen: اختر «مزيد من المعلومات» ثم «تشغيل على أي حال».</p>
+</div>
 </div>
 <div id="settings-view" style="display:none">
 <button class="back-btn" onclick="showLocations()">← العودة</button>
@@ -232,6 +254,7 @@ async function showDetail(id){
   const loc=locations.find(l=>l.id===id);
   document.getElementById('locations-view').classList.add('hidden');
   document.getElementById('settings-view').style.display='none';
+  document.getElementById('download-view').style.display='none';
   document.getElementById('detail-view').style.display='block';
   document.getElementById('detail-title').textContent=loc.name;
   const today=new Date().toISOString().split('T')[0];
@@ -250,13 +273,36 @@ function showLocations(){
   document.getElementById('locations-view').classList.remove('hidden');
   document.getElementById('detail-view').style.display='none';
   document.getElementById('settings-view').style.display='none';
+  document.getElementById('download-view').style.display='none';
   loadDashboard();
+}
+
+async function showDownload(){
+  document.getElementById('locations-view').classList.add('hidden');
+  document.getElementById('detail-view').style.display='none';
+  document.getElementById('settings-view').style.display='none';
+  document.getElementById('download-view').style.display='block';
+  const v=document.getElementById('dl-version'),a=document.getElementById('dl-link'),sz=document.getElementById('dl-size');
+  try{
+    const r=await fetch('https://api.github.com/repos/alijaouhari/hammampos/releases/latest');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const rel=await r.json();
+    const asset=(rel.assets||[]).find(x=>/\.zip$/i.test(x.name));
+    if(!asset)throw new Error('no asset');
+    a.href=asset.browser_download_url;
+    v.textContent='النسخة '+rel.tag_name.replace(/^v/,'')+' — '+new Date(rel.published_at).toLocaleDateString('ar-MA');
+    sz.textContent='الحجم: '+Math.round(asset.size/1048576)+' ميغابايت';
+  }catch(e){
+    v.textContent='تعذّر قراءة رقم آخر نسخة. الزر يفتح صفحة التحميل على GitHub.';
+    sz.textContent='';
+  }
 }
 
 async function showSettings(){
   document.getElementById('locations-view').classList.add('hidden');
   document.getElementById('detail-view').style.display='none';
   document.getElementById('settings-view').style.display='block';
+  document.getElementById('download-view').style.display='none';
   const{data:locs}=await sb.from('locations').select('*');
   let html='';
   for(const loc of locs||[]){html+='<div class="loc-item"><span>'+loc.name+'</span><button class="btn-red" onclick="deleteLocation(\''+loc.id+'\',\''+loc.name+'\')">حذف</button></div>';}

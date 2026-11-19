@@ -59,7 +59,7 @@ class SchedulerService {
         const today = new Date().toISOString().split('T')[0];
         
         // Get today's data
-        const tickets = await this.storage.getTicketsForDate(today);
+        const tickets = (await this.storage.getTicketsForDate(today)).filter(t => !t.refunded_at);
         const expenses = await this.storage.getExpensesForDate(today);
         
         // Calculate totals
@@ -83,7 +83,7 @@ class SchedulerService {
         });
         
         const netRevenue = totalRevenue - totalExpenses;
-        const cashInHand = this.storage.getCashInHand();
+        const cashInHand = this.getCashInHand ? this.getCashInHand() : this.storage.getCashInHand();
         
         // Create daily summary record
         const summaryData = {
@@ -209,7 +209,7 @@ class SchedulerService {
         const today = new Date().toISOString().split('T')[0];
         
         // Get today's data
-        const tickets = await this.storage.getTicketsForDate(today);
+        const tickets = (await this.storage.getTicketsForDate(today)).filter(t => !t.refunded_at);
         const expenses = await this.storage.getExpensesForDate(today);
         
         // Generate report
@@ -262,7 +262,7 @@ class SchedulerService {
     });
     
     const netRevenue = totalRevenue - totalExpenses;
-    const cashInHand = this.storage.getCashInHand();
+    const cashInHand = this.getCashInHand ? this.getCashInHand() : this.storage.getCashInHand();
     
     return {
       date,

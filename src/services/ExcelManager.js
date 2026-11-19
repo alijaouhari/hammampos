@@ -702,7 +702,7 @@ class ExcelManager {
   /**
    * Rebuild Excel from database - complete mirror
    */
-  async rebuildFromDatabase(storage) {
+  async rebuildFromDatabase(storage, money = null) {
     if (!this.isInitialized) {
       await this.initialize();
     }
@@ -739,6 +739,8 @@ class ExcelManager {
       await this.rebuildExpenses(storage);
       await this.rebuildCollections(storage);
       await this.rebuildChangeFloat(storage);
+      if (money) this.rebuildMoneySheets(money.exportData());
+      await this.save();
       // Note: Other tables (audit_log, daily_summary, etc.) would need similar methods
       
       console.log('✅ Excel rebuilt from database');
@@ -844,6 +846,67 @@ class ExcelManager {
       ];
       sheet.addRow(row);
     });
+  }
+
+  /**
+   * New money system sheets (expenses with how they were paid, collections, seller
+   * debts, refunds). Recreated from scratch on every rebuild.
+   */
+  rebuildMoneySheets(data) {
+    const make = (name, headers, rows, widths) => {
+      const old = this.workbook.getWorksheet(name);
+      if (old) this.workbook.removeWorksheet(old.id);
+      const sheet = this.workbook.addWorksheet(name, { properties: { rightToLeft: true } });
+      sheet.addRow(headers);
+      const h = sheet.getRow(1);
+      h.font = { bold: true, color: { argb: 'FFFFFF' } };
+      h.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '7C3AED' } };
+      h.alignment = { horizontal: 'center', vertical: 'middle' };
+      sheet.columns = widths.map(w => ({ width: w }));
+      sheet.views = [{ state: 'frozen', ySplit: 1 }];
+      rows.forEach(r => sheet.addRow(r));
+    };
+    const who = (x) => (x === 'manager' ? 'المدير' : 'البائع');
+    const src = (x) => (x === 'manager' ? 'من جيب المدير' : 'من الصندوق');
+    const late = (x) => ({ pending: 'قيد المراجعة', accepted: 'مقبول', rejected: 'مرفوض' }[x] || '');
+    const types = { in_person: 'تحصيل شخصي', bank: 'إيداع بنكي', transfer: 'تحويل', on_behalf: 'دفع نيابة عنك' };
+
+    make('مصاريف (النظام الجديد)',
+      ['المعرف', 'التاريخ', 'الوصف', 'المورد', 'المبلغ الإجمالي', 'المدفوع', 'المتبقي', 'سجّله', 'وقت التسجيل'],
+      data.expenses.map(e => {
+        const paid = e.payments.filter(p => !p.late_status || p.late_status === 'accepted').reduce((a, p) => a + p.amount, 0);
+        return [e.id, e.date, e.description, e.supplier || '', e.total, paid, Math.max(e.total - paid, 0), who(e.created_by), e.created_at];
+      }),
+      [8, 12, 28, 16, 14, 12, 12, 10, 20]);
+
+    make('دفعات المصاريف',
+      ['المعرف', 'رقم المصروف', 'التاريخ', 'المبلغ', 'مصدر الدفع', 'إدخال متأخر', 'سجّله', 'وقت التسجيل'],
+      data.payments.map(p => [p.id, p.expense_id, p.date, p.amount, src(p.source), late(p.late_status), who(p.created_by), p.created_at]),
+      [8, 12, 12, 12, 16, 14, 10, 20]);
+
+    make('تحصيل (النظام الجديد)',
+      ['المعرف', 'النوع', 'المبلغ', 'المتوقع', 'المعدود', 'الفرق', 'تسديد للمدير', 'ربح', 'المرجع', 'المستلم', 'ملاحظة', 'سجّلها', 'الحالة', 'وقت التسجيل'],
+      data.collections.map(c => [c.id, types[c.type] || c.type, c.amount,
+        c.expected == null ? '' : c.expected, c.counted == null ? '' : c.counted,
+        c.expected == null || c.counted == null ? '' : Math.round((c.counted - c.expected) * 100) / 100,
+        c.repayment_part, c.profit_part, c.reference || '', c.recipient || '', c.note || '', who(c.recorded_by),
+        c.cancelled_at ? 'ملغاة: ' + (c.cancel_reason || '') : 'سارية', c.created_at]),
+      [8, 16, 12, 12, 12, 10, 14, 10, 14, 14, 20, 10, 22, 20]);
+
+    make('ديون البائع',
+      ['النوع', 'المبلغ', 'ملاحظة', 'الوقت'],
+      [
+        ...data.sellerDebts.map(d => ['نقص في العد', d.amount, d.note || '', d.created_at]),
+        ...data.sellerDebtPayments.map(d => ['تسديد من البائع', -d.amount, d.note || '', d.created_at]),
+        ...data.corrections.filter(c => c.type === 'late_entry_accepted').map(c => ['إدخال متأخر مقبول', -c.amount, c.note || '', c.created_at]),
+        ...data.corrections.filter(c => c.type === 'unexplained_surplus').map(c => ['زيادة غير مبررة', c.amount, c.note || '', c.created_at])
+      ],
+      [20, 12, 30, 20]);
+
+    make('تذاكر مسترجعة',
+      ['المعرف', 'التذكرة', 'الفئة', 'السعر', 'تاريخ البيع', 'وقت الاسترجاع', 'السبب'],
+      data.refundedTickets.map(t => [t.id, t.serial_number + '/' + t.year, t.category_name, t.price, t.date, t.refunded_at, t.refund_reason || '']),
+      [8, 12, 14, 10, 12, 20, 30]);
   }
 
   /**

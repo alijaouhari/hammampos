@@ -670,7 +670,7 @@ class BackupManager {
   /**
    * Rebuild all backups from database
    */
-  async rebuildFromDatabase(storage) {
+  async rebuildFromDatabase(storage, money = null) {
     try {
       console.log('🔄 Rebuilding backups from database...');
       
@@ -703,6 +703,10 @@ class BackupManager {
         await this.addFloatOperation(op);
       }
       
+      if (money) {
+        fs.writeFileSync(path.join(this.backupDir, 'money.json'), JSON.stringify(money.exportData(), null, 2), 'utf8');
+      }
+
       console.log('✅ Backups rebuilt from database');
       return { 
         success: true, 

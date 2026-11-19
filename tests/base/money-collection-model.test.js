@@ -30,8 +30,8 @@ after(() => cleanupAll());
 
 function today() { return new Date().toISOString().split('T')[0]; }
 function dateStr(n) {
-  // n days from a fixed epoch to produce deterministic past dates
-  const d = new Date('2026-09-01');
+  // n days from 25 days ago (always inside the 60-day collection window)
+  const d = new Date(Date.now() - 25 * 86400000);
   d.setDate(d.getDate() + n);
   return d.toISOString().split('T')[0];
 }

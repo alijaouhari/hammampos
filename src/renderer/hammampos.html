@@ -121,6 +121,10 @@
             display: flex;
             justify-content: space-around;
             align-items: center;
+            /* Above the sticky table headers (z-index 20/30) so the cash bar is never
+               covered while scrolling; below the admin panel (2000) and modals (25000+). */
+            z-index: 100;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
             position: fixed;
             bottom: 0;
             left: 0;
@@ -613,6 +617,112 @@
         .modal-dismiss-hidden {
             display: none !important;
         }
+
+        /* New money system switch-over banner (admin) */
+        .money-switchover-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            background: #fffbeb;
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .money-switchover-banner p { margin: 0.4rem 0 0 0; color: #92400e; line-height: 1.7; }
+
+        /* "How was it paid?" box (expense + wood forms) */
+        .pay-split-box {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 10px;
+            padding: 0.9rem 1rem;
+            margin-top: 0.5rem;
+        }
+        .pay-split-cash { color: #0369a1; margin-bottom: 0.6rem; }
+        .pay-split-rest { font-size: 1.05rem; margin: 0.25rem 0 0.35rem 0; }
+        .pay-split-after { font-size: 1.05rem; margin: 0 0 0.6rem 0; color: #047857; }
+        .pay-split-error { color: #dc2626; display: block; margin-top: 0.3rem; }
+        .pay-split-choice { display: flex; flex-direction: column; gap: 0.5rem; }
+        .pay-split-choice label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 600; }
+        .pay-split-choice input[type="radio"] { width: auto; margin: 0; }
+
+        /* Money windows: the action button stays pinned to the bottom edge, so it is
+           always visible without scrolling the window. */
+        #collect-modal .modal-actions,
+        #remote-collection-modal .modal-actions,
+        #cancel-collection-modal .modal-actions,
+        #pay-bill-modal .modal-actions,
+        #refund-modal .modal-actions {
+            position: sticky;
+            bottom: 0;
+            background: #f8fafc;
+            margin-top: 1rem;
+            padding: 0.75rem 0;
+            border-top: 1px solid #e5e7eb;
+            z-index: 5;
+        }
+
+        /* Late entries / seller debts */
+        .late-box { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 0.6rem 0.8rem; margin: 0.5rem 0; font-size: 0.9rem; line-height: 1.7; }
+        #seller-repay-modal { z-index: 25150; }
+        #seller-repay-modal .modal-actions { position: sticky; bottom: 0; background: #f8fafc; margin-top: 1rem; padding: 0.75rem 0; border-top: 1px solid #e5e7eb; z-index: 5; }
+        .late-pending { color: #d97706; font-weight: 600; }
+        .late-accepted { color: #059669; font-weight: 600; }
+        .late-rejected { color: #dc2626; font-weight: 600; }
+        .late-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+        /* In-person collection */
+        #collect-modal { z-index: 25050; }
+        .collect-period { color: #6b7280; margin: 0 0 0.75rem 0; font-size: 0.95rem; }
+        .collect-lines { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; margin-bottom: 0.75rem; }
+        .collect-line { display: flex; justify-content: space-between; gap: 1rem; padding: 0.55rem 0.9rem; border-bottom: 1px solid #f1f5f9; background: #fff; }
+        .collect-line:last-child { border-bottom: none; }
+        .collect-line .sign-plus { color: #059669; font-weight: 700; }
+        .collect-line .sign-minus { color: #dc2626; font-weight: 700; }
+        .collect-line small { color: #6b7280; display: block; }
+        .collect-detail { background: #f9fafb; padding: 0.35rem 0.9rem 0.5rem 0.9rem; font-size: 0.82rem; color: #4b5563; border-bottom: 1px solid #f1f5f9; }
+        .collect-detail div { display: flex; justify-content: space-between; padding: 0.1rem 0; }
+        .collect-expected { display: flex; justify-content: space-between; align-items: center; background: #ecfdf5; border: 2px solid #10b981; border-radius: 10px; padding: 0.8rem 1rem; font-size: 1.1rem; margin-bottom: 0.75rem; }
+        .collect-expected strong { font-size: 1.5rem; color: #047857; }
+        .collect-forgot { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; color: #6b7280; font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .collect-diff { font-weight: 700; margin: 0.25rem 0 0.5rem 0; min-height: 1.5rem; }
+        .collect-diff.ok { color: #059669; }
+        .collect-diff.short { color: #dc2626; }
+        .collect-diff.over { color: #d97706; }
+        .collect-split { color: #374151; font-size: 0.9rem; margin-bottom: 0.5rem; line-height: 1.8; }
+
+        /* Deposits / transfers */
+        #remote-collection-modal, #cancel-collection-modal { z-index: 25150; }
+        #expense-edit-modal, #collection-edit-modal { z-index: 25150; }
+        #expense-edit-modal .modal-actions, #collection-edit-modal .modal-actions { position: sticky; bottom: 0; background: #f8fafc; margin-top: 1rem; padding: 0.75rem 0; border-top: 1px solid #e5e7eb; z-index: 5; }
+        .admin-stat-card-small .admin-stat-value { font-size: 1.4rem; }
+        .day-money-summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; padding: 0.75rem 1.5rem; background: #ecfdf5; border-bottom: 1px solid #d1fae5; font-size: 0.92rem; }
+        .day-money-summary span b { margin-right: 0.3rem; }
+        .refunds-toggle { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; cursor: pointer; }
+        .refunds-toggle input { width: 1.3rem; height: 1.3rem; margin: 0; }
+        .collection-cancelled td { color: #9ca3af; }
+        .collection-cancelled td:not(:last-child) { text-decoration: line-through; }
+
+        /* Refunds */
+        tr.ticket-refunded td:not(:last-child) { text-decoration: line-through; color: #9ca3af; }
+        .refund-badge { display: inline-block; background: #fee2e2; color: #b91c1c; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 6px; font-size: 0.8rem; }
+        .refund-reason { color: #6b7280; font-size: 0.78rem; margin: 0.2rem 0; text-decoration: none; }
+        .refund-btn { padding: 0.2rem 0.6rem !important; font-size: 0.78rem !important; }
+        .refund-quick { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+        .refund-quick .btn { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+        #refund-modal { z-index: 25150; }
+
+        /* Bills */
+        .pay-bill-info { display: grid; gap: 0.35rem; margin-bottom: 0.75rem; }
+        .pay-bill-info span { color: #6b7280; }
+        .bills-table tbody tr { cursor: default; }
+        .bills-table tbody tr:hover { transform: none; }
+        .bill-status-partial { color: #d97706; font-weight: 600; }
+        .bill-status-unpaid { color: #dc2626; font-weight: 600; }
+        .bill-status-paid { color: #059669; font-weight: 600; }
+        #pay-bill-modal { z-index: 25150; }
 
         /* Settings tabs */
         .settings-tabs {
@@ -1360,6 +1470,7 @@
             <h1 id="hammam-name">حمام جديد</h1>
             <div class="header-actions">
                 <button id="add-expense-btn" class="btn btn-warning">إضافة مصروف</button>
+                <button id="remote-collection-btn" class="btn btn-info" style="display:none;">💸 إيداع / تحويل</button>
                 <button id="header-update-btn" class="btn btn-secondary" data-state="idle" title="التحقق من التحديثات">🔄 تحديث</button>
                 <button id="admin-btn" class="btn btn-success">إدارة</button>
             </div>
@@ -1454,12 +1565,37 @@
             </div>
         </div>
 
+        <!-- Unpaid bills (Teller view, new money system) -->
+        <div id="teller-bills-section" class="daily-summary-section" style="display: none;">
+            <div class="sticky-head"><h3>🧾 الفواتير غير المدفوعة</h3></div>
+            <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0; text-align: center;">
+                ما بقي دَيناً للموردين. ادفع أي جزء من الصندوق عندما يتوفر النقد.
+            </p>
+            <div class="summary-table-container">
+                <table class="summary-table bills-table">
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>المورد</th>
+                            <th>الوصف</th>
+                            <th>المبلغ</th>
+                            <th>المدفوع</th>
+                            <th>المتبقي</th>
+                            <th>إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teller-bills-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Day Details Section (Hidden by default) -->
         <div class="day-details-section" id="day-details" style="display: none;">
             <div class="details-header">
                 <h4 id="selected-day-title">تفاصيل اليوم</h4>
                 <button id="close-details" class="close-details-btn">×</button>
             </div>
+            <div class="day-money-summary" id="day-money-summary" style="display:none;"></div>
             <div style="display: flex; gap: 0.5rem; padding: 0.75rem 1.5rem; background: #f8fafc; border-bottom: 1px solid #e5e7eb;">
                 <button onclick="changeDayStatus(currentlyViewedDate, 'holiday')" class="btn" style="background: #3b82f6; color: white; padding: 0.4rem 1rem; font-size: 0.85rem;">عطلة</button>
                 <button onclick="changeDayStatus(currentlyViewedDate, 'repair')" class="btn" style="background: #dc2626; color: white; padding: 0.4rem 1rem; font-size: 0.85rem;">إصلاح</button>
@@ -1477,6 +1613,7 @@
                                         <th>الفئة</th>
                                         <th>السعر</th>
                                         <th>رقم التذكرة</th>
+                                        <th>إجراء</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sales-details-tbody">
@@ -1570,6 +1707,8 @@
                     <input type="date" id="expense-day">
                     <small style="color:#6b7280;">اختر التاريخ الذي وقع فيه المصروف فعلاً (يمكن اختيار يوم سابق).</small>
                 </div>
+                <!-- Old payment fields: used only before the new money system is activated. -->
+                <div id="expense-legacy-pay-group">
                 <div class="form-group">
                     <label for="expense-payment-status">حالة الدفع:</label>
                     <select id="expense-payment-status">
@@ -1583,6 +1722,36 @@
                         <option value="cash">نقد الصندوق (يُخصم من النقد)</option>
                         <option value="out_of_pocket">من الجيب الخاص (لا يُخصم من النقد)</option>
                     </select>
+                </div>
+                </div>
+
+                <!-- New money system: how was it paid? -->
+                <div id="expense-split-group" style="display: none;">
+                    <div class="form-group">
+                        <label for="expense-supplier">المورد / الجهة (اختياري):</label>
+                        <input type="text" id="expense-supplier" placeholder="مثال: السباك، الكهربائي...">
+                    </div>
+                    <div class="pay-split-box">
+                        <div class="pay-split-cash">النقد في الصندوق: <strong id="expense-cash-available">0</strong></div>
+                        <div class="form-group">
+                            <label for="expense-from-drawer">المبلغ المدفوع من الصندوق:</label>
+                            <input type="number" id="expense-from-drawer" step="0.01" min="0">
+                            <small id="expense-from-drawer-error" class="pay-split-error" style="display:none;"></small>
+                        </div>
+                        <div class="pay-split-rest">المتبقي من المبلغ (لم يُدفع من الصندوق): <strong id="expense-rest-amount">0</strong></div>
+                        <div class="pay-split-after">النقد في الصندوق بعد الدفع: <strong id="expense-cash-after">0</strong></div>
+                        <div id="expense-late-box" class="late-box" style="display:none;">
+                            <div id="expense-late-msg"></div>
+                            <div id="expense-late-ask" class="pay-split-choice" style="display:none; margin-top:0.5rem;">
+                                <label><input type="radio" name="expense-before-visit" value="1"> دُفع قبل زيارة المدير الأخيرة</label>
+                                <label><input type="radio" name="expense-before-visit" value="0" checked> دُفع بعد زيارة المدير الأخيرة</label>
+                            </div>
+                        </div>
+                        <div id="expense-rest-group" class="pay-split-choice" style="display:none;">
+                            <label><input type="radio" name="expense-rest-as" value="unpaid"> غير مدفوع (دين للمورد)</label>
+                            <label><input type="radio" name="expense-rest-as" value="manager"> دفعه المدير من جيبه</label>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -1679,6 +1848,8 @@
 
             <div class="category-section">
                 <h4>حالة الدفع</h4>
+                <!-- Old payment fields: used only before the new money system is activated. -->
+                <div id="wood-legacy-pay-group">
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                     <label style="display:flex; align-items:center; cursor:pointer;">
                         <input type="radio" name="wood-payment-status" value="paid" checked style="margin-left:0.5rem;"> مدفوع الآن
@@ -1688,6 +1859,29 @@
                     </label>
                 </div>
                 <small style="color:#6b7280;">غير المدفوع لا يخصم من النقد في الصندوق حتى يتم الدفع لاحقاً.</small>
+                </div>
+                <!-- New money system: how was it paid? -->
+                <div id="wood-split-group" class="pay-split-box" style="display:none;">
+                    <div class="pay-split-cash">النقد في الصندوق: <strong id="wood-cash-available">0</strong></div>
+                    <div class="form-group">
+                        <label for="wood-from-drawer">المبلغ المدفوع من الصندوق:</label>
+                        <input type="number" id="wood-from-drawer" step="0.01" min="0">
+                        <small id="wood-from-drawer-error" class="pay-split-error" style="display:none;"></small>
+                    </div>
+                    <div class="pay-split-rest">المتبقي من المبلغ (لم يُدفع من الصندوق): <strong id="wood-rest-amount">0</strong></div>
+                        <div class="pay-split-after">النقد في الصندوق بعد الدفع: <strong id="wood-cash-after">0</strong></div>
+                        <div id="wood-late-box" class="late-box" style="display:none;">
+                            <div id="wood-late-msg"></div>
+                            <div id="wood-late-ask" class="pay-split-choice" style="display:none; margin-top:0.5rem;">
+                                <label><input type="radio" name="wood-before-visit" value="1"> دُفع قبل زيارة المدير الأخيرة</label>
+                                <label><input type="radio" name="wood-before-visit" value="0" checked> دُفع بعد زيارة المدير الأخيرة</label>
+                            </div>
+                        </div>
+                    <div id="wood-rest-group" class="pay-split-choice" style="display:none;">
+                        <label><input type="radio" name="wood-rest-as" value="unpaid"> غير مدفوع (دين للمورد)</label>
+                        <label><input type="radio" name="wood-rest-as" value="manager"> دفعه المدير من جيبه</label>
+                    </div>
+                </div>
                 <div class="form-group" style="margin-top:0.75rem;">
                     <label for="wood-notes">ملاحظات (اختياري):</label>
                     <input type="text" id="wood-notes" placeholder="ملاحظات حول الشحنة...">
@@ -1705,6 +1899,203 @@
                 <div id="wood-purchases-table" style="max-height: 260px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px;">
                     <div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">جاري التحميل...</div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seller repays what he owes (new money system) -->
+    <div id="seller-repay-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>💼 تسديد من البائع</h3>
+            <p style="color:#374151; line-height:1.8; margin:0 0 0.75rem 0;">
+                يسلّمك البائع المبلغ مباشرة، فلا يتغيّر النقد في الصندوق. المتبقي عليه: <strong id="seller-repay-owed"></strong>
+            </p>
+            <div class="form-group">
+                <label for="seller-repay-amount">المبلغ المسدَّد:</label>
+                <input type="number" id="seller-repay-amount" step="0.01" min="0">
+                <small id="seller-repay-error" class="pay-split-error" style="display:none;"></small>
+            </div>
+            <div class="form-group">
+                <label for="seller-repay-note">ملاحظة (اختياري):</label>
+                <input type="text" id="seller-repay-note">
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="seller-repay-confirm" class="btn btn-success">تسجيل التسديد</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- In-person collection (new money system): period summary, count, collect -->
+    <div id="collect-modal" class="modal hidden">
+        <div class="modal-content category-modal-content">
+            <h3>💰 تحصيل المال (حضوري)</h3>
+            <p id="collect-period-label" class="collect-period"></p>
+
+            <div class="collect-lines" id="collect-lines"></div>
+
+            <div class="collect-expected">
+                <span>المتوقع في الصندوق حسب النظام:</span>
+                <strong id="collect-expected"></strong>
+            </div>
+
+            <div class="collect-forgot">
+                <span>نسي البائع تسجيل إيصال إيداع أو تحويل؟ أضفه قبل العدّ:</span>
+                <button type="button" id="collect-add-receipt" class="btn btn-secondary">➕ تسجيل إيصال</button>
+            </div>
+
+            <div class="pay-split-box">
+                <div class="form-group">
+                    <label for="collect-counted">المبلغ الذي عددته في الصندوق (نقد المبيعات فقط):</label>
+                    <input type="number" id="collect-counted" step="0.01" min="0" placeholder="0">
+                </div>
+                <div id="collect-diff" class="collect-diff"></div>
+                <div id="collect-split" class="collect-split"></div>
+                <div class="form-group">
+                    <label for="collect-note">ملاحظة (اختياري):</label>
+                    <input type="text" id="collect-note" placeholder="مثال: تحصيل الأسبوع">
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="collect-confirm" class="btn btn-success" disabled>تحصيل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deposit / transfer / paid on the manager's behalf (new money system) -->
+    <div id="remote-collection-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="remote-collection-title">💸 إيداع / تحويل للمدير</h3>
+            <div class="pay-split-choice" style="margin-bottom:0.9rem;">
+                <label><input type="radio" name="remote-type" value="bank" checked> إيداع بنكي</label>
+                <label><input type="radio" name="remote-type" value="transfer"> تحويل مالي (وكالة تحويل)</label>
+                <label><input type="radio" name="remote-type" value="on_behalf"> دفع لشخص نيابة عن المدير</label>
+            </div>
+            <div class="pay-split-box">
+                <div class="pay-split-cash">النقد في الصندوق: <strong id="remote-cash-available">0</strong></div>
+                <div class="pay-split-after">النقد في الصندوق بعد التسجيل: <strong id="remote-cash-after">0</strong></div>
+                <div class="form-group">
+                    <label for="remote-amount">المبلغ:</label>
+                    <input type="number" id="remote-amount" step="0.01" min="0">
+                    <small id="remote-amount-error" class="pay-split-error" style="display:none;"></small>
+                </div>
+                <div class="form-group" id="remote-recipient-group" style="display:none;">
+                    <label for="remote-recipient">اسم المستلم:</label>
+                    <input type="text" id="remote-recipient" placeholder="لمن دُفع المبلغ؟">
+                </div>
+                <div class="form-group">
+                    <label for="remote-reference">رقم الإيصال / المرجع (اختياري):</label>
+                    <input type="text" id="remote-reference" placeholder="الرقم المكتوب على الإيصال" style="direction:ltr; text-align:left;">
+                </div>
+                <div class="form-group">
+                    <label for="remote-note">ملاحظة (اختياري):</label>
+                    <input type="text" id="remote-note">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="remote-collection-submit" class="btn btn-success">تسجيل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cancel a collection (manager) -->
+    <div id="cancel-collection-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>✖️ إلغاء عملية</h3>
+            <p id="cancel-collection-info" style="color:#374151; line-height:1.8; margin:0 0 0.75rem 0;"></p>
+            <div class="form-group">
+                <label for="cancel-collection-reason">سبب الإلغاء:</label>
+                <input type="text" id="cancel-collection-reason" placeholder="مثال: لم يصل المبلغ إلى الحساب">
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="collection-cancel-confirm" class="btn" style="background:#dc2626; color:white;">تأكيد الإلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit an expense (manager) -->
+    <div id="expense-edit-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>✏️ تعديل مصروف</h3>
+            <p id="exp-edit-info" style="color:#374151; line-height:1.8; margin:0 0 0.75rem 0;"></p>
+            <div class="form-group"><label for="exp-edit-description">الوصف:</label><input type="text" id="exp-edit-description"></div>
+            <div class="form-group"><label for="exp-edit-supplier">المورد (اختياري):</label><input type="text" id="exp-edit-supplier"></div>
+            <div style="display:flex; gap:0.75rem;">
+                <div class="form-group" style="flex:1;"><label for="exp-edit-total">المبلغ الإجمالي:</label><input type="number" id="exp-edit-total" min="0" step="0.01" dir="ltr"></div>
+                <div class="form-group" style="flex:1;"><label for="exp-edit-date">التاريخ:</label><input type="date" id="exp-edit-date" dir="ltr"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="expense-edit-save" class="btn btn-primary">حفظ التعديل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit a collection's information (manager) -->
+    <div id="collection-edit-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>✏️ تعديل معلومات عملية</h3>
+            <p id="col-edit-info" style="color:#374151; line-height:1.8; margin:0 0 0.75rem 0;"></p>
+            <div class="form-group"><label for="col-edit-reference">المرجع:</label><input type="text" id="col-edit-reference"></div>
+            <div class="form-group"><label for="col-edit-recipient">المستلم:</label><input type="text" id="col-edit-recipient"></div>
+            <div class="form-group"><label for="col-edit-note">ملاحظة:</label><input type="text" id="col-edit-note"></div>
+            <div class="modal-actions">
+                <button type="button" id="collection-edit-save" class="btn btn-primary">حفظ التعديل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refund a ticket (new money system) -->
+    <div id="refund-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>↩️ استرجاع تذكرة</h3>
+            <div class="pay-bill-info">
+                <div><span>التذكرة:</span> <strong id="refund-ticket-info"></strong></div>
+                <div><span>المبلغ المرجَع للزبون:</span> <strong id="refund-ticket-amount" style="color:#dc2626;"></strong></div>
+            </div>
+            <p style="color:#6b7280; font-size:0.9rem; margin:0 0 0.75rem 0;">
+                يُسمح بالاسترجاع في نفس اليوم وخلال ساعتين من البيع. تبقى التذكرة مسجلة بعلامة «مسترجع» ويُخصم مبلغها من النقد.
+            </p>
+            <div class="form-group">
+                <label for="refund-reason">سبب الاسترجاع:</label>
+                <input type="text" id="refund-reason" placeholder="مثال: انقطاع الماء الساخن">
+                <div class="refund-quick">
+                    <button type="button" class="btn btn-secondary" data-reason="انقطاع الماء الساخن">انقطاع الماء الساخن</button>
+                    <button type="button" class="btn btn-secondary" data-reason="عطل في الحمام">عطل في الحمام</button>
+                    <button type="button" class="btn btn-secondary" data-reason="خطأ في البيع">خطأ في البيع</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="refund-submit" class="btn btn-warning">تأكيد الاسترجاع</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pay a bill (new money system) -->
+    <div id="pay-bill-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>🧾 دفع فاتورة</h3>
+            <div class="pay-bill-info">
+                <div><span>الوصف:</span> <strong id="pay-bill-description"></strong></div>
+                <div><span>المورد:</span> <strong id="pay-bill-supplier"></strong></div>
+                <div><span>المبلغ الإجمالي:</span> <strong id="pay-bill-total"></strong></div>
+                <div><span>المدفوع:</span> <strong id="pay-bill-paid"></strong></div>
+                <div><span>المتبقي:</span> <strong id="pay-bill-remaining" style="color:#dc2626;"></strong></div>
+            </div>
+            <div class="pay-split-box">
+                <div id="pay-bill-source-group" class="pay-split-choice" style="margin-bottom:0.75rem;">
+                    <label><input type="radio" name="pay-bill-source" value="drawer" checked> من الصندوق</label>
+                    <label><input type="radio" name="pay-bill-source" value="manager"> من جيبي (المدير)</label>
+                </div>
+                <div class="pay-split-cash" id="pay-bill-cash-line">النقد في الصندوق: <strong id="pay-bill-cash"></strong></div>
+                <div class="pay-split-after" id="pay-bill-after-line">النقد في الصندوق بعد الدفع: <strong id="pay-bill-after"></strong></div>
+                <div class="form-group">
+                    <label for="pay-bill-amount">المبلغ المدفوع الآن:</label>
+                    <input type="number" id="pay-bill-amount" step="0.01" min="0">
+                    <small id="pay-bill-error" class="pay-split-error" style="display:none;"></small>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="pay-bill-submit" class="btn btn-success">تسجيل الدفع</button>
             </div>
         </div>
     </div>
@@ -1734,12 +2125,32 @@
         </div>
         
         <div class="admin-content">
+            <!-- New money system: one-time switch-over (shown until done) -->
+            <div id="money-switchover-banner" class="money-switchover-banner" style="display:none;">
+                <div>
+                    <strong>💰 نظام المال الجديد جاهز للتفعيل</strong>
+                    <p>قم أولاً بتحصيل كل المال الموجود في الصندوق بالشاشة الحالية، ثم اضغط «تفعيل». بعد التفعيل يبدأ النقد في الصندوق من 0، ولا يمكن التراجع.</p>
+                </div>
+                <button type="button" id="money-switchover-btn" class="btn btn-primary">تفعيل</button>
+            </div>
             <!-- Admin Stats -->
             <div class="admin-stats">
                 <!-- النقد في الصندوق: clickable card opens the money-collection modal -->
                 <div class="admin-stat-card admin-stat-card-clickable" id="admin-cash-card" title="اضغط لتحصيل المال" role="button" tabindex="0">
                     <h3>النقد في الصندوق</h3>
                     <div class="admin-stat-value" id="admin-cash-in-hand">0 درهم</div>
+                </div>
+                <div class="admin-stat-card admin-stat-card-clickable admin-stat-card-small" id="admin-owed-suppliers-card" title="اضغط لعرض الفواتير غير المدفوعة" role="button" tabindex="0" style="display:none;">
+                    <h3>مستحق للموردين</h3>
+                    <div class="admin-stat-value" id="admin-owed-suppliers" style="color:#b45309;">0 درهم</div>
+                </div>
+                <div class="admin-stat-card admin-stat-card-clickable admin-stat-card-small" id="admin-owed-manager-card" title="اضغط لعرض الإيداعات والتسديدات" role="button" tabindex="0" style="display:none;">
+                    <h3>مستحق للمدير</h3>
+                    <div class="admin-stat-value" id="admin-owed-manager" style="color:#7c3aed;">0 درهم</div>
+                </div>
+                <div class="admin-stat-card admin-stat-card-clickable admin-stat-card-small" id="admin-owed-seller-card" title="اضغط لعرض ما على البائع" role="button" tabindex="0" style="display:none;">
+                    <h3>على البائع</h3>
+                    <div class="admin-stat-value" id="admin-owed-seller" style="color:#dc2626;">0 درهم</div>
                 </div>
                 <!-- Combined daily statistics box -->
                 <div class="admin-stat-card">
@@ -1834,8 +2245,8 @@
                 </div>
             </div>
 
-            <!-- Money Collections Table -->
-            <div class="admin-daily-summary">
+            <!-- Money Collections Table (old list: shown only before the switch-over) -->
+            <div class="admin-daily-summary" id="admin-old-collections-section">
                 <div class="sticky-head"><h3>💰 سجل تحصيل الأموال</h3></div>
                 <div class="summary-table-container">
                     <table class="summary-table" id="admin-collections-table">
@@ -1851,6 +2262,104 @@
                         <tbody id="admin-collections-tbody">
                             <!-- Collections will be populated here -->
                         </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Late entries (Admin, new money system) -->
+            <div class="admin-daily-summary" id="admin-late-section" style="display: none;">
+                <div class="sticky-head"><h3>🕒 إدخالات متأخرة</h3></div>
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0;">
+                    مدفوعات من الصندوق سجّلها البائع عن فترة أغلقتها بتحصيلك. لم تُخصم من الصندوق الآن. إذا قبلتها نقص ما على البائع بنفس المبلغ، وإذا رفضتها بقي النقص عليه.
+                </p>
+                <div class="summary-table-container">
+                    <table class="summary-table bills-table">
+                        <thead>
+                            <tr>
+                                <th>تاريخ المصروف</th>
+                                <th>سُجّل في</th>
+                                <th>الوصف</th>
+                                <th>المبلغ</th>
+                                <th>الحالة / إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-late-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Seller debts (Admin, new money system) -->
+            <div class="admin-daily-summary" id="admin-seller-section" style="display: none;">
+                <div class="sticky-head"><h3>💼 ما على البائع</h3></div>
+                <div class="collect-expected">
+                    <span>المتبقي على البائع:</span>
+                    <strong id="seller-owed">0</strong>
+                    <button type="button" id="seller-repay-open" class="btn btn-primary">تسجيل تسديد</button>
+                </div>
+                <div class="summary-table-container">
+                    <table class="summary-table bills-table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>الوقت</th>
+                                <th>النوع</th>
+                                <th>المبلغ</th>
+                                <th>ملاحظة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-seller-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Deposits / transfers (Admin, new money system) -->
+            <div class="admin-daily-summary" id="admin-remote-section" style="display: none;">
+                <div class="sticky-head"><h3>💸 سجل التحصيل (زيارات، إيداعات، تحويلات)</h3></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+                    <p style="color: #6b7280; font-size: 0.9rem; margin: 0;">
+                        كل ما خرج من الصندوق إليك: تحصيلك الشخصي، وما أرسله البائع (إيداع، تحويل، أو دفع نيابة عنك). «تسديد للمدير / ربح» يبيّن كم سدّد من دَينك وكم صار ربحاً. ألغِ أي عملية لم يصلك مبلغها، فيعود المبلغ إلى الصندوق.
+                    </p>
+                    <button type="button" id="admin-remote-add-btn" class="btn btn-primary">➕ تسجيل إيصال</button>
+                </div>
+                <div class="summary-table-container">
+                    <table class="summary-table bills-table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>الوقت</th>
+                                <th>النوع</th>
+                                <th>المبلغ</th>
+                                <th>التفاصيل</th>
+                                <th>سجّلها</th>
+                                <th>تسديد للمدير / ربح</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-remote-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Unpaid bills (Admin, new money system): pay from drawer or own pocket -->
+            <div class="admin-daily-summary" id="admin-bills-section" style="display: none;">
+                <div class="sticky-head"><h3>🧾 الفواتير غير المدفوعة</h3></div>
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0;">
+                    الديون للموردين. يمكنك دفع أي جزء من الصندوق أو من جيبك (يُسجَّل دَيناً لك على النشاط).
+                </p>
+                <div class="summary-table-container">
+                    <table class="summary-table bills-table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>المورد</th>
+                                <th>الوصف</th>
+                                <th>المبلغ</th>
+                                <th>المدفوع</th>
+                                <th>المتبقي</th>
+                                <th>إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-bills-tbody"></tbody>
                     </table>
                 </div>
             </div>
@@ -1882,12 +2391,36 @@
                 </div>
             </div>
 
+            <!-- Notification history (new money system). Delivery to the dashboard is
+                 activated later; for now they are only stored and listed here. -->
+            <div class="admin-daily-summary" id="admin-notifications-section">
+                <div class="sticky-head"><h3>🔔 سجل الإشعارات</h3></div>
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 0.75rem 0;">
+                    تُحفظ هنا الأحداث التي تخص الإدارة. سيتم إرسالها إلى لوحة المراقبة عند تفعيلها لاحقاً.
+                </p>
+                <div class="summary-table-container">
+                    <table class="summary-table" id="admin-notifications-table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>الوقت</th>
+                                <th>النوع</th>
+                                <th>التفاصيل</th>
+                                <th>الإرسال</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-notifications-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Admin Day Details Section (Same as main but with delete buttons) -->
             <div class="day-details-section" id="admin-day-details" style="display: none;">
                 <div class="details-header">
                     <h4 id="admin-selected-day-title">تفاصيل اليوم - وضع الإدارة</h4>
                     <button id="admin-close-details" class="close-details-btn">×</button>
                 </div>
+                <div class="day-money-summary" id="admin-day-money-summary" style="display:none;"></div>
                 <div id="day-status-controls" style="display: flex; gap: 0.5rem; padding: 0.75rem 1.5rem; background: #f8fafc; border-bottom: 1px solid #e5e7eb;">
                     <button onclick="changeDayStatus(currentAdminViewedDate, 'holiday')" class="btn" style="background: #3b82f6; color: white; padding: 0.4rem 1rem; font-size: 0.85rem;">عطلة</button>
                     <button onclick="changeDayStatus(currentAdminViewedDate, 'repair')" class="btn" style="background: #dc2626; color: white; padding: 0.4rem 1rem; font-size: 0.85rem;">إصلاح</button>
@@ -1905,6 +2438,7 @@
                                             <th>الفئة</th>
                                             <th>السعر</th>
                                             <th>رقم التذكرة</th>
+                                            <th>الاسترجاع</th>
                                             <th>حذف</th>
                                         </tr>
                                     </thead>
@@ -2221,6 +2755,7 @@
                 <button type="button" class="settings-tab-btn" data-tab="cloud">السحابة</button>
                 <button type="button" class="settings-tab-btn" data-tab="updates">التحديثات</button>
                 <button type="button" class="settings-tab-btn" data-tab="zakat">الزكاة</button>
+                <button type="button" class="settings-tab-btn" data-tab="money">المال</button>
                 <button type="button" class="settings-tab-btn" data-tab="expenses">المصاريف</button>
                 <button type="button" class="settings-tab-btn" data-tab="wood">موردو الخشب</button>
                 <button type="button" class="settings-tab-btn" data-tab="data">البيانات</button>
@@ -2463,6 +2998,27 @@
 
             </div>
 
+            <div class="settings-tab-panel" data-tab="money">
+                <div class="category-section">
+                    <h4>استرجاع التذاكر من طرف البائع</h4>
+                    <p style="color:#6b7280; font-size:0.9rem; margin:0 0 0.75rem 0;">
+                        عند التفعيل يستطيع البائع استرجاع تذكرة بعها اليوم قبل أقل من ساعتين، مع كتابة السبب. يصلك إشعار بكل استرجاع. يمكنك دائماً إلغاء أي استرجاع من تفاصيل اليوم.
+                    </p>
+                    <label class="refunds-toggle"><input type="checkbox" id="settings-refunds-enabled"> السماح للبائع باسترجاع التذاكر</label>
+                </div>
+                <div class="category-section">
+                    <h4>سجل تعديلات المال</h4>
+                    <p style="color:#6b7280; font-size:0.9rem; margin:0 0 0.75rem 0;">كل إضافة أو تعديل أو حذف أو إلغاء لمصروف أو تحصيل، مع القيم قبل وبعد.</p>
+                    <button type="button" id="money-history-refresh" class="btn btn-secondary" style="margin-bottom:0.5rem;">تحديث</button>
+                    <div class="summary-table-container" style="max-height:340px; overflow:auto;">
+                        <table class="summary-table">
+                            <thead><tr><th>الوقت</th><th>العملية</th><th>النوع</th><th>التفاصيل</th></tr></thead>
+                            <tbody id="money-history-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div class="settings-tab-panel" data-tab="expenses">
             <!-- Reusable expense types management -->
             <div class="settings-section">
@@ -2703,9 +3259,6 @@
                 getCollectionDays: (collectionId) => ipcRenderer.invoke('storage:getCollectionDays', collectionId),
                 getCollectionDaysWithAmounts: (collectionId) => ipcRenderer.invoke('storage:getCollectionDaysWithAmounts', collectionId),
                 getAvailableCollectionDays: (limit) => ipcRenderer.invoke('storage:getAvailableCollectionDays', limit),
-                getZakatSetAside: (collectionDayId) => ipcRenderer.invoke('storage:getZakatSetAside', collectionDayId),
-                setZakatSetAside: (collectionDayId, setAside) => ipcRenderer.invoke('storage:setZakatSetAside', collectionDayId, setAside),
-                getZakatHistory: () => ipcRenderer.invoke('storage:getZakatHistory'),
                 getZakatVisibility: () => ipcRenderer.invoke('storage:getZakatVisibility'),
                 setZakatDay: (date, setAside) => ipcRenderer.invoke('storage:setZakatDay', date, setAside),
                 getZakatSetAsideDates: () => ipcRenderer.invoke('storage:getZakatSetAsideDates'),
@@ -2731,6 +3284,36 @@
             },
             email: {
                 testConnection: (emailConfig) => ipcRenderer.invoke('email:testConnection', emailConfig)
+            },
+            money: {
+                getBalances: () => ipcRenderer.invoke('money:getBalances'),
+                switchOver: () => ipcRenderer.invoke('money:switchOver'),
+                getNotifications: (limit) => ipcRenderer.invoke('money:getNotifications', limit),
+                recordExpense: (opts) => ipcRenderer.invoke('money:recordExpense', opts),
+                getSellerDebts: () => ipcRenderer.invoke('money:getSellerDebts'),
+                markSellerRepayment: (amount, note) => ipcRenderer.invoke('money:markSellerRepayment', amount, note),
+                getLateEntries: (opts) => ipcRenderer.invoke('money:getLateEntries', opts),
+                acceptLateEntry: (id) => ipcRenderer.invoke('money:acceptLateEntry', id),
+                rejectLateEntry: (id) => ipcRenderer.invoke('money:rejectLateEntry', id),
+                getPeriodSummary: () => ipcRenderer.invoke('money:getPeriodSummary'),
+                collectInPerson: (opts) => ipcRenderer.invoke('money:collectInPerson', opts),
+                recordRemoteCollection: (opts, byManager) => ipcRenderer.invoke('money:recordRemoteCollection', opts, byManager),
+                getCollections: (opts) => ipcRenderer.invoke('money:getCollections', opts),
+                cancelCollection: (id, reason) => ipcRenderer.invoke('money:cancelCollection', id, reason),
+                refundTicket: (ticketId, reason) => ipcRenderer.invoke('money:refundTicket', ticketId, reason),
+                undoRefund: (ticketId) => ipcRenderer.invoke('money:undoRefund', ticketId),
+                getRefundStatusForDate: (date) => ipcRenderer.invoke('money:getRefundStatusForDate', date),
+                getBills: (opts) => ipcRenderer.invoke('money:getBills', opts),
+                payBill: (expenseId, amount, source, byManager) => ipcRenderer.invoke('money:payBill', expenseId, amount, source, byManager),
+                getRefundsEnabled: () => ipcRenderer.invoke('money:getRefundsEnabled'),
+                setRefundsEnabled: (on) => ipcRenderer.invoke('money:setRefundsEnabled', on),
+                getExpenseByMirror: (oldId) => ipcRenderer.invoke('money:getExpenseByMirror', oldId),
+                previewDeleteExpense: (oldId) => ipcRenderer.invoke('money:previewDeleteExpense', oldId),
+                editExpense: (oldId, fields) => ipcRenderer.invoke('money:editExpense', oldId, fields),
+                previewDeleteCollection: (oldId) => ipcRenderer.invoke('money:previewDeleteCollection', oldId),
+                editCollection: (id, fields) => ipcRenderer.invoke('money:editCollection', id, fields),
+                getHistory: (opts) => ipcRenderer.invoke('money:getHistory', opts),
+                getDaySummary: (date) => ipcRenderer.invoke('money:getDaySummary', date)
             },
             recovery: {
                 getStatus: () => ipcRenderer.invoke('recovery:getStatus'),
@@ -3004,13 +3587,18 @@
         async function updateDisplays() {
             try {
                 // Make all database calls in parallel for better performance
-                const [cashInHand, todayTickets] = await Promise.all([
-                    api.storage.getCashInHand(),
+                const [balances, todayTickets] = await Promise.all([
+                    api.money.getBalances(),
                     api.storage.getTodayTickets()
                 ]);
+                const cashInHand = balances.cashInHand;
                 
+                moneySwitchedOver = !!balances.switchedOver;
                 // Update UI immediately with the results
                 setMoney(document.getElementById('cash-in-hand'), cashInHand);
+                loadTellerBills();
+                const rcBtn = document.getElementById('remote-collection-btn');
+                if (rcBtn) rcBtn.style.display = moneySwitchedOver ? '' : 'none';
                 
                 console.log('Displays updated');
                 
@@ -3240,6 +3828,7 @@
 
                 // Reset the unified form to its default state.
                 resetExpenseForm();
+                await preparePaySplit('expense');
 
                 // Show modal
                 const modal = document.getElementById('expense-modal');
@@ -3486,6 +4075,8 @@
 
         // ── Wood purchases tables (modal + Expenses/admin area) ───────────
         function woodStatusLabel(w) {
+            const bill = moneySwitchedOver ? billsCache.byWood[w.id] : null;
+            if (bill) return billStatusText(bill);
             return Number(w.paid) === 1 ? 'مدفوع' : 'غير مدفوع (آجل)';
         }
         function woodDisplayDate(d) {
@@ -3499,6 +4090,7 @@
             if (!el) return;
             try {
                 const rows = await api.wood.getPurchases(50);
+                await refreshBillsCache();
                 if (!rows || rows.length === 0) {
                     el.innerHTML = '<div style="padding: 1rem; text-align: center; color: #6b7280; font-size: 0.85rem;">لا توجد مشتريات بعد</div>';
                     return;
@@ -3532,6 +4124,7 @@
             if (!tbody) return;
             try {
                 const rows = await api.wood.getPurchases(200);
+                await refreshBillsCache();
                 if (!rows || rows.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#6b7280; padding:1rem;">لا توجد مشتريات خشب</td></tr>';
                     return;
@@ -3580,6 +4173,7 @@
             if (!tbody) return;
             try {
                 const rows = await api.wood.getPurchases(200);
+                await refreshBillsCache();
                 if (!rows || rows.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#6b7280; padding:1rem;">لا توجد مشتريات خشب</td></tr>';
                     return;
@@ -3621,6 +4215,14 @@
         }
 
         async function payWoodPurchaseUI(woodId, amount) {
+            // New money system: pay any part through the bill payment window.
+            if (moneySwitchedOver) {
+                await refreshBillsCache();
+                const bill = billsCache.byWood[woodId];
+                if (bill) { openPayBill(bill.id, isAdminOpen() ? 'admin' : 'seller'); return; }
+                showToast('هذا الشراء مسجل قبل تفعيل نظام المال الجديد', 'info');
+                return;
+            }
             const confirmed = await showConfirm(`تأكيد دفع ${amount} درهم لهذا الشراء؟\nسيُخصم المبلغ من النقد في الصندوق الآن.`);
             if (!confirmed) return;
             try {
@@ -3684,9 +4286,18 @@
             const on = (id, prop, fn) => { const el = document.getElementById(id); if (el) el[prop] = fn; };
 
             // Unified expense selector (saved templates + custom + wood)
-            on('expense-selector', 'onchange', onExpenseSelectionChange);
+            on('expense-selector', 'onchange', () => { onExpenseSelectionChange(); syncExpenseSplit(); });
             // Quantity change recomputes a fixed/per-unit template's amount.
-            on('expense-quantity', 'oninput', recomputeSelectedTemplateAmount);
+            on('expense-quantity', 'oninput', () => { recomputeSelectedTemplateAmount(); syncExpenseSplit(); });
+            // New money system: total and drawer amount drive the "how was it paid" box.
+            on('expense-amount', 'oninput', syncExpenseSplit);
+            on('expense-from-drawer', 'oninput', () => onPaySplitDrawerInput('expense'));
+            on('wood-from-drawer', 'oninput', () => onPaySplitDrawerInput('wood'));
+            on('expense-day', 'onchange', () => setPaySplitTotal('expense', paySplit.expense.total));
+            on('wood-delivery-date', 'onchange', () => setPaySplitTotal('wood', paySplit.wood.total));
+            ['expense', 'wood'].forEach(p => document.querySelectorAll(`input[name="${p}-before-visit"]`).forEach(r => {
+                r.onchange = () => setPaySplitTotal(p, paySplit[p].total);
+            }));
 
             // Show/hide the payment-source selector with paid state
             on('expense-payment-status', 'onchange', updateExpenseSourceVisibility);
@@ -3906,6 +4517,7 @@
             loadWoodSellersIntoModal();
             onWoodPricingMethodChange();
             loadWoodPurchasesTable();
+            preparePaySplit('wood').then(calculateWoodAmount);
         }
 
         // Reset the unified expense form to a clean default (selector cleared, payment
@@ -3919,6 +4531,7 @@
             const notes = document.getElementById('expense-template-notes'); if (notes) notes.value = '';
             const amount = document.getElementById('expense-amount'); if (amount) { amount.value = ''; amount.readOnly = false; }
             const expDay = document.getElementById('expense-day'); if (expDay) expDay.value = new Date().toISOString().split('T')[0];
+            const supplier = document.getElementById('expense-supplier'); if (supplier) supplier.value = '';
             const statusSel = document.getElementById('expense-payment-status'); if (statusSel) statusSel.value = 'unpaid';
             const sourceSel = document.getElementById('expense-payment-source'); if (sourceSel) sourceSel.value = 'cash';
             ['custom-description-group', 'quantity-group', 'template-notes-group', 'template-details', 'expense-source-group', 'expense-amount-hint']
@@ -3946,6 +4559,7 @@
 
             document.getElementById('wood-total-amount').textContent = `${totalAmount.toFixed(2)} درهم`;
             document.getElementById('wood-calculation-details').textContent = details;
+            setPaySplitTotal('wood', round2(totalAmount));
         }
 
         // Show the payment-source selector only when the expense is marked "paid".
@@ -4026,6 +4640,33 @@
 
                 if (!Number.isFinite(amount) || amount <= 0) {
                     showToast('يرجى إدخال مبلغ صحيح', 'error');
+                    return;
+                }
+
+                // New money system: drawer amount + how the rest was paid.
+                if (moneySwitchedOver) {
+                    const split = readPaySplit('expense', amount);
+                    if (split.error) { showToast(split.error, 'error'); return; }
+                    const res = await api.money.recordExpense({
+                        date: expenseDay,
+                        description,
+                        supplier: document.getElementById('expense-supplier').value.trim(),
+                        total: amount,
+                        fromDrawer: split.fromDrawer,
+                        restAs: split.restAs,
+                        paidBeforeVisit: split.paidBeforeVisit
+                    });
+                    if (!res || res.success === false) {
+                        showToast((res && res.error) || 'فشل في إضافة المصروف', 'error');
+                        return;
+                    }
+                    showToast(`تم إضافة مصروف: ${description} - ${amount} درهم (${paySplitLabel(split)})` + (res.late ? ' — إدخال متأخر ينتظر مراجعة المدير' : ''), 'success');
+                    closeExpenseModal();
+                    await Promise.all([
+                        updateDisplays(),
+                        updateDailyLedger(),
+                        refreshCurrentDayDetails()
+                    ]);
                     return;
                 }
 
@@ -4120,14 +4761,25 @@
                     if (loadWeight && loadWeight > 0) opts.netWeight = loadWeight;
                 }
 
+                // New money system: drawer amount + how the rest was paid.
+                let split = null;
+                if (moneySwitchedOver) {
+                    split = readPaySplit('wood', paySplit.wood.total);
+                    if (split.error) { showToast(split.error, 'error'); return; }
+                    opts.fromDrawer = split.fromDrawer;
+                    opts.restAs = split.restAs;
+                    opts.paidBeforeVisit = split.paidBeforeVisit;
+                    delete opts.paid;
+                }
+
                 const result = await api.wood.recordPurchase(opts);
                 if (!result || result.success === false) {
                     showToast((result && result.error) || 'فشل في تسجيل شراء الخشب', 'error');
                     return;
                 }
 
-                const paidLabel = paid ? 'مدفوع' : 'غير مدفوع';
-                showToast(`تم تسجيل شراء الخشب: ${result.totalAmount} درهم (${paidLabel})`, 'success');
+                const paidLabel = split ? paySplitLabel(split) : (paid ? 'مدفوع' : 'غير مدفوع');
+                showToast(`تم تسجيل شراء الخشب: ${result.totalAmount} درهم (${paidLabel})` + (result.late ? ' — إدخال متأخر ينتظر مراجعة المدير' : ''), 'success');
 
                 // Refresh the in-modal wood table before closing so the new row is
                 // visible, then reset the form fields.
@@ -4418,9 +5070,12 @@
                     selectedDayTitle.textContent = `تفاصيل يوم ${displayDate}`;
                     
                     // Populate sales details
+                    await loadRefundStatus(date);
                     populateSalesDetails(tickets);
+                    await renderDayMoneySummary(date, 'day-money-summary');
                     
                     // Populate expenses details
+                    await refreshBillsCache();
                     populateExpensesDetails(expenses);
                     
                     dayDetailsEl.style.display = 'block';
@@ -4476,7 +5131,7 @@
         const MODAL_X_ONLY_IDS = new Set([
             'expense-modal', 'wood-modal', 'settings-modal', 'edit-category-modal',
             'category-management-modal', 'change-float-modal', 'admin-password-modal',
-            'forgot-password-modal', 'recovery-key-modal'
+            'forgot-password-modal', 'recovery-key-modal', 'pay-bill-modal', 'refund-modal', 'collect-modal', 'seller-repay-modal', 'remote-collection-modal', 'cancel-collection-modal', 'expense-edit-modal', 'collection-edit-modal'
         ]);
 
         function closeModalViaDismiss(modal) {
@@ -4547,6 +5202,1000 @@
         } else {
             initModalClose();
         }
+
+        // ── New money system: switch-over ────────────────────────────────────
+        // Until the switch-over, the cash card keeps the old collection screen so the
+        // manager can do the final collection with it. After it, the old screen no
+        // longer applies; the new in-person collection screen arrives in a later step.
+        let moneySwitchedOver = false;
+
+        function renderSwitchOverBanner(balances) {
+            moneySwitchedOver = !!balances.switchedOver;
+            const banner = document.getElementById('money-switchover-banner');
+            if (banner) banner.style.display = moneySwitchedOver ? 'none' : 'flex';
+        }
+
+        function openCashCard() {
+            if (!moneySwitchedOver) {
+                showMoneyCollectionModal();
+                return;
+            }
+            openCollectModal();
+        }
+
+        async function confirmMoneySwitchOver() {
+            const balances = await api.money.getBalances();
+            const confirmed = await showConfirm(
+                `النقد الحالي في الصندوق حسب النظام القديم: ${balances.cashInHand} درهم.\n` +
+                `هل قمت بتحصيله؟ بعد التفعيل يبدأ النقد في الصندوق من 0، ولا يمكن التراجع.`,
+                '💰 تفعيل نظام المال الجديد',
+                'تفعيل'
+            );
+            if (!confirmed) return;
+            try {
+                const r = await api.money.switchOver();
+                if (!r.success) { showToast(r.error, 'error'); return; }
+                const carriedParts = [];
+                if (r.carriedBills > 0) carriedParts.push(`${r.carriedBills} فواتير غير مدفوعة (${r.carriedAmount} درهم)`);
+                if (r.carriedOwedToManager > 0) carriedParts.push(`مستحق للمدير ${r.carriedOwedToManager} درهم`);
+                showToast('تم تفعيل نظام المال الجديد' +
+                    (carriedParts.length ? '. تم نقل: ' + carriedParts.join('، ') : ''), 'success');
+                await Promise.all([updateDisplays(), loadAdminData()]);
+            } catch (error) {
+                console.error('Switch-over failed:', error);
+                showToast('خطأ في تفعيل نظام المال الجديد', 'error');
+            }
+        }
+
+        // ── "How was it paid?" box (expense + wood forms, new money system) ─────
+        // The drawer amount is prefilled with min(total, cash in hand) until the
+        // seller edits it. The rest must be marked unpaid or paid by the manager.
+        // The backend re-checks everything; this only guides the seller.
+        const paySplit = {
+            expense: { cash: 0, total: 0, touched: false },
+            wood: { cash: 0, total: 0, touched: false }
+        };
+        const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+        // Local day of the manager's last in-person visit ('YYYY-MM-DD'), or null.
+        let lastVisitDay = null;
+        function utcStampToLocalISO(stamp) {
+            const d = new Date(String(stamp).replace(' ', 'T') + 'Z');
+            const p = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+        }
+
+        // Pure date logic: is a drawer payment on this form's date a "late entry"?
+        function lateDateInfo(prefix) {
+            const dateEl = document.getElementById(prefix === 'expense' ? 'expense-day' : 'wood-delivery-date');
+            const date = dateEl ? dateEl.value : '';
+            if (!lastVisitDay || !date) return { late: false, ask: false };
+            if (date < lastVisitDay) return { late: true, ask: false };
+            if (date === lastVisitDay) {
+                const r = document.querySelector(`input[name="${prefix}-before-visit"]:checked`);
+                return { late: !!r && r.value === '1', ask: true };
+            }
+            return { late: false, ask: false };
+        }
+
+        // Shows the explanation / question only when money actually leaves the drawer.
+        function refreshLateHint(prefix) {
+            const st = paySplit[prefix];
+            const info = lateDateInfo(prefix);
+            const fromDrawer = parseFloat(document.getElementById(prefix + '-from-drawer').value) || 0;
+            const relevant = fromDrawer > 0 && (info.late || info.ask);
+            st.late = relevant && info.late;
+            const box = document.getElementById(prefix + '-late-box');
+            if (!box) return;
+            box.style.display = relevant ? '' : 'none';
+            document.getElementById(prefix + '-late-ask').style.display = relevant && info.ask ? 'flex' : 'none';
+            document.getElementById(prefix + '-late-msg').textContent = st.late
+                ? '⚠️ هذا الدفع يخص فترة أغلقها المدير بتحصيله. سيُرسل إليه للمراجعة ولا يُخصم من الصندوق الآن.'
+                : (info.ask ? 'هل دُفع هذا المبلغ قبل زيارة المدير الأخيرة؟ إن كان كذلك يُرسل إليه للمراجعة ولا يُخصم من الصندوق الآن.' : '');
+        }
+
+        async function preparePaySplit(prefix) {
+            const st = paySplit[prefix];
+            st.touched = false;
+            st.total = 0;
+            st.late = false;
+            try {
+                const p = await api.money.getPeriodSummary();
+                lastVisitDay = p.switchedOver && p.lastVisit ? utcStampToLocalISO(p.lastVisit.at) : null;
+            } catch (_) { lastVisitDay = null; }
+            const resetRadio = document.querySelector(`input[name="${prefix}-before-visit"][value="0"]`);
+            if (resetRadio) resetRadio.checked = true;
+            try {
+                const b = await api.money.getBalances();
+                moneySwitchedOver = !!b.switchedOver;
+                st.cash = b.cashInHand;
+            } catch (_) { st.cash = 0; }
+            const legacy = document.getElementById(prefix + '-legacy-pay-group');
+            const split = document.getElementById(prefix + '-split-group');
+            if (legacy) legacy.style.display = moneySwitchedOver ? 'none' : '';
+            if (split) split.style.display = moneySwitchedOver ? '' : 'none';
+            setMoney(document.getElementById(prefix + '-cash-available'), st.cash);
+            document.getElementById(prefix + '-from-drawer').value = '';
+            document.querySelectorAll(`input[name="${prefix}-rest-as"]`).forEach(r => { r.checked = false; });
+            updatePaySplit(prefix);
+        }
+
+        function setPaySplitTotal(prefix, total) {
+            const st = paySplit[prefix];
+            st.total = Math.max(0, Number(total) || 0);
+            if (!st.touched) {
+                const v = lateDateInfo(prefix).late ? st.total : Math.min(st.total, Math.max(st.cash, 0));
+                document.getElementById(prefix + '-from-drawer').value = st.total > 0 ? round2(v) : '';
+            }
+            updatePaySplit(prefix);
+        }
+
+        function updatePaySplit(prefix) {
+            const st = paySplit[prefix];
+            refreshLateHint(prefix);
+            const raw = document.getElementById(prefix + '-from-drawer').value;
+            const fromDrawer = parseFloat(raw) || 0;
+            const rest = round2(st.total - fromDrawer);
+            setMoney(document.getElementById(prefix + '-rest-amount'), Math.max(rest, 0));
+            const afterEl = document.getElementById(prefix + '-cash-after');
+            if (afterEl) setMoney(afterEl, round2(st.late ? st.cash : st.cash - Math.max(fromDrawer, 0)));
+            const err = document.getElementById(prefix + '-from-drawer-error');
+            let msg = '';
+            if (fromDrawer < 0) msg = 'المبلغ غير صالح';
+            else if (!st.late && fromDrawer > st.cash + 0.005) msg = `أكثر من النقد الموجود في الصندوق (${st.cash} درهم)`;
+            else if (st.total > 0 && fromDrawer > st.total + 0.005) msg = 'أكثر من المبلغ الإجمالي';
+            if (err) { err.textContent = msg; err.style.display = msg ? 'block' : 'none'; }
+            const restGroup = document.getElementById(prefix + '-rest-group');
+            if (restGroup) restGroup.style.display = rest > 0.005 ? 'flex' : 'none';
+        }
+
+        function onPaySplitDrawerInput(prefix) {
+            paySplit[prefix].touched = true;
+            updatePaySplit(prefix);
+        }
+
+        // Reads the box for submission. Returns { fromDrawer, restAs } or { error }.
+        function readPaySplit(prefix, total) {
+            const st = paySplit[prefix];
+            refreshLateHint(prefix);
+            const raw = document.getElementById(prefix + '-from-drawer').value.trim();
+            const fromDrawer = raw === '' ? 0 : parseFloat(raw);
+            if (!Number.isFinite(fromDrawer) || fromDrawer < 0) return { error: 'المبلغ المدفوع من الصندوق غير صالح' };
+            if (!st.late && fromDrawer > st.cash + 0.005) return { error: `لا يوجد في الصندوق إلا ${st.cash} درهم` };
+            if (fromDrawer > total + 0.005) return { error: 'المبلغ المدفوع من الصندوق أكبر من المبلغ الإجمالي' };
+            const rest = round2(total - fromDrawer);
+            let restAs = null;
+            if (rest > 0.005) {
+                const chosen = document.querySelector(`input[name="${prefix}-rest-as"]:checked`);
+                if (!chosen) return { error: 'حدد كيف دُفع الباقي: غير مدفوع أو دفعه المدير' };
+                restAs = chosen.value;
+            }
+            const askInfo = lateDateInfo(prefix);
+            return { fromDrawer: round2(fromDrawer), restAs, rest, late: st.late, paidBeforeVisit: askInfo.ask ? askInfo.late : false };
+        }
+
+        function paySplitLabel(split) {
+            if (!split.restAs) return 'مدفوع من الصندوق';
+            const restTxt = split.restAs === 'manager' ? 'دفعه المدير' : 'غير مدفوع';
+            return split.fromDrawer > 0
+                ? `${split.fromDrawer} من الصندوق + ${split.rest} ${restTxt}`
+                : `${split.rest} ${restTxt}`;
+        }
+
+        function syncExpenseSplit() {
+            const amount = parseFloat(document.getElementById('expense-amount').value);
+            setPaySplitTotal('expense', Number.isFinite(amount) ? amount : 0);
+        }
+
+        // ── Notification history (admin) ──────────────────────────────────────
+        const NOTIFICATION_LABELS = {
+            seller_collection: 'إيداع / تحويل من البائع',
+            refund: 'استرجاع تذكرة',
+            paid_by_manager: 'مدفوع من طرف المدير',
+            late_entry: 'إدخال متأخر'
+        };
+
+        function describeNotification(n) {
+            const p = n.payload || {};
+            if (n.type === 'paid_by_manager') {
+                return `${p.description || ''}${p.supplier ? ' — ' + p.supplier : ''}: ${p.amount} درهم (من أصل ${p.total})`;
+            }
+            if (n.type === 'seller_collection') {
+                const extra = [p.reference && ('مرجع ' + p.reference), p.recipient && ('إلى ' + p.recipient)].filter(Boolean).join('، ');
+                const split = p.repayment > 0 ? ` (منها ${p.repayment} تسديد لك)` : '';
+                return `${p.label || ''}: ${p.amount} درهم${extra ? ' — ' + extra : ''}${split}`;
+            }
+            if (n.type === 'late_entry') {
+                return `${p.description || ''}${p.supplier ? ' — ' + p.supplier : ''}: ${p.amount} درهم من الصندوق، بتاريخ ${p.date} (قبل آخر تحصيل حضوري)`;
+            }
+            if (n.type === 'refund') {
+                const sold = p.soldAt ? utcStampToLocal(p.soldAt).time : '';
+                return `${p.category || ''} رقم ${p.serial || ''}${sold ? ' (بيعت ' + sold + ')' : ''}: ${p.amount} درهم — ${p.reason || ''}`;
+            }
+            return Object.entries(p).map(([k, v]) => `${k}: ${v}`).join('، ');
+        }
+
+        // created_at is UTC 'YYYY-MM-DD HH:MM:SS' -> local date + time for display.
+        function utcStampToLocal(stamp) {
+            const d = new Date(String(stamp).replace(' ', 'T') + 'Z');
+            if (isNaN(d)) return { date: stamp, time: '' };
+            return {
+                date: d.toLocaleDateString('ar-MA'),
+                time: d.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' })
+            };
+        }
+
+        async function loadAdminNotifications() {
+            const tbody = document.getElementById('admin-notifications-tbody');
+            if (!tbody) return;
+            try {
+                const list = await api.money.getNotifications(100);
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#6b7280;">لا توجد إشعارات</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = '';
+                list.forEach(n => {
+                    const t = utcStampToLocal(n.created_at);
+                    const tr = document.createElement('tr');
+                    tr.style.cursor = 'default';
+                    const cells = [t.date, t.time, NOTIFICATION_LABELS[n.type] || n.type, describeNotification(n),
+                        n.delivery_status === 'pending' ? 'في الانتظار (غير مفعّل بعد)' : n.delivery_status];
+                    cells.forEach(text => {
+                        const td = document.createElement('td');
+                        td.textContent = text;
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Failed to load notifications:', error);
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#dc2626;">خطأ في التحميل</td></tr>';
+            }
+        }
+
+        // ── Bills: unpaid / partly paid expenses (new money system) ──────────
+        const billsCache = { byId: {}, byMirror: {}, byWood: {}, open: [] };
+
+        async function refreshBillsCache() {
+            billsCache.byId = {}; billsCache.byMirror = {}; billsCache.byWood = {}; billsCache.open = [];
+            if (!moneySwitchedOver) return;
+            try {
+                const bills = await api.money.getBills({});
+                bills.forEach(b => {
+                    billsCache.byId[b.id] = b;
+                    if (b.mirror_expense_id) billsCache.byMirror[b.mirror_expense_id] = b;
+                    if (b.wood_purchase_id) billsCache.byWood[b.wood_purchase_id] = b;
+                    if (b.remaining > 0) billsCache.open.push(b);
+                });
+            } catch (error) {
+                console.error('Failed to load bills:', error);
+            }
+        }
+
+        function billStatusText(bill) {
+            const managerPart = bill.paid_manager > 0 ? ` (منها ${bill.paid_manager} من المدير)` : '';
+            const latePart = bill.pending_late > 0 ? ` — إدخال متأخر ${bill.pending_late} قيد مراجعة المدير` : '';
+            if (bill.status === 'paid') return 'مدفوع' + managerPart;
+            if (bill.status === 'partial') return `مدفوع جزئياً: ${bill.paid} مدفوع، ${bill.remaining} متبقٍّ${managerPart}${latePart}`;
+            return `غير مدفوع (${bill.remaining} متبقٍّ)${latePart}`;
+        }
+
+        function billStatusClass(bill) {
+            return bill.status === 'paid' ? 'bill-status-paid'
+                : (bill.status === 'partial' ? 'bill-status-partial' : 'bill-status-unpaid');
+        }
+
+        function isAdminOpen() {
+            const a = document.getElementById('admin-dashboard');
+            return !!a && !a.classList.contains('hidden');
+        }
+
+        // Status cell + pay action for a day-details expense row.
+        function expenseRowInfo(expense, ctx) {
+            const paidOld = Number(expense.paid) === 1;
+            const bill = moneySwitchedOver ? billsCache.byMirror[expense.id] : null;
+            if (bill) {
+                return {
+                    settled: bill.status === 'paid',
+                    label: billStatusText(bill),
+                    cls: billStatusClass(bill),
+                    paidDate: bill.status === 'paid' ? expense.paid_date : null,
+                    onPay: bill.remaining > 0 ? () => openPayBill(bill.id, ctx) : null
+                };
+            }
+            return {
+                settled: paidOld,
+                label: expensePaymentLabel(expense),
+                cls: paidOld ? 'bill-status-paid' : 'bill-status-unpaid',
+                paidDate: paidOld ? expense.paid_date : null,
+                // Old (pre-switch-over) rows keep the old pay flow only before the switch-over.
+                onPay: (!paidOld && !moneySwitchedOver) ? () => payExpenseUI(expense.id, expense.amount) : null
+            };
+        }
+
+        function renderBillsTable(tbodyId, ctx) {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+            const bills = billsCache.open;
+            if (bills.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#6b7280; padding:1rem;">لا توجد فواتير غير مدفوعة</td></tr>';
+                return;
+            }
+            tbody.innerHTML = '';
+            bills.forEach(b => {
+                const tr = document.createElement('tr');
+                [woodDisplayDate(b.date), b.supplier || '—', b.description + (b.pending_late > 0 ? ` — إدخال متأخر ${b.pending_late} قيد مراجعة المدير` : '')].forEach(text => {
+                    const td = document.createElement('td'); td.textContent = text; tr.appendChild(td);
+                });
+                [b.total, b.paid, b.remaining].forEach((v, i) => {
+                    const td = document.createElement('td');
+                    td.innerHTML = ltrNum(v, i === 2 ? { color: '#dc2626', weight: 700 } : {});
+                    tr.appendChild(td);
+                });
+                const act = document.createElement('td');
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-success';
+                btn.style.cssText = 'padding:0.2rem 0.6rem; font-size:0.78rem;';
+                btn.textContent = 'دفع';
+                btn.onclick = () => openPayBill(b.id, ctx);
+                act.appendChild(btn);
+                tr.appendChild(act);
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadTellerBills() {
+            const section = document.getElementById('teller-bills-section');
+            if (!section) return;
+            section.style.display = moneySwitchedOver ? 'block' : 'none';
+            if (!moneySwitchedOver) return;
+            await refreshBillsCache();
+            renderBillsTable('teller-bills-tbody', 'seller');
+        }
+
+        async function loadAdminBills() {
+            const section = document.getElementById('admin-bills-section');
+            if (!section) return;
+            section.style.display = moneySwitchedOver ? 'block' : 'none';
+            if (!moneySwitchedOver) return;
+            await refreshBillsCache();
+            renderBillsTable('admin-bills-tbody', 'admin');
+        }
+
+        // ── In-person collection (the manager's visit) ────────────────────────
+        const collectState = { expected: 0, owedToManager: 0 };
+
+        function collectLine(label, sub, sign, value) {
+            const div = document.createElement('div');
+            div.className = 'collect-line';
+            const left = document.createElement('span');
+            left.textContent = label;
+            if (sub) { const sm = document.createElement('small'); sm.textContent = sub; left.appendChild(sm); }
+            const right = document.createElement('span');
+            right.className = sign === '+' ? 'sign-plus' : (sign === '-' ? 'sign-minus' : '');
+            right.innerHTML = (sign ? (sign === '+' ? '+ ' : '− ') : '') + ltrNum(Math.abs(value));
+            div.appendChild(left);
+            div.appendChild(right);
+            return div;
+        }
+
+        function collectDetail(rows) {
+            const box = document.createElement('div');
+            box.className = 'collect-detail';
+            rows.forEach(([text, amount]) => {
+                const r = document.createElement('div');
+                const a = document.createElement('span'); a.textContent = text;
+                const b = document.createElement('span'); b.innerHTML = ltrNum(amount);
+                r.appendChild(a); r.appendChild(b);
+                box.appendChild(r);
+            });
+            return box;
+        }
+
+        async function loadCollectScreen() {
+            const p = await api.money.getPeriodSummary();
+            if (!p.switchedOver) return;
+            collectState.expected = p.expected;
+            collectState.owedToManager = p.owedToManager;
+
+            const when = utcStampToLocal(p.periodStart);
+            document.getElementById('collect-period-label').textContent = p.lastVisit
+                ? `منذ آخر تحصيل حضوري: ${when.date} ${when.time}`
+                : `منذ تفعيل نظام المال الجديد: ${when.date} ${when.time}`;
+
+            const box = document.getElementById('collect-lines');
+            box.innerHTML = '';
+            box.appendChild(collectLine('المبيعات', `${p.sales.count} تذكرة`, '+', p.sales.total));
+            if (p.refunds.count > 0) box.appendChild(collectLine('الاسترجاعات', `${p.refunds.count} تذكرة`, '-', p.refunds.total));
+            if (p.payments.items.length > 0) {
+                box.appendChild(collectLine('المدفوع من الصندوق (مصاريف)', `${p.payments.items.length} عملية`, '-', p.payments.total));
+                box.appendChild(collectDetail(p.payments.items.map(x =>
+                    [`${x.description}${x.supplier ? ' — ' + x.supplier : ''}`, x.amount])));
+            }
+            if (p.remote.items.length > 0) {
+                box.appendChild(collectLine('إيداعات وتحويلات أرسلها البائع', `${p.remote.items.length} عملية`, '-', p.remote.total));
+                box.appendChild(collectDetail(p.remote.items.map(x =>
+                    [`${x.label}${x.reference ? ' — مرجع ' + x.reference : ''}${x.recipient ? ' — ' + x.recipient : ''}`, x.amount])));
+            }
+            if (Math.abs(p.other) > 0.005) {
+                box.appendChild(collectLine('تعديلات أخرى', 'مثل إلغاء استرجاع أو تعديل سجل', p.other > 0 ? '+' : '-', p.other));
+            }
+            setMoney(document.getElementById('collect-expected'), p.expected);
+            updateCollectDiff();
+        }
+
+        function updateCollectDiff() {
+            const raw = document.getElementById('collect-counted').value.trim();
+            const diffEl = document.getElementById('collect-diff');
+            const splitEl = document.getElementById('collect-split');
+            const btn = document.getElementById('collect-confirm');
+            const counted = raw === '' ? null : parseFloat(raw);
+            if (counted == null || !Number.isFinite(counted) || counted < 0) {
+                diffEl.className = 'collect-diff'; diffEl.textContent = '';
+                splitEl.textContent = '';
+                btn.disabled = true;
+                return;
+            }
+            const diff = round2(counted - collectState.expected);
+            if (Math.abs(diff) < 0.005) { diffEl.className = 'collect-diff ok'; diffEl.textContent = '✓ مطابق للمتوقع'; }
+            else if (diff < 0) { diffEl.className = 'collect-diff short'; diffEl.textContent = `نقص ${-diff} درهم — يُسجَّل ديناً على البائع`; }
+            else { diffEl.className = 'collect-diff over'; diffEl.textContent = `زيادة ${diff} درهم — ابحث عن عملية منسية قبل التحصيل`; }
+
+            const repay = Math.min(counted, Math.max(collectState.owedToManager, 0));
+            const profit = round2(counted - repay);
+            const lines = [`ستأخذ: ${counted} درهم`];
+            if (collectState.owedToManager > 0) {
+                lines.push(`منها تسديد لما يستحقه المدير: ${round2(repay)} درهم، والباقي ربح: ${profit} درهم`);
+                lines.push(`المتبقي مستحقاً لك بعد التحصيل: ${round2(collectState.owedToManager - repay)} درهم`);
+            }
+            lines.push('النقد في الصندوق بعد التحصيل: 0');
+            splitEl.innerHTML = lines.map(l => '<div>' + l + '</div>').join('');
+            btn.disabled = (collectState.expected <= 0 && counted <= 0);
+        }
+
+        async function openCollectModal() {
+            const b = await api.money.getBalances();
+            if (!b.switchedOver) { showMoneyCollectionModal(); return; }
+            document.getElementById('collect-counted').value = '';
+            document.getElementById('collect-note').value = '';
+            await loadCollectScreen();
+            document.getElementById('collect-modal').classList.remove('hidden');
+            document.getElementById('collect-counted').focus();
+        }
+
+        async function submitCollectInPerson() {
+            const raw = document.getElementById('collect-counted').value.trim();
+            const counted = parseFloat(raw);
+            if (raw === '' || !Number.isFinite(counted) || counted < 0) { showToast('أدخل المبلغ الذي عددته', 'error'); return; }
+            const note = document.getElementById('collect-note').value.trim();
+            const diff = round2(counted - collectState.expected);
+            let surplusAcknowledged = false;
+
+            if (diff > 0.005) {
+                const ok = await showConfirm(
+                    `المبلغ المعدود أكثر من المتوقع بـ ${diff} درهم.\n\nهل راجعت المصاريف والإيداعات والاسترجاعات ولم تجد عملية منسية؟\nإذا ضغطت «متابعة» يُسجَّل الفرق «فائضاً غير مفسَّر».`,
+                    '⚠️ زيادة في الصندوق', 'متابعة');
+                if (!ok) return;
+                surplusAcknowledged = true;
+            } else if (diff < -0.005) {
+                const ok = await showConfirm(
+                    `المبلغ المعدود أقل من المتوقع بـ ${-diff} درهم.\nسيُسجَّل هذا النقص ديناً على البائع.`,
+                    '⚠️ نقص في الصندوق', 'تسجيل النقص والتحصيل');
+                if (!ok) return;
+            }
+
+            try {
+                const res = await api.money.collectInPerson({ counted: round2(counted), note, surplusAcknowledged });
+                if (!res || res.success === false) {
+                    if (res && res.needsSurplusConfirmation) { await loadCollectScreen(); }
+                    showToast((res && res.error) || 'تعذّر التحصيل', 'error');
+                    return;
+                }
+                const bits = [`تم تحصيل ${res.collection.amount} درهم`];
+                if (res.shortage > 0) bits.push(`نقص ${res.shortage} على البائع`);
+                if (res.surplus > 0) bits.push(`فائض غير مفسَّر ${res.surplus}`);
+                if (res.repayment > 0) bits.push(`منها ${res.repayment} تسديد لك`);
+                showToast(bits.join(' — '), 'success');
+                document.getElementById('collect-modal').classList.add('hidden');
+                await refreshAfterMoneyChange();
+            } catch (error) {
+                console.error('Collect in person failed:', error);
+                showToast('خطأ في التحصيل', 'error');
+            }
+        }
+
+        (function initCollectInPerson() {
+            const bind = () => {
+                const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+                on('collect-confirm', submitCollectInPerson);
+                on('collect-add-receipt', () => openRemoteCollection(true));
+                const counted = document.getElementById('collect-counted');
+                if (counted) {
+                    counted.oninput = updateCollectDiff;
+                    counted.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitCollectInPerson(); } });
+                }
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+            else bind();
+        })();
+
+        // ── Deposits / transfers / paid on the manager's behalf ──────────────
+        const remoteState = { byManager: false, cash: 0 };
+
+        function remoteType() {
+            const r = document.querySelector('input[name="remote-type"]:checked');
+            return r ? r.value : 'bank';
+        }
+
+        function onRemoteTypeChange() {
+            document.getElementById('remote-recipient-group').style.display = remoteType() === 'on_behalf' ? 'block' : 'none';
+        }
+
+        function validateRemoteAmount() {
+            const amount = parseFloat(document.getElementById('remote-amount').value) || 0;
+            setMoney(document.getElementById('remote-cash-after'), round2(remoteState.cash - amount));
+            const err = document.getElementById('remote-amount-error');
+            const msg = amount > remoteState.cash + 0.005 ? `أكثر من النقد الموجود في الصندوق (${remoteState.cash} درهم)` : '';
+            err.textContent = msg;
+            err.style.display = msg ? 'block' : 'none';
+            return msg;
+        }
+
+        async function openRemoteCollection(byManager) {
+            const b = await api.money.getBalances();
+            if (!b.switchedOver) { showToast('يجب تفعيل نظام المال الجديد أولاً', 'error'); return; }
+            remoteState.byManager = !!byManager;
+            remoteState.cash = b.cashInHand;
+            document.getElementById('remote-collection-title').textContent = byManager
+                ? '💸 تسجيل إيصال (لم يسجله البائع)' : '💸 إيداع / تحويل للمدير';
+            setMoney(document.getElementById('remote-cash-available'), b.cashInHand);
+            document.querySelector('input[name="remote-type"][value="bank"]').checked = true;
+            ['remote-amount', 'remote-recipient', 'remote-reference', 'remote-note'].forEach(id => { document.getElementById(id).value = ''; });
+            onRemoteTypeChange();
+            validateRemoteAmount();
+            document.getElementById('remote-collection-modal').classList.remove('hidden');
+            document.getElementById('remote-amount').focus();
+        }
+
+        async function submitRemoteCollection() {
+            const amount = parseFloat(document.getElementById('remote-amount').value);
+            if (!Number.isFinite(amount) || amount <= 0) { showToast('أدخل مبلغاً صحيحاً', 'error'); return; }
+            const msg = validateRemoteAmount();
+            if (msg) { showToast(msg, 'error'); return; }
+            const type = remoteType();
+            const recipient = document.getElementById('remote-recipient').value.trim();
+            if (type === 'on_behalf' && !recipient) { showToast('اكتب اسم المستلم', 'error'); return; }
+            try {
+                const res = await api.money.recordRemoteCollection({
+                    type, amount: round2(amount), recipient,
+                    reference: document.getElementById('remote-reference').value.trim(),
+                    note: document.getElementById('remote-note').value.trim()
+                }, remoteState.byManager);
+                if (!res || res.success === false) { showToast((res && res.error) || 'تعذّر التسجيل', 'error'); return; }
+                const c = res.collection;
+                const split = c.repayment_part > 0 ? ` (منها ${c.repayment_part} تسديد لما يستحقه المدير)` : '';
+                showToast(`تم تسجيل ${c.amount} درهم${split}`, 'success');
+                document.getElementById('remote-collection-modal').classList.add('hidden');
+                await refreshAfterMoneyChange();
+            } catch (error) {
+                console.error('Remote collection failed:', error);
+                showToast('خطأ في التسجيل', 'error');
+            }
+        }
+
+        let cancelCollectionId = null;
+        function openCancelCollection(c) {
+            cancelCollectionId = c.id;
+            document.getElementById('cancel-collection-info').textContent =
+                `${c.label}: ${c.amount} درهم${c.reference ? ' — مرجع ' + c.reference : ''}. بعد الإلغاء يعود المبلغ إلى النقد في الصندوق.`;
+            document.getElementById('cancel-collection-reason').value = '';
+            document.getElementById('cancel-collection-modal').classList.remove('hidden');
+            document.getElementById('cancel-collection-reason').focus();
+        }
+
+        async function submitCancelCollection() {
+            const reason = document.getElementById('cancel-collection-reason').value.trim();
+            if (!reason) { showToast('اكتب سبب الإلغاء', 'error'); return; }
+            try {
+                const res = await api.money.cancelCollection(cancelCollectionId, reason);
+                if (!res || res.success === false) { showToast((res && res.error) || 'تعذّر الإلغاء', 'error'); return; }
+                showToast(`تم الإلغاء. عاد ${res.collection.amount} درهم إلى النقد في الصندوق`, 'success');
+                document.getElementById('cancel-collection-modal').classList.add('hidden');
+                await refreshAfterMoneyChange();
+            } catch (error) {
+                console.error('Cancel collection failed:', error);
+                showToast('خطأ في الإلغاء', 'error');
+            }
+        }
+
+        async function loadAdminRemoteCollections() {
+            const section = document.getElementById('admin-remote-section');
+            if (!section) return;
+            section.style.display = moneySwitchedOver ? 'block' : 'none';
+            if (!moneySwitchedOver) return;
+            const tbody = document.getElementById('admin-remote-tbody');
+            try {
+                const list = await api.money.getCollections({});
+                if (!list.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#6b7280; padding:1rem;">لا توجد عمليات</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = '';
+                list.forEach(c => {
+                    const t = utcStampToLocal(c.created_at);
+                    const tr = document.createElement('tr');
+                    if (c.cancelled_at) tr.className = 'collection-cancelled';
+                    const diff = c.type === 'in_person' && c.expected != null && c.counted != null ? round2(c.counted - c.expected) : null;
+                    const visitText = diff == null ? '' : `متوقع ${c.expected} / معدود ${c.counted}` + (diff < 0 ? ` (نقص ${-diff})` : diff > 0 ? ` (زيادة ${diff})` : ' (مطابق)');
+                    const details = [visitText, c.reference && ('مرجع ' + c.reference), c.recipient && ('إلى ' + c.recipient), c.note]
+                        .filter(Boolean).join(' — ') || '—';
+                    [t.date, t.time, c.label].forEach(text => { const td = document.createElement('td'); td.textContent = text; tr.appendChild(td); });
+                    const amt = document.createElement('td'); amt.innerHTML = ltrNum(c.amount, { weight: 700 }); tr.appendChild(amt);
+                    [details, c.recorded_by === 'manager' ? 'المدير' : 'البائع',
+                     `${c.repayment_part} / ${c.profit_part}`].forEach(text => { const td = document.createElement('td'); td.textContent = text; tr.appendChild(td); });
+                    const st = document.createElement('td');
+                    if (c.cancelled_at) {
+                        st.innerHTML = '<span class="refund-badge">ملغاة</span>';
+                        if (c.cancel_reason) { const d = document.createElement('div'); d.className = 'refund-reason'; d.textContent = c.cancel_reason; st.appendChild(d); }
+                    } else {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'btn btn-secondary refund-btn';
+                        btn.textContent = 'إلغاء';
+                        btn.onclick = () => openCancelCollection(c);
+                        st.appendChild(btn);
+                        if (c.type !== 'in_person') {
+                        const ed = document.createElement('button');
+                        ed.type = 'button';
+                        ed.className = 'btn btn-secondary refund-btn';
+                        ed.style.marginRight = '0.3rem';
+                        ed.textContent = 'تعديل';
+                        ed.onclick = () => openEditCollection(c);
+                        st.appendChild(ed);
+                        }
+                    }
+                    tr.appendChild(st);
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Failed to load remote collections:', error);
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#dc2626;">خطأ في التحميل</td></tr>';
+            }
+        }
+
+        (function initRemoteCollections() {
+            const bind = () => {
+                const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+                on('remote-collection-btn', () => openRemoteCollection(false));
+                on('admin-remote-add-btn', () => openRemoteCollection(true));
+                on('remote-collection-submit', submitRemoteCollection);
+                on('collection-cancel-confirm', submitCancelCollection);
+                const amount = document.getElementById('remote-amount');
+                if (amount) amount.oninput = validateRemoteAmount;
+                document.querySelectorAll('input[name="remote-type"]').forEach(r => { r.onchange = onRemoteTypeChange; });
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+            else bind();
+        })();
+
+        // ── Refunds (seller: same day, within 2 hours; manager: undo) ─────────
+        let refundStatusCache = {};
+        let refundTicketId = null;
+
+        async function loadRefundStatus(date) {
+            refundStatusCache = {};
+            if (!moneySwitchedOver) return;
+            try { refundStatusCache = await api.money.getRefundStatusForDate(date); } catch (_) {}
+        }
+
+        function openRefundModal(ticket) {
+            refundTicketId = ticket.id;
+            document.getElementById('refund-ticket-info').textContent =
+                `${ticket.category_name} — رقم ${ticket.serial_number} — ${ticket.time}`;
+            setMoney(document.getElementById('refund-ticket-amount'), ticket.price);
+            const reason = document.getElementById('refund-reason');
+            reason.value = '';
+            document.getElementById('refund-modal').classList.remove('hidden');
+            reason.focus();
+        }
+
+        async function submitRefund() {
+            const reason = document.getElementById('refund-reason').value.trim();
+            if (!reason) { showToast('يرجى كتابة سبب الاسترجاع', 'error'); document.getElementById('refund-reason').focus(); return; }
+            try {
+                const res = await api.money.refundTicket(refundTicketId, reason);
+                if (!res || res.success === false) { showToast((res && res.error) || 'تعذّر الاسترجاع', 'error'); return; }
+                showToast(`تم استرجاع التذكرة. أعِد ${res.amount} درهم للزبون`, 'success');
+                document.getElementById('refund-modal').classList.add('hidden');
+                await refreshAfterMoneyChange();
+            } catch (error) {
+                console.error('Refund failed:', error);
+                showToast('خطأ في الاسترجاع', 'error');
+            }
+        }
+
+        async function undoRefundUI(ticket) {
+            const ok = await showConfirm(
+                `إلغاء استرجاع التذكرة رقم ${ticket.serial_number} (${ticket.price} درهم)؟\nستُحتسب مبيعاً من جديد ويرتفع النقد في الصندوق بنفس المبلغ.`,
+                '↩️ إلغاء الاسترجاع', 'إلغاء الاسترجاع');
+            if (!ok) return;
+            try {
+                const res = await api.money.undoRefund(ticket.id);
+                if (!res || res.success === false) { showToast((res && res.error) || 'تعذّر الإلغاء', 'error'); return; }
+                showToast('تم إلغاء الاسترجاع', 'success');
+                await refreshAfterMoneyChange();
+            } catch (error) {
+                console.error('Undo refund failed:', error);
+                showToast('خطأ في إلغاء الاسترجاع', 'error');
+            }
+        }
+
+        (function initRefunds() {
+            const bind = () => {
+                const btn = document.getElementById('refund-submit');
+                if (btn) btn.onclick = submitRefund;
+                document.querySelectorAll('.refund-quick [data-reason]').forEach(b => {
+                    b.onclick = () => { document.getElementById('refund-reason').value = b.dataset.reason; };
+                });
+                const input = document.getElementById('refund-reason');
+                if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitRefund(); } });
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+            else bind();
+        })();
+
+        // ── Pay-bill window ───────────────────────────────────────────────────
+        const payBillState = { id: null, ctx: 'seller', cash: 0, remaining: 0 };
+
+        function payBillSource() {
+            const r = document.querySelector('input[name="pay-bill-source"]:checked');
+            return r ? r.value : 'drawer';
+        }
+
+        function prefillPayBillAmount() {
+            const src = payBillSource();
+            const v = src === 'drawer' ? Math.min(payBillState.remaining, Math.max(payBillState.cash, 0)) : payBillState.remaining;
+            document.getElementById('pay-bill-amount').value = v > 0 ? round2(v) : '';
+            document.getElementById('pay-bill-cash-line').style.display = src === 'drawer' ? '' : 'none';
+            document.getElementById('pay-bill-after-line').style.display = src === 'drawer' ? '' : 'none';
+            validatePayBillAmount();
+        }
+
+        function validatePayBillAmount() {
+            const amount = parseFloat(document.getElementById('pay-bill-amount').value) || 0;
+            setMoney(document.getElementById('pay-bill-after'), round2(payBillState.cash - amount));
+            const src = payBillSource();
+            let msg = '';
+            if (amount > payBillState.remaining + 0.005) msg = `أكثر من المتبقي (${payBillState.remaining} درهم)`;
+            else if (src === 'drawer' && amount > payBillState.cash + 0.005) msg = `أكثر من النقد الموجود في الصندوق (${payBillState.cash} درهم)`;
+            const err = document.getElementById('pay-bill-error');
+            err.textContent = msg;
+            err.style.display = msg ? 'block' : 'none';
+            return msg;
+        }
+
+        async function openPayBill(billId, ctx) {
+            await refreshBillsCache();
+            const bill = billsCache.byId[billId];
+            if (!bill) { showToast('الفاتورة غير موجودة', 'error'); return; }
+            if (bill.remaining <= 0) { showToast('هذه الفاتورة مدفوعة بالكامل', 'info'); return; }
+            if (bill.payable <= 0) { showToast('عليها إدخال متأخر ينتظر مراجعة المدير', 'info'); return; }
+            const b = await api.money.getBalances();
+            Object.assign(payBillState, { id: bill.id, ctx, cash: b.cashInHand, remaining: bill.payable });
+            document.getElementById('pay-bill-description').textContent = bill.description;
+            document.getElementById('pay-bill-supplier').textContent = bill.supplier || '—';
+            setMoney(document.getElementById('pay-bill-total'), bill.total);
+            setMoney(document.getElementById('pay-bill-paid'), bill.paid);
+            setMoney(document.getElementById('pay-bill-remaining'), bill.remaining);
+            setMoney(document.getElementById('pay-bill-cash'), b.cashInHand);
+            // Paying from the manager's pocket is only offered in the admin panel.
+            document.getElementById('pay-bill-source-group').style.display = ctx === 'admin' ? 'flex' : 'none';
+            document.querySelector('input[name="pay-bill-source"][value="drawer"]').checked = true;
+            prefillPayBillAmount();
+            document.getElementById('pay-bill-modal').classList.remove('hidden');
+        }
+
+        async function refreshAfterMoneyChange() {
+            const jobs = [updateDisplays(), updateDailyLedger(), refreshCurrentDayDetails(),
+                loadTellerWoodTable(), loadAdminWoodTable(), loadWoodPurchasesTable()];
+            if (isAdminOpen()) {
+                jobs.push(loadAdminData());
+                if (currentAdminViewedDate) jobs.push(showAdminDayDetails(currentAdminViewedDate));
+            }
+            const collectOpen = document.getElementById('collect-modal');
+            if (collectOpen && !collectOpen.classList.contains('hidden')) jobs.push(loadCollectScreen());
+            await Promise.all(jobs);
+        }
+
+        async function submitPayBill() {
+            const raw = document.getElementById('pay-bill-amount').value.trim();
+            const amount = parseFloat(raw);
+            if (!Number.isFinite(amount) || amount <= 0) { showToast('أدخل مبلغاً صحيحاً', 'error'); return; }
+            const msg = validatePayBillAmount();
+            if (msg) { showToast(msg, 'error'); return; }
+            const src = payBillSource();
+            try {
+                const res = await api.money.payBill(payBillState.id, round2(amount), src, payBillState.ctx === 'admin');
+                if (!res || res.success === false) { showToast((res && res.error) || 'تعذّر تسجيل الدفع', 'error'); return; }
+                const where = src === 'manager' ? 'من جيب المدير' : 'من الصندوق';
+                showToast(res.bill.remaining > 0
+                    ? `تم دفع ${round2(amount)} درهم ${where}. المتبقي: ${res.bill.remaining} درهم`
+                    : `تم دفع ${round2(amount)} درهم ${where}. الفاتورة مدفوعة بالكامل`, 'success');
+                document.getElementById('pay-bill-modal').classList.add('hidden');
+                await refreshAfterMoneyChange();
+            } catch (error) {
+                console.error('Failed to pay bill:', error);
+                showToast('خطأ في تسجيل الدفع', 'error');
+            }
+        }
+
+        (function initPayBill() {
+            const bind = () => {
+                const submit = document.getElementById('pay-bill-submit');
+                if (submit) submit.onclick = submitPayBill;
+                const amount = document.getElementById('pay-bill-amount');
+                if (amount) amount.oninput = validatePayBillAmount;
+                document.querySelectorAll('input[name="pay-bill-source"]').forEach(r => { r.onchange = prefillPayBillAmount; });
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+            else bind();
+        })();
+
+        // ── Seller debts and late entries (admin) ─────────────────────────────
+        async function loadAdminLateEntries() {
+            const section = document.getElementById('admin-late-section');
+            if (!section) return;
+            section.style.display = moneySwitchedOver ? 'block' : 'none';
+            if (!moneySwitchedOver) return;
+            const tbody = document.getElementById('admin-late-tbody');
+            try {
+                const list = await api.money.getLateEntries({});
+                if (!list.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#6b7280; padding:1rem;">لا توجد إدخالات متأخرة</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = '';
+                list.forEach(e => {
+                    const tr = document.createElement('tr');
+                    const t = utcStampToLocal(e.created_at);
+                    [woodDisplayDate(e.date), `${t.date} ${t.time}`, `${e.description}${e.supplier ? ' — ' + e.supplier : ''}`]
+                        .forEach(text => { const td = document.createElement('td'); td.textContent = text; tr.appendChild(td); });
+                    const amt = document.createElement('td'); amt.innerHTML = ltrNum(e.amount, { weight: 700 }); tr.appendChild(amt);
+                    const st = document.createElement('td');
+                    if (e.late_status === 'pending') {
+                        const box = document.createElement('div'); box.className = 'late-actions';
+                        const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'btn btn-success refund-btn'; ok.textContent = 'قبول';
+                        ok.onclick = () => reviewLateEntry(e, true);
+                        const no = document.createElement('button'); no.type = 'button'; no.className = 'btn btn-secondary refund-btn'; no.textContent = 'رفض';
+                        no.onclick = () => reviewLateEntry(e, false);
+                        box.appendChild(ok); box.appendChild(no); st.appendChild(box);
+                    } else {
+                        st.innerHTML = e.late_status === 'accepted' ? '<span class="late-accepted">مقبول</span>' : '<span class="late-rejected">مرفوض</span>';
+                    }
+                    tr.appendChild(st);
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Failed to load late entries:', error);
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#dc2626;">خطأ في التحميل</td></tr>';
+            }
+        }
+
+        async function reviewLateEntry(e, accept) {
+            const debt = (await api.money.getBalances()).owedBySeller;
+            const msg = accept
+                ? `قبول إدخال متأخر: ${e.description} — ${e.amount} درهم.\nسيُخفَّض ما على البائع بـ ${Math.min(e.amount, debt)} درهم (المتبقي عليه الآن: ${debt}).`
+                : `رفض إدخال متأخر: ${e.description} — ${e.amount} درهم.\nسيبقى النقص على البائع، وتبقى الفاتورة غير مدفوعة.`;
+            const ok = await showConfirm(msg, accept ? '✅ قبول الإدخال المتأخر' : '✖️ رفض الإدخال المتأخر', accept ? 'قبول' : 'رفض');
+            if (!ok) return;
+            try {
+                const res = accept ? await api.money.acceptLateEntry(e.id) : await api.money.rejectLateEntry(e.id);
+                if (!res || res.success === false) { showToast((res && res.error) || 'تعذّر الحفظ', 'error'); return; }
+                showToast(accept
+                    ? `تم القبول. نقص ما على البائع ${res.applied} درهم${res.extra > 0 ? ' (والباقي ' + res.extra + ' أكثر من دينه)' : ''}`
+                    : 'تم الرفض', 'success');
+                await refreshAfterMoneyChange();
+            } catch (error) {
+                console.error('Review late entry failed:', error);
+                showToast('خطأ في الحفظ', 'error');
+            }
+        }
+
+        async function loadAdminSellerDebts() {
+            const section = document.getElementById('admin-seller-section');
+            if (!section) return;
+            section.style.display = moneySwitchedOver ? 'block' : 'none';
+            if (!moneySwitchedOver) return;
+            const tbody = document.getElementById('admin-seller-tbody');
+            try {
+                const d = await api.money.getSellerDebts();
+                setMoney(document.getElementById('seller-owed'), d.owed);
+                document.getElementById('seller-repay-open').disabled = d.owed <= 0;
+                const rows = [
+                    ...d.debts.map(x => ({ at: x.created_at, kind: 'نقص عند العدّ', amount: x.amount, note: x.note || '', cls: 'late-rejected' })),
+                    ...d.payments.map(x => ({ at: x.created_at, kind: 'تسديد من البائع', amount: x.amount, note: x.note || '', cls: 'late-accepted' })),
+                    ...d.adjustments.map(x => ({ at: x.created_at, kind: 'إدخال متأخر مقبول', amount: x.amount, note: x.note || '', cls: 'late-accepted' }))
+                ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#6b7280; padding:1rem;">لا توجد ديون على البائع</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = '';
+                rows.forEach(r => {
+                    const t = utcStampToLocal(r.at);
+                    const tr = document.createElement('tr');
+                    [t.date, t.time].forEach(text => { const td = document.createElement('td'); td.textContent = text; tr.appendChild(td); });
+                    const kind = document.createElement('td'); kind.innerHTML = `<span class="${r.cls}"></span>`; kind.firstChild.textContent = r.kind; tr.appendChild(kind);
+                    const amt = document.createElement('td'); amt.innerHTML = ltrNum(r.amount, { weight: 700 }); tr.appendChild(amt);
+                    const note = document.createElement('td'); note.textContent = r.note || '—'; tr.appendChild(note);
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Failed to load seller debts:', error);
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#dc2626;">خطأ في التحميل</td></tr>';
+            }
+        }
+
+        let sellerOwedNow = 0;
+        async function openSellerRepay() {
+            const d = await api.money.getSellerDebts();
+            if (d.owed <= 0) { showToast('لا يوجد دين على البائع', 'info'); return; }
+            sellerOwedNow = d.owed;
+            setMoney(document.getElementById('seller-repay-owed'), d.owed);
+            document.getElementById('seller-repay-amount').value = d.owed;
+            document.getElementById('seller-repay-note').value = '';
+            document.getElementById('seller-repay-error').style.display = 'none';
+            document.getElementById('seller-repay-modal').classList.remove('hidden');
+            document.getElementById('seller-repay-amount').focus();
+        }
+
+        function validateSellerRepay() {
+            const amount = parseFloat(document.getElementById('seller-repay-amount').value) || 0;
+            const err = document.getElementById('seller-repay-error');
+            const msg = amount > sellerOwedNow + 0.005 ? `أكثر مما على البائع (${sellerOwedNow} درهم)` : '';
+            err.textContent = msg; err.style.display = msg ? 'block' : 'none';
+            return msg;
+        }
+
+        async function submitSellerRepay() {
+            const amount = parseFloat(document.getElementById('seller-repay-amount').value);
+            if (!Number.isFinite(amount) || amount <= 0) { showToast('أدخل مبلغاً صحيحاً', 'error'); return; }
+            const msg = validateSellerRepay();
+            if (msg) { showToast(msg, 'error'); return; }
+            try {
+                const res = await api.money.markSellerRepayment(round2(amount), document.getElementById('seller-repay-note').value.trim());
+                if (!res || res.success === false) { showToast((res && res.error) || 'تعذّر التسجيل', 'error'); return; }
+                showToast(`تم تسجيل تسديد ${res.amount} درهم. المتبقي على البائع: ${res.owedBySeller} درهم`, 'success');
+                document.getElementById('seller-repay-modal').classList.add('hidden');
+                await refreshAfterMoneyChange();
+            } catch (error) {
+                console.error('Seller repayment failed:', error);
+                showToast('خطأ في التسجيل', 'error');
+            }
+        }
+
+        (function initSellerDebts() {
+            const bind = () => {
+                const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+                on('seller-repay-open', openSellerRepay);
+                on('seller-repay-confirm', submitSellerRepay);
+                const amount = document.getElementById('seller-repay-amount');
+                if (amount) amount.oninput = validateSellerRepay;
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+            else bind();
+        })();
+
+        (function initMoneySwitchOver() {
+            const bind = () => {
+                const btn = document.getElementById('money-switchover-btn');
+                if (btn) btn.onclick = confirmMoneySwitchOver;
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+            else bind();
+        })();
 
         // Admin Dashboard Functions
         function showAdminPasswordModal() {
@@ -4623,8 +6272,8 @@
             // النقد في الصندوق card opens the money-collection modal (replaces the old "تحصيل المال" button)
             const adminCashCard = document.getElementById('admin-cash-card');
             if (adminCashCard) {
-                adminCashCard.onclick = () => { showMoneyCollectionModal(); };
-                adminCashCard.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showMoneyCollectionModal(); } };
+                adminCashCard.onclick = () => { openCashCard(); };
+                adminCashCard.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCashCard(); } };
                 console.log('Admin cash card handler set');
             }
 
@@ -4676,16 +6325,228 @@
             console.log('Admin dashboard closed');
         }
 
+        // ── Manager tools: refund switch, edit, history, four-number cards (Task 8) ──
+        const AUDIT_ACTION_LABELS = {
+            CREATE: 'إضافة', EDIT: 'تعديل', DELETE: 'حذف', CANCEL: 'إلغاء',
+            REFUND: 'استرجاع تذكرة', UNDO_REFUND: 'إلغاء استرجاع', ACCEPT_LATE: 'قبول إدخال متأخر',
+            REJECT_LATE: 'رفض إدخال متأخر', SETTING: 'إعداد'
+        };
+        const AUDIT_ENTITY_LABELS = {
+            money_expenses: 'مصروف', money_collections: 'تحصيل / إيداع', expense_payments: 'دفعة',
+            seller_debt_payments: 'تسديد البائع', tickets: 'تذكرة', money_settings: 'إعداد المال'
+        };
+        const AUDIT_FIELD_LABELS = {
+            description: 'الوصف', supplier: 'المورد', total: 'المبلغ', date: 'التاريخ',
+            reference: 'المرجع', recipient: 'المستلم', note: 'ملاحظة'
+        };
+
+        function auditDetailsText(h) {
+            const p = h.parsed;
+            if (p && p.before && p.after) {
+                const parts = [];
+                Object.keys(p.after).forEach(k => {
+                    const a = p.before[k], b = p.after[k];
+                    if (String(a == null ? '' : a) !== String(b == null ? '' : b)) {
+                        parts.push(`${AUDIT_FIELD_LABELS[k] || k}: ${a == null || a === '' ? '—' : a} ← ${b == null || b === '' ? '—' : b}`);
+                    }
+                });
+                if (p.closedPeriod) parts.push('(فترة مغلقة)');
+                return parts.join(' | ') || '—';
+            }
+            if (p && p.before && !p.after) {
+                const e = p.before;
+                const pays = (e.payments || []).map(x => `${x.amount} (${x.source === 'manager' ? 'من جيب المدير' : 'من الصندوق'})`).join(' + ');
+                return `${e.description || ''} — ${e.total} درهم${pays ? ' — دفعات: ' + pays : ''}${p.by ? ' — بواسطة ' + (p.by === 'manager' ? 'المدير' : p.by) : ''}`;
+            }
+            return h.details || '—';
+        }
+
+        async function loadMoneyHistory() {
+            const tbody = document.getElementById('money-history-tbody');
+            if (!tbody) return;
+            try {
+                const list = await api.money.getHistory({ limit: 200 });
+                tbody.innerHTML = '';
+                if (!list.length) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#6b7280; padding:1rem;">لا توجد عمليات</td></tr>';
+                    return;
+                }
+                list.forEach(h => {
+                    const tr = document.createElement('tr');
+                    const t = utcStampToLocal(h.timestamp);
+                    [`${t.date} ${t.time}`, AUDIT_ACTION_LABELS[h.action] || h.action,
+                     AUDIT_ENTITY_LABELS[h.entity] || h.entity, auditDetailsText(h)]
+                        .forEach(text => { const td = document.createElement('td'); td.textContent = text; tr.appendChild(td); });
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Failed to load money history:', error);
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#dc2626;">خطأ في التحميل</td></tr>';
+            }
+        }
+
+        async function loadMoneyTab() {
+            try {
+                const box = document.getElementById('settings-refunds-enabled');
+                if (box) box.checked = !!(await api.money.getRefundsEnabled());
+            } catch (e) { console.error(e); }
+            await loadMoneyHistory();
+        }
+
+        // One line of numbers for the opened day: income, refunds, cost, and how the cost was paid.
+        async function renderDayMoneySummary(date, boxId) {
+            const box = document.getElementById(boxId);
+            if (!box) return;
+            try {
+                const d = await api.money.getDaySummary(date);
+                box.innerHTML = '';
+                const add = (label, value, color) => {
+                    const sp = document.createElement('span');
+                    const b = document.createElement('b'); b.textContent = label + ':';
+                    sp.appendChild(b);
+                    const v = document.createElement('span'); v.innerHTML = ltrNum(value, color ? { color } : {});
+                    sp.appendChild(v);
+                    box.appendChild(sp);
+                };
+                add('المبيعات (بعد الاسترجاع)', d.sales);
+                if (d.refunds.count > 0) add(`استرجاعات (${d.refunds.count})`, d.refunds.total, '#b91c1c');
+                add('تكلفة المصاريف', d.cost, '#dc2626');
+                if (d.switchedOver) {
+                    add('دُفع من الصندوق', d.paidDrawer);
+                    if (d.paidManager > 0) add('دفعه المدير من جيبه', d.paidManager, '#7c3aed');
+                    if (d.unpaid > 0) add('غير مدفوع', d.unpaid, '#b45309');
+                }
+                box.style.display = 'flex';
+            } catch (error) {
+                console.error('Day money summary failed:', error);
+                box.style.display = 'none';
+            }
+        }
+
+        // Four numbers on the admin panel: cash, owed to suppliers, owed to the manager, owed by the seller.
+        function renderAdminBalances(b) {
+            const show = !!(b && b.switchedOver);
+            moneySwitchedOver = show;
+            ['admin-owed-suppliers-card', 'admin-owed-manager-card', 'admin-owed-seller-card'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = show ? '' : 'none';
+            });
+            if (!show) return;
+            setMoney(document.getElementById('admin-owed-suppliers'), b.owedToSuppliers);
+            setMoney(document.getElementById('admin-owed-manager'), b.owedToManager);
+            setMoney(document.getElementById('admin-owed-seller'), b.owedBySeller);
+        }
+
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            if (el && el.style.display !== 'none') el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Edit an expense (manager, from the day details list; works through the old row id)
+        let editingExpenseOldId = null;
+        async function editExpenseUI(oldId) {
+            try {
+                const e = await api.money.getExpenseByMirror(oldId);
+                if (!e) { showToast('هذا مصروف قديم قبل تفعيل النظام الجديد ولا يمكن تعديله هنا', 'error'); return; }
+                editingExpenseOldId = oldId;
+                document.getElementById('exp-edit-description').value = e.description || '';
+                document.getElementById('exp-edit-supplier').value = e.supplier || '';
+                document.getElementById('exp-edit-total').value = e.total;
+                document.getElementById('exp-edit-date').value = e.date;
+                const paid = (e.payments || []).filter(p => p.late_status == null || p.late_status === 'accepted' || p.late_status === 'pending')
+                    .reduce((a, p) => a + p.amount, 0);
+                document.getElementById('exp-edit-info').textContent =
+                    `المدفوع حتى الآن: ${round2(paid)} درهم. لا يمكن أن يقل المبلغ الإجمالي عنه. لتغيير طريقة الدفع احذف المصروف وسجّله من جديد.`;
+                document.getElementById('expense-edit-modal').classList.remove('hidden');
+            } catch (error) {
+                console.error('Edit expense open failed:', error);
+                showToast('خطأ في فتح التعديل', 'error');
+            }
+        }
+
+        async function submitExpenseEdit() {
+            const res = await api.money.editExpense(editingExpenseOldId, {
+                description: document.getElementById('exp-edit-description').value,
+                supplier: document.getElementById('exp-edit-supplier').value,
+                total: document.getElementById('exp-edit-total').value,
+                date: document.getElementById('exp-edit-date').value
+            });
+            if (!res || res.success === false) { showToast((res && res.error) || 'تعذّر الحفظ', 'error'); return; }
+            document.getElementById('expense-edit-modal').classList.add('hidden');
+            showToast(res.closedPeriod ? 'تم الحفظ. تنبيه: المصروف يخص فترة مغلقة بتحصيل سابق' : 'تم حفظ التعديل', 'success');
+            await refreshAfterMoneyChange();
+            if (typeof refreshCurrentAdminDayDetails === 'function') await refreshCurrentAdminDayDetails();
+        }
+
+        // Edit a collection's information (never its amount)
+        let editingCollectionId = null;
+        function openEditCollection(c) {
+            editingCollectionId = c.id;
+            document.getElementById('col-edit-info').textContent =
+                `${c.label}: ${c.amount} درهم. المبلغ لا يتغير. إذا كان المبلغ خاطئاً ألغِ العملية وسجّل واحدة جديدة.`;
+            document.getElementById('col-edit-reference').value = c.reference || '';
+            document.getElementById('col-edit-recipient').value = c.recipient || '';
+            document.getElementById('col-edit-note').value = c.note || '';
+            document.getElementById('collection-edit-modal').classList.remove('hidden');
+        }
+
+        async function submitCollectionEdit() {
+            const res = await api.money.editCollection(editingCollectionId, {
+                reference: document.getElementById('col-edit-reference').value,
+                recipient: document.getElementById('col-edit-recipient').value,
+                note: document.getElementById('col-edit-note').value
+            });
+            if (!res || res.success === false) { showToast((res && res.error) || 'تعذّر الحفظ', 'error'); return; }
+            document.getElementById('collection-edit-modal').classList.add('hidden');
+            showToast('تم حفظ التعديل', 'success');
+            await refreshAfterMoneyChange();
+        }
+
+        (function initManagerTools() {
+            const bind = () => {
+                const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+                on('expense-edit-save', submitExpenseEdit);
+                on('collection-edit-save', submitCollectionEdit);
+                on('money-history-refresh', loadMoneyHistory);
+                on('admin-owed-suppliers-card', () => scrollToSection('admin-bills-section'));
+                on('admin-owed-manager-card', () => scrollToSection('admin-remote-section'));
+                on('admin-owed-seller-card', () => scrollToSection('admin-seller-section'));
+                const box = document.getElementById('settings-refunds-enabled');
+                if (box) box.onchange = async () => {
+                    const want = box.checked;
+                    try {
+                        const r = await api.money.setRefundsEnabled(want);
+                        showToast(r && r.enabled ? 'تم تفعيل استرجاع التذاكر للبائع' : 'تم إيقاف استرجاع التذاكر', 'success');
+                    } catch (error) {
+                        console.error(error);
+                        box.checked = !want;
+                        showToast('تعذّر حفظ الإعداد', 'error');
+                    }
+                };
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+            else bind();
+        })();
+
+        function toggleOldCollectionsList() {
+            const el = document.getElementById('admin-old-collections-section');
+            if (el) el.style.display = moneySwitchedOver ? 'none' : '';
+        }
+
         async function loadAdminData() {
             try {
                 // Load statistics
-                const [cashInHand, todayTickets, todayExpenses, floatBalance] = await Promise.all([
-                    api.storage.getCashInHand(),
+                const [balances, todayTickets, todayExpenses, floatBalance] = await Promise.all([
+                    api.money.getBalances(),
                     api.storage.getTodayTickets(),
                     api.storage.getExpenses(new Date().toISOString().split('T')[0]), // Today's expenses
                     api.float.getBalance()
                 ]);
 
+                const cashInHand = balances.cashInHand;
+                renderSwitchOverBanner(balances);
+                renderAdminBalances(balances);
+                toggleOldCollectionsList();
                 const todaySales = todayTickets.reduce((sum, ticket) => sum + ticket.price, 0);
                 const todayExpensesTotal = todayExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
@@ -4699,6 +6560,11 @@
 
                 // Load admin daily summary table
                 await loadAdminDailyLedger();
+                await loadAdminNotifications();
+                await loadAdminBills();
+                await loadAdminRemoteCollections();
+                await loadAdminLateEntries();
+                await loadAdminSellerDebts();
 
                 // Load money collections table
                 await loadAdminCollections();
@@ -4880,8 +6746,10 @@
                     
                     // Populate admin sales details (with delete buttons)
                     populateAdminSalesDetails(tickets);
+                    await renderDayMoneySummary(date, 'admin-day-money-summary');
                     
                     // Populate admin expenses details (with delete buttons)
+                    await refreshBillsCache();
                     populateAdminExpensesDetails(expenses);
                     
                     dayDetailsEl.style.display = 'block';
@@ -4911,19 +6779,41 @@
             
             tickets.forEach(ticket => {
                 const row = document.createElement('tr');
+                if (ticket.refunded_at) row.className = 'ticket-refunded';
                 row.innerHTML = `
                     <td>${ticket.time}</td>
                     <td>${ticket.category_name}</td>
                     <td>${ticket.price} درهم</td>
                     <td>${ticket.serial_number}</td>
-                    <td><button class="delete-btn" onclick="deleteTicket(${ticket.id})">حذف</button></td>
                 `;
+                const refundTd = document.createElement('td');
+                if (ticket.refunded_at) {
+                    refundTd.innerHTML = '<span class="refund-badge">مسترجع</span> ';
+                    if (ticket.refund_reason) {
+                        const why = document.createElement('div');
+                        why.className = 'refund-reason';
+                        why.textContent = ticket.refund_reason;
+                        refundTd.appendChild(why);
+                    }
+                    const undo = document.createElement('button');
+                    undo.type = 'button';
+                    undo.className = 'btn btn-secondary refund-btn';
+                    undo.textContent = 'إلغاء الاسترجاع';
+                    undo.onclick = () => undoRefundUI(ticket);
+                    refundTd.appendChild(undo);
+                } else {
+                    refundTd.textContent = '—';
+                }
+                row.appendChild(refundTd);
+                const delTd = document.createElement('td');
+                delTd.innerHTML = `<button class="delete-btn" onclick="deleteTicket(${ticket.id})">حذف</button>`;
+                row.appendChild(delTd);
                 salesTbody.appendChild(row);
             });
             
             if (tickets.length === 0) {
                 const row = document.createElement('tr');
-                row.innerHTML = '<td colspan="5" style="text-align: center; color: #6b7280;">لا توجد مبيعات</td>';
+                row.innerHTML = '<td colspan="6" style="text-align: center; color: #6b7280;">لا توجد مبيعات</td>';
                 salesTbody.appendChild(row);
             }
         }
@@ -4935,30 +6825,30 @@
             expensesTbody.innerHTML = '';
             
             expenses.forEach(expense => {
-                const paid = Number(expense.paid) === 1;
+                const info = expenseRowInfo(expense, 'admin');
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${expense.time}</td>
                     <td>${expense.description}</td>
                     <td>${expense.amount} درهم</td>
-                    <td style="color:${paid ? '#059669' : '#dc2626'}; font-weight:600;">${expensePaymentLabel(expense)}</td>
-                    <td>${paid && expense.paid_date ? woodDisplayDate(expense.paid_date) : '—'}</td>
+                    <td class="${info.cls}">${info.label}</td>
+                    <td>${info.paidDate ? woodDisplayDate(info.paidDate) : '—'}</td>
                 `;
                 const actionTd = document.createElement('td');
-                if (!paid) {
+                if (info.onPay) {
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'btn btn-success';
                     btn.style.cssText = 'padding:0.2rem 0.6rem; font-size:0.78rem;';
                     btn.textContent = 'دفع';
-                    btn.onclick = () => payExpenseUI(expense.id, expense.amount);
+                    btn.onclick = info.onPay;
                     actionTd.appendChild(btn);
                 } else {
                     actionTd.textContent = '—';
                 }
                 row.appendChild(actionTd);
                 const delTd = document.createElement('td');
-                delTd.innerHTML = `<button class="delete-btn" onclick="deleteExpense(${expense.id})">حذف</button>`;
+                delTd.innerHTML = `<button class="btn btn-secondary refund-btn" onclick="editExpenseUI(${expense.id})">تعديل</button> <button class="delete-btn" onclick="deleteExpense(${expense.id})">حذف</button>`;
                 row.appendChild(delTd);
                 expensesTbody.appendChild(row);
             });
@@ -6050,6 +7940,7 @@
             document.querySelectorAll('#settings-modal .settings-tab-panel').forEach(p => {
                 p.classList.toggle('active', p.dataset.tab === name);
             });
+            if (name === 'money') loadMoneyTab();
         }
 
         async function saveGeneralSettings() {
@@ -6366,29 +8257,42 @@
             }
         }
 
+        // What a delete would change, in words (cash / owed numbers), for the confirmation window.
+        function deletePreviewLines(p) {
+            const lines = [];
+            if (!p || !p.success) return lines;
+            if (p.cashAfter !== p.cashBefore) lines.push(`النقد في الصندوق: ${p.cashBefore} ← ${p.cashAfter} درهم`);
+            if (p.owedToSuppliersAfter != null && p.owedToSuppliersAfter !== p.owedToSuppliersBefore) lines.push(`مستحق للموردين: ${p.owedToSuppliersBefore} ← ${p.owedToSuppliersAfter} درهم`);
+            if (p.owedToManagerAfter !== p.owedToManagerBefore) lines.push(`مستحق للمدير: ${p.owedToManagerBefore} ← ${p.owedToManagerAfter} درهم`);
+            if (p.owedBySellerAfter !== p.owedBySellerBefore) lines.push(`على البائع: ${p.owedBySellerBefore} ← ${p.owedBySellerAfter} درهم`);
+            if (p.closedPeriod) lines.push('⚠ هذه العملية تخص فترة أُغلقت بتحصيل سابق، وحذفها يغيّر النقد المتوقع الآن.');
+            return lines;
+        }
+
         async function deleteExpense(expenseId) {
-            const confirmed = await showConfirm('هل أنت متأكد من حذف هذا المصروف؟\nهذا الإجراء لا يمكن التراجع عنه.\n\nملاحظة: سيبقى المصروف في ملف Excel للمحاسبة.');
+            let preview = null;
+            try { preview = await api.money.previewDeleteExpense(expenseId); } catch (_) { /* old expense */ }
+            const lines = deletePreviewLines(preview);
+            const confirmed = await showConfirm(
+                'هل أنت متأكد من حذف هذا المصروف؟\nيُحفظ في سجل التعديلات (المال) نسخة منه قبل الحذف.' +
+                (lines.length ? '\n\nنتيجة الحذف:\n' + lines.join('\n') : '') +
+                '\n\nملاحظة: سيبقى المصروف في ملف Excel للمحاسبة.');
             if (!confirmed) return;
-            
             try {
                 const deletedExpense = await api.storage.deleteExpense(expenseId);
                 showToast(`تم حذف المصروف: ${deletedExpense.description} - ${deletedExpense.amount} درهم`, 'success');
-                
-                // Refresh displays
                 await Promise.all([
                     updateDisplays(),
                     updateDailyLedger(),
                     loadAdminData(),
                     refreshCurrentAdminDayDetails()
                 ]);
-                
                 console.log(`Deleted expense ${expenseId}`);
             } catch (error) {
                 console.error('Failed to delete expense:', error);
                 showToast('خطأ في حذف المصروف', 'error');
             }
         }
-
         // Function to refresh currently open admin day details        
         async function refreshCurrentAdminDayDetails() {
             if (currentAdminViewedDate) {
@@ -7212,27 +9116,28 @@
 
         // Delete collection function
         async function deleteCollection(collectionId) {
-            const confirmed = await showConfirm('هل أنت متأكد من حذف عملية التحصيل هذه؟\nهذا الإجراء لا يمكن التراجع عنه.\n\nملاحظة: ستبقى العملية في ملف Excel للمحاسبة.');
+            let preview = null;
+            try { preview = await api.money.previewDeleteCollection(collectionId); } catch (_) { /* old collection */ }
+            const lines = deletePreviewLines(preview);
+            const confirmed = await showConfirm(
+                'هل أنت متأكد من حذف عملية التحصيل هذه؟\nيُحفظ في سجل التعديلات (المال) ما كان قبل الحذف.' +
+                (lines.length ? '\n\nنتيجة الحذف:\n' + lines.join('\n') : '') +
+                '\n\nملاحظة: ستبقى العملية في ملف Excel للمحاسبة.');
             if (!confirmed) return;
-            
             try {
                 const deletedCollection = await api.storage.deleteCollection(collectionId);
                 showToast(`تم حذف عملية التحصيل: ${deletedCollection.amount} درهم`, 'success');
-                
-                // Refresh displays
                 await Promise.all([
                     updateDisplays(),
                     updateDailyLedger(),
                     loadAdminData()
                 ]);
-                
                 console.log(`Deleted collection ${collectionId}`);
             } catch (error) {
                 console.error('Failed to delete collection:', error);
                 showToast('خطأ في حذف عملية التحصيل', 'error');
             }
         }
-
         function populateSalesDetails(tickets) {
             const salesTbody = document.getElementById('sales-details-tbody');
             if (!salesTbody) return;
@@ -7241,18 +9146,35 @@
             
             tickets.forEach(ticket => {
                 const row = document.createElement('tr');
+                if (ticket.refunded_at) row.className = 'ticket-refunded';
                 row.innerHTML = `
                     <td>${ticket.time}</td>
                     <td>${ticket.category_name}</td>
                     <td>${ticket.price} درهم</td>
                     <td>${ticket.serial_number}</td>
                 `;
+                const act = document.createElement('td');
+                const st = refundStatusCache[ticket.id];
+                if (ticket.refunded_at) {
+                    act.innerHTML = '<span class="refund-badge">مسترجع</span>';
+                    act.title = ticket.refund_reason || '';
+                } else if (st && st.refundable) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-warning refund-btn';
+                    btn.textContent = 'استرجاع';
+                    btn.onclick = (e) => { e.stopPropagation(); openRefundModal(ticket); };
+                    act.appendChild(btn);
+                } else {
+                    act.textContent = '—';
+                }
+                row.appendChild(act);
                 salesTbody.appendChild(row);
             });
             
             if (tickets.length === 0) {
                 const row = document.createElement('tr');
-                row.innerHTML = '<td colspan="4" style="text-align: center; color: #6b7280;">لا توجد مبيعات</td>';
+                row.innerHTML = '<td colspan="5" style="text-align: center; color: #6b7280;">لا توجد مبيعات</td>';
                 salesTbody.appendChild(row);
             }
         }
@@ -7264,23 +9186,23 @@
             expensesTbody.innerHTML = '';
             
             expenses.forEach(expense => {
-                const paid = Number(expense.paid) === 1;
+                const info = expenseRowInfo(expense, 'seller');
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${expense.time}</td>
                     <td>${expense.description}</td>
                     <td>${expense.amount} درهم</td>
-                    <td style="color:${paid ? '#059669' : '#dc2626'}; font-weight:600;">${expensePaymentLabel(expense)}</td>
-                    <td>${paid && expense.paid_date ? woodDisplayDate(expense.paid_date) : '—'}</td>
+                    <td class="${info.cls}">${info.label}</td>
+                    <td>${info.paidDate ? woodDisplayDate(info.paidDate) : '—'}</td>
                 `;
                 const actionTd = document.createElement('td');
-                if (!paid) {
+                if (info.onPay) {
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'btn btn-success';
                     btn.style.cssText = 'padding:0.2rem 0.6rem; font-size:0.78rem;';
                     btn.textContent = 'دفع';
-                    btn.onclick = () => payExpenseUI(expense.id, expense.amount);
+                    btn.onclick = info.onPay;
                     actionTd.appendChild(btn);
                 } else {
                     actionTd.textContent = '—';

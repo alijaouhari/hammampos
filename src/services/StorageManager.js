@@ -212,6 +212,11 @@ class StorageManager {
     // guarded — existing rows get DEFAULT 0 (legacy rows have no per-day split).
     try { this.db.run("ALTER TABLE collection_days ADD COLUMN amount REAL DEFAULT 0"); } catch (_) {}
 
+    // Refunds (money system): a refunded ticket stays on record but no longer counts
+    // as income anywhere (daily summary, zakat, today's counters, cash in hand).
+    try { this.db.run("ALTER TABLE tickets ADD COLUMN refunded_at TEXT"); } catch (_) {}
+    try { this.db.run("ALTER TABLE tickets ADD COLUMN refund_reason TEXT"); } catch (_) {}
+
     // zakat_tracking: one row per collection_days row, stores the set-aside status
     // for the owner's personal Zakat tracking. NEVER touched by financial queries.
     this.db.run(`CREATE TABLE IF NOT EXISTS zakat_tracking (
@@ -443,7 +448,7 @@ class StorageManager {
       cols.forEach((col, i) => obj[col] = row[i]);
       
       // Get today's count for this category
-      const countResult = this.db.exec('SELECT COUNT(*) as count FROM tickets WHERE category_id = ? AND date = ?', [obj.id, today]);
+      const countResult = this.db.exec('SELECT COUNT(*) as count FROM tickets WHERE category_id = ? AND date = ? AND refunded_at IS NULL', [obj.id, today]);
       obj.today_count = countResult[0]?.values[0]?.[0] || 0;
       
       return obj;
@@ -540,12 +545,12 @@ class StorageManager {
 
   getTodayTickets() {
     const today = new Date().toISOString().split('T')[0];
-    return this.getTickets(today);
+    return this.getTickets(today).filter(t => !t.refunded_at);
   }
 
   getTicketsForDate(date) {
     const result = this.db.exec(`
-      SELECT id, serial_number, year, category_name, price, time, timestamp
+      SELECT id, serial_number, year, category_name, price, time, timestamp, refunded_at, refund_reason
       FROM tickets 
       WHERE date = ? 
       ORDER BY time ASC
@@ -554,7 +559,7 @@ class StorageManager {
     const tickets = [];
     if (result.length > 0) {
       result[0].values.forEach(row => {
-        const [id, serial, year, category, price, time, timestamp] = row;
+        const [id, serial, year, category, price, time, timestamp, refunded_at, refund_reason] = row;
         tickets.push({
           id,
           serial_number: serial,
@@ -562,7 +567,9 @@ class StorageManager {
           category_name: category,
           price,
           time,
-          timestamp
+          timestamp,
+          refunded_at,
+          refund_reason
         });
       });
     }
@@ -1100,6 +1107,7 @@ class StorageManager {
       SELECT t.date, SUM(t.price) AS revenue, COALESCE(z.set_aside, 0) AS set_aside
       FROM tickets t
       LEFT JOIN zakat_days z ON z.date = t.date
+      WHERE t.refunded_at IS NULL
       GROUP BY t.date
       HAVING SUM(t.price) > 0
       ORDER BY t.date DESC
@@ -1118,7 +1126,7 @@ class StorageManager {
    */
   getCashInHand() {
     // Calculate total revenue from all tickets
-    const revenueResult = this.db.exec('SELECT COALESCE(SUM(price), 0) as total FROM tickets');
+    const revenueResult = this.db.exec('SELECT COALESCE(SUM(price), 0) as total FROM tickets WHERE refunded_at IS NULL');
     const totalRevenue = revenueResult[0] ? revenueResult[0].values[0][0] : 0;
 
     // Calculate total expenses that actually left the business cash box. Only
@@ -1140,7 +1148,7 @@ class StorageManager {
   }
 
   getLifetimeRevenue() {
-    const result = this.db.exec('SELECT COALESCE(SUM(price), 0) as total FROM tickets');
+    const result = this.db.exec('SELECT COALESCE(SUM(price), 0) as total FROM tickets WHERE refunded_at IS NULL');
     return result[0] ? result[0].values[0][0] : 0;
   }
 
@@ -1286,7 +1294,7 @@ class StorageManager {
           COALESCE(e.total_expenses, 0) as expenses,
           COALESCE(ds.status, 'working') as day_status
         FROM (${datesValues}) d
-        LEFT JOIN tickets t ON t.date = d.date
+        LEFT JOIN tickets t ON t.date = d.date AND t.refunded_at IS NULL
         LEFT JOIN (
           SELECT date, SUM(amount) as total_expenses 
           FROM expenses 
@@ -1306,7 +1314,7 @@ class StorageManager {
           COALESCE(e.total_expenses, 0) as expenses,
           COALESCE(ds.status, 'working') as day_status
         FROM (${datesValues}) d
-        LEFT JOIN tickets t ON t.date = d.date
+        LEFT JOIN tickets t ON t.date = d.date AND t.refunded_at IS NULL
         LEFT JOIN (
           SELECT date, SUM(amount) as total_expenses 
           FROM expenses 
