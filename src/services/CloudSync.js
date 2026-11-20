@@ -367,6 +367,7 @@ class CloudSync {
       const { error } = await this.supabase.from(table).upsert({ ...row, location_id: this.locationId }, { onConflict: 'location_id,local_id' });
       if (error) throw error;
       this.lastSyncAt = new Date().toISOString();
+      this._clearErrorIfIdle();
     } catch (error) {
       this._noteError(error);
       this.queueItem(table, localId, row, 'upsert');
@@ -380,6 +381,7 @@ class CloudSync {
       const { error } = await this.supabase.from(table).delete().eq('location_id', this.locationId).eq('local_id', localId);
       if (error) throw error;
       this.lastSyncAt = new Date().toISOString();
+      this._clearErrorIfIdle();
     } catch (error) {
       this._noteError(error);
       this.queueItem(table, localId, {}, 'delete');
@@ -398,6 +400,11 @@ class CloudSync {
   async deleteCollection(id) { return this._delete('collections', id); }
 
   // ─── OFFLINE QUEUE ──────────────────────────────────────────────────
+
+  /** An error stays visible only while something is still failing (queue not empty / offline). */
+  _clearErrorIfIdle() {
+    if (this.online && !this._needsSignIn && this.queueSize() === 0) this.lastError = null;
+  }
 
   _noteError(error) {
     this.lastError = describeError(error);
@@ -450,6 +457,7 @@ class CloudSync {
         this.storage.save();
         this.lastSyncAt = new Date().toISOString();
         this.online = true;
+        this._clearErrorIfIdle();
         console.log(`☁️ Synced ${processed.length} queued items`);
       }
     } catch (_) {
@@ -472,6 +480,7 @@ class CloudSync {
   async heartbeat() {
     if (!this.enabled || !this.locationId || !this.supabase) return;
     const now = new Date().toISOString();
+    this._clearErrorIfIdle(); // the cloud answered the last call and nothing is waiting
     let info = null;
     try { info = this.options.getDeviceInfo ? this.options.getDeviceInfo() : null; } catch (_) {}
     const { error } = await this.supabase.from('locations').update({
@@ -489,6 +498,9 @@ class CloudSync {
     }
     this.online = true;
     this.lastHeartbeatAt = now;
+    if (this.lastError && this.queueSize() === 0 && !this._needsSignIn) {
+      this.lastError = null; // reported once more above, cleared now that the link works
+    }
     // Did the dashboard ask for a connection test?
     const { data } = await this.supabase.from('locations').select('ping_requested_at,ping_reply_at').eq('id', this.locationId).maybeSingle();
     if (data && data.ping_requested_at && (!data.ping_reply_at || data.ping_requested_at > data.ping_reply_at)) {

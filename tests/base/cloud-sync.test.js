@@ -286,3 +286,26 @@ test('device mode: a wrong login is reported plainly and nothing is written', as
     assert.equal(fake.db.locations.length, 1);
   } finally { cleanup(s); }
 });
+
+test('an old error is cleared once the link works again and nothing is waiting', async () => {
+  const { s, fake, cs } = await setup();
+  try {
+    fake.state.failing = true;
+    await cs.syncTicket(T(1));
+    assert.ok(cs.getStatus().lastError, 'error while offline');
+    await cs.heartbeat();                      // still offline
+    assert.ok(cs.getStatus().lastError);
+    fake.state.failing = false;
+    await cs.processQueue();                   // queued ticket sent
+    await cs.heartbeat();
+    assert.equal(cs.getStatus().lastError, null);
+    assert.equal(fake.db.locations[0].last_error, null, 'dashboard no longer shows it');
+    // while something is still waiting, the error stays
+    fake.state.failing = true;
+    await cs.syncTicket(T(2));
+    fake.state.failing = false;
+    cs.online = true;
+    cs._clearErrorIfIdle();
+    assert.ok(cs.getStatus().lastError, 'kept: one item still waiting');
+  } finally { cleanup(s); }
+});
