@@ -5,6 +5,13 @@
  */
 
 const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+// Keep a reference to every IPC handler so the remote admin panel (dashboard) can call
+// the same handlers the local screen uses (see RemoteAdmin: allow-list + admin password).
+const ipcHandlers = new Map();
+{
+  const originalHandle = ipcMain.handle.bind(ipcMain);
+  ipcMain.handle = (channel, fn) => { ipcHandlers.set(channel, fn); return originalHandle(channel, fn); };
+}
 const path = require('path');
 const fs = require('fs');
 const StorageManager = require('../services/StorageManager');
@@ -576,10 +583,23 @@ const remoteCommandHandlers = {
   }
 };
 
+// The manager's remote admin panel: same handlers as the local screen.
+const remoteAdminHooks = {
+  invoke: async (channel, args) => {
+    const fn = ipcHandlers.get(channel);
+    if (!fn) throw new Error('إجراء غير معروف: ' + channel);
+    return fn({ remote: true }, ...args);
+  },
+  verifyPassword: (password) => storage.verifyAdminPassword(password),
+  onSessionsChanged: (count) => {
+    try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('remote-admin:sessions', count); } catch (_) {}
+  }
+};
+
 function newCloudSync() {
   return new CloudSync(storage, {
     appVersion: app.getVersion(), getDeviceInfo: deviceInfo, getLocalRows: cloudLocalRows,
-    commandHandlers: remoteCommandHandlers
+    commandHandlers: remoteCommandHandlers, remoteAdmin: remoteAdminHooks
   });
 }
 

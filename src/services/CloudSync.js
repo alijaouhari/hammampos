@@ -20,6 +20,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const WebSocket = require('ws');
 const RemoteCommands = require('./RemoteCommands');
+const RemoteAdmin = require('./RemoteAdmin');
 
 const TABLES = ['tickets', 'expenses', 'collections'];
 const CODE_PREFIX = 'HPOS1.';
@@ -67,6 +68,7 @@ class CloudSync {
     this.reconciling = false;
     this.lastReconcile = null;
     this.commands = null;
+    this.remoteAdmin = null;
   }
 
   // ─── Connection code (what the dashboard gives to a new device) ─────
@@ -278,6 +280,10 @@ class CloudSync {
     if (!this.options.commandHandlers || !this.isDeviceMode() || !this.locationId) return;
     if (!this.commands) this.commands = new RemoteCommands(this, this.options.commandHandlers);
     this.commands.start().catch(() => {});
+    if (this.options.remoteAdmin) {
+      if (!this.remoteAdmin) this.remoteAdmin = new RemoteAdmin(this, this.options.remoteAdmin);
+      this.remoteAdmin.start().catch(() => {});
+    }
   }
 
   /** Sign in with this PC's own login (device mode). force=true signs in again. */
@@ -520,6 +526,8 @@ class CloudSync {
     }
     if (this.commands) await this.commands.poll().catch(() => {});
     else this._startCommands();
+    // the remote admin channel dropped: open it again
+    if (this.remoteAdmin && !this.remoteAdmin.live) this.remoteAdmin.start().catch(() => {});
   }
 
   // ─── Full comparison with the cloud ─────────────────────────────────
@@ -625,6 +633,8 @@ class CloudSync {
       locationName: this.storage.getSetting('location_name'),
       mode: this.isDeviceMode() ? 'device' : 'shared-key',
       live: !!(this.commands && this.commands.live),
+      remoteAdminLive: !!(this.remoteAdmin && this.remoteAdmin.live),
+      remoteSessions: this.remoteAdmin ? this.remoteAdmin.activeSessions() : 0,
       queueSize: this.queueSize(),
       lastError: this.lastError,
       lastSyncAt: this.lastSyncAt,
@@ -636,6 +646,7 @@ class CloudSync {
   async stop() {
     this._clearTimers();
     if (this.commands) { this.commands.stop(); this.commands = null; }
+    if (this.remoteAdmin) { this.remoteAdmin.stop(); this.remoteAdmin = null; }
     if (this._reconcileTimer) { clearTimeout(this._reconcileTimer); this._reconcileTimer = null; }
     this.enabled = false;
     this.online = false;
