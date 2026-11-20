@@ -342,6 +342,7 @@ async function loadDevices(){
       '<span style="color:#64748b;font-size:0.85rem">'+(l.__hasLogin?'🔐 دخول خاص':'⚠ بدون دخول خاص (رمز قديم)')+' · النسخة: '+esc(l.app_version||'—')+' · في الانتظار: '+(l.queue_size||0)+' · آخر مزامنة: '+agoText(l.last_sync_at)+'</span>'+
       (counts?'<br><span style="color:#64748b;font-size:0.85rem">'+counts+'</span>':'')+
       (l.last_error?'<br><span style="color:#b91c1c;font-size:0.85rem">آخر خطأ: '+esc(l.last_error)+'</span>':'')+
+      '<div style="margin-top:0.6rem"><a href="admin.html?loc='+l.id+'" target="_blank" rel="noopener" style="display:inline-block;background:#4c1d95;color:#fff;padding:0.45rem 0.9rem;border-radius:8px;text-decoration:none;font-weight:700">🖥 لوحة الإدارة عن بعد</a></div>'+
       '<div class="cmd-row" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.5rem">'+
         cmdBtn(l.id,'ping','⚡ اختبار فوري')+cmdBtn(l.id,'sync_now','🔄 مزامنة الآن')+cmdBtn(l.id,'diagnostics','🩺 تشخيص')+
         cmdBtn(l.id,'restart_app','♻ إعادة تشغيل البرنامج')+cmdBtn(l.id,'restart_pc','⏻ إعادة تشغيل الجهاز')+cmdBtn(l.id,'install_update','⬆ تثبيت آخر تحديث')+
