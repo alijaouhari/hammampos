@@ -309,3 +309,28 @@ test('an old error is cleared once the link works again and nothing is waiting',
     assert.ok(cs.getStatus().lastError, 'kept: one item still waiting');
   } finally { cleanup(s); }
 });
+
+test('notifications: pending ones are sent once and marked delivered; the summary rides on the heartbeat', async () => {
+  const { s, fake, cs } = await setup();
+  try {
+    fake.db.notifications = [];
+    s.setSetting('device_email', 'dev@x'); s.setSetting('device_password', 'pw');
+    let pending = [{ id: 1, type: 'refund', payload: { amount: 15 }, created_at: '2026-11-20 10:00:00' }, { id: 2, type: 'late_entry', payload: {}, created_at: '2026-11-20 10:05:00' }];
+    const delivered = [];
+    cs.options.notifications = { pending: () => pending, delivered: (ids) => { delivered.push(...ids); pending = pending.filter(p => !ids.includes(p.id)); } };
+    cs.options.getSummary = () => ({ v: 1, cashInHand: 120, today: { tickets: 3 } });
+    assert.equal(await cs.pushNotifications(), 2);
+    assert.deepEqual(delivered, [1, 2]);
+    assert.deepEqual(fake.db.notifications.map(n => [n.local_id, n.type, n.location_id]), [[1, 'refund', 'L1'], [2, 'late_entry', 'L1']]);
+    assert.equal(await cs.pushNotifications(), 0);
+    // offline: nothing is marked delivered
+    pending = [{ id: 3, type: 'refund', payload: {}, created_at: null }];
+    fake.state.failing = true;
+    assert.equal(await cs.pushNotifications(), 0);
+    assert.equal(pending.length, 1);
+    fake.state.failing = false;
+    await cs.heartbeat();
+    assert.deepEqual(fake.db.locations[0].summary, { v: 1, cashInHand: 120, today: { tickets: 3 } });
+    assert.equal(pending.length, 0, 'heartbeat delivered the waiting notification');
+  } finally { cleanup(s); }
+});

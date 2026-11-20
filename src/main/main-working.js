@@ -583,6 +583,83 @@ const remoteCommandHandlers = {
   }
 };
 
+// ── Last-known summary for the dashboard (sent with the heartbeat, cached 60 s) ──
+let summaryCache = null;
+function localDay(offsetDays = 0) {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function buildSummary() {
+  if (summaryCache && Date.now() - summaryCache.at < 60000) return summaryCache.data;
+  const rows = (sql, params = []) => {
+    const r = storage.db.exec(sql, params);
+    return r[0] ? r[0].values : [];
+  };
+  const one = (sql, params = []) => { const v = rows(sql, params)[0]; return v ? v[0] : null; };
+  let data;
+  try {
+    const today = localDay(0);
+    const since = localDay(-34);
+    const monthStart = localDay(-370).slice(0, 7);
+    const b = money ? money.getBalances() : { cashInHand: storage.getCashInHand() };
+    const salesDay = Object.fromEntries(rows("SELECT date, COUNT(*), COALESCE(SUM(price),0) FROM tickets WHERE refunded_at IS NULL AND date >= ? GROUP BY date", [since]).map(([d, n, s]) => [d, [n, s]]));
+    const expDay = Object.fromEntries(rows('SELECT date, COALESCE(SUM(amount),0) FROM expenses WHERE date >= ? GROUP BY date', [since]));
+    const days = [];
+    for (let i = 34; i >= 0; i--) {
+      const d = localDay(-i);
+      days.push([d, (salesDay[d] || [0, 0])[0], Math.round(((salesDay[d] || [0, 0])[1]) * 100) / 100, Math.round((expDay[d] || 0) * 100) / 100]);
+    }
+    const mSales = Object.fromEntries(rows("SELECT substr(date,1,7), COUNT(*), COALESCE(SUM(price),0) FROM tickets WHERE refunded_at IS NULL AND substr(date,1,7) >= ? GROUP BY 1", [monthStart]).map(([m, n, s]) => [m, [n, s]]));
+    const mExp = Object.fromEntries(rows('SELECT substr(date,1,7), COALESCE(SUM(amount),0) FROM expenses WHERE substr(date,1,7) >= ? GROUP BY 1', [monthStart]));
+    const months = Array.from(new Set([...Object.keys(mSales), ...Object.keys(mExp)])).sort().slice(-12)
+      .map(m => [m, (mSales[m] || [0, 0])[0], Math.round(((mSales[m] || [0, 0])[1]) * 100) / 100, Math.round((mExp[m] || 0) * 100) / 100]);
+    const t = salesDay[today] || [0, 0];
+    const bills = money && b.switchedOver ? money.getBills({ openOnly: true }) : [];
+    const late = money && b.switchedOver ? money.getLateEntries({ pendingOnly: true }) : [];
+    const cats = rows("SELECT category_name, COUNT(*), COALESCE(SUM(price),0) FROM tickets WHERE refunded_at IS NULL AND date = ? GROUP BY category_name", [today]);
+    data = {
+      v: 1,
+      hammam: storage.getSetting('hammam_name') || null,
+      day: today,
+      switchedOver: !!b.switchedOver,
+      cashInHand: b.cashInHand || 0,
+      owedToSuppliers: b.owedToSuppliers || 0,
+      owedToManager: b.owedToManager || 0,
+      owedBySeller: b.owedBySeller || 0,
+      changeFloat: (() => { try { return storage.getFloatBalance ? storage.getFloatBalance() : null; } catch (_) { return null; } })(),
+      today: {
+        tickets: t[0], sales: Math.round(t[1] * 100) / 100,
+        expenses: Math.round((expDay[today] || 0) * 100) / 100,
+        refunds: one("SELECT COUNT(*) FROM tickets WHERE refunded_at IS NOT NULL AND date = ?", [today]) || 0,
+        byCategory: cats.map(([c, n, s]) => [c, n, Math.round(s * 100) / 100])
+      },
+      lastTicketAt: one("SELECT date || ' ' || time FROM tickets ORDER BY id DESC LIMIT 1"),
+      openBills: { count: bills.length, total: Math.round(bills.reduce((a, x) => a + (x.remaining || 0), 0) * 100) / 100 },
+      pendingLate: { count: late.length, total: Math.round(late.reduce((a, x) => a + (x.amount || 0), 0) * 100) / 100 },
+      refundsEnabled: money ? money.getRefundsEnabled() : false,
+      days, months
+    };
+  } catch (error) {
+    data = { v: 1, error: error.message };
+  }
+  summaryCache = { at: Date.now(), data };
+  return data;
+}
+
+// Notifications stored by the money system, delivered to the dashboard by the heartbeat.
+const notificationHooks = {
+  pending: () => {
+    const r = storage.db.exec("SELECT id, type, payload, created_at FROM notifications WHERE delivery_status = 'pending' ORDER BY id LIMIT 50");
+    return r[0] ? r[0].values.map(([id, type, payload, created_at]) => ({ id, type, payload: (() => { try { return JSON.parse(payload || '{}'); } catch (_) { return {}; } })(), created_at })) : [];
+  },
+  delivered: (ids) => {
+    if (!ids.length) return;
+    storage.db.run(`UPDATE notifications SET delivery_status = 'delivered', delivered_at = ? WHERE id IN (${ids.map(() => '?').join(',')})`, [new Date().toISOString().replace('T', ' ').slice(0, 19), ...ids]);
+    storage.save();
+  }
+};
+
 // The manager's remote admin panel: same handlers as the local screen.
 const remoteAdminHooks = {
   invoke: async (channel, args) => {
@@ -599,7 +676,8 @@ const remoteAdminHooks = {
 function newCloudSync() {
   return new CloudSync(storage, {
     appVersion: app.getVersion(), getDeviceInfo: deviceInfo, getLocalRows: cloudLocalRows,
-    commandHandlers: remoteCommandHandlers, remoteAdmin: remoteAdminHooks
+    commandHandlers: remoteCommandHandlers, remoteAdmin: remoteAdminHooks,
+    getSummary: buildSummary, notifications: notificationHooks
   });
 }
 

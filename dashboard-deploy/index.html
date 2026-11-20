@@ -3,56 +3,97 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HammamPOS Dashboard</title>
+<title>HammamPOS — لوحة المراقبة</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
+:root{--bg:#f1f5f9;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--brand:#1d4ed8;--brand2:#4c1d95;--green:#059669;--red:#dc2626;--amber:#b45309;--violet:#7c3aed;--radius:14px}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh}
-.login-container{display:flex;align-items:center;justify-content:center;min-height:100vh}
-.login-box{background:white;padding:2rem;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);width:90%;max-width:400px;text-align:center}
-.login-box h1{font-size:1.8rem;margin-bottom:1rem;color:#2563eb}
-.login-box input{width:100%;padding:0.75rem;border:2px solid #94a3b8;border-radius:8px;font-size:1rem;margin-bottom:1rem;background:#f8fafc}
-.login-box button{width:100%;padding:0.75rem;background:#2563eb;color:white;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer}
-.header{background:#2563eb;color:white;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center}
-.header h1{font-size:1.4rem}
-.header-btns button{background:rgba(255,255,255,0.2);border:none;color:white;padding:0.5rem 1rem;border-radius:6px;cursor:pointer;margin-right:0.5rem}
-.container{max-width:1200px;margin:0 auto;padding:1.5rem}
-.summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
-.card{background:white;padding:1.5rem;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-.card h3{color:#64748b;font-size:0.85rem;margin-bottom:0.5rem}
-.card .value{font-size:2rem;font-weight:700}
-.card .value.green{color:#16a34a}
-.locations{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem}
-.location-card{background:white;padding:1.5rem;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);cursor:pointer;transition:transform 0.2s}
-.location-card:hover{transform:translateY(-2px)}
-.location-card h3{font-size:1.2rem;margin-bottom:0.5rem}
-.location-card .stat{display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #f1f5f9}
-.back-btn{background:#64748b;color:white;border:none;padding:0.5rem 1rem;border-radius:6px;cursor:pointer;margin-bottom:1rem}
-.tickets-table{width:100%;background:white;border-radius:10px;overflow:hidden}
-.tickets-table th{background:#f8fafc;padding:0.75rem;text-align:right;font-size:0.85rem;color:#64748b}
-.tickets-table td{padding:0.75rem;border-top:1px solid #f1f5f9}
-.live-dot{width:8px;height:8px;background:#16a34a;border-radius:50%;display:inline-block;animation:pulse 2s infinite;margin-left:0.5rem}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
 .hidden{display:none!important}
-.settings-section{background:white;padding:1.5rem;border-radius:10px;margin-bottom:1rem;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-.settings-section h3{margin-bottom:1rem;color:#2563eb}
-.settings-section input{padding:0.5rem;border:2px solid #94a3b8;border-radius:6px;margin-bottom:0.5rem;width:100%;max-width:300px;background:#f8fafc}
-.settings-section button{padding:0.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font-weight:600;margin-top:0.5rem}
-.btn-blue{background:#2563eb;color:white}
-.btn-red{background:#ef4444;color:white}
-.loc-item{display:flex;justify-content:space-between;align-items:center;padding:0.75rem;border-bottom:1px solid #f1f5f9}
-.msg{padding:0.5rem;border-radius:4px;margin-top:0.5rem;font-size:0.9rem}
-.msg-ok{background:#d1fae5;color:#065f46}
-.msg-err{background:#fee2e2;color:#991b1b}
-.login-box .link-btn{background:none;color:#2563eb;width:auto;padding:0;margin-top:1rem;font-weight:500;text-decoration:underline;font-size:0.95rem}
+.login-container{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1e3a8a,#4c1d95)}
+.login-box{background:#fff;padding:2rem;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.25);width:90%;max-width:400px;text-align:center}
+.login-box h1{font-size:1.9rem;margin-bottom:0.3rem;color:var(--brand)}
+.login-box input{width:100%;padding:0.75rem;border:2px solid #cbd5e1;border-radius:10px;font-size:1rem;margin-bottom:1rem;background:#f8fafc}
+.login-box button{width:100%;padding:0.8rem;background:var(--brand);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer}
+.login-box .link-btn{background:none;color:var(--brand);width:auto;padding:0;margin-top:1rem;font-weight:500;text-decoration:underline;font-size:0.95rem}
 .login-box button:disabled{opacity:0.6;cursor:wait}
-.login-box p.sub{margin-bottom:1.5rem;color:#64748b}
+.login-box p.sub{margin-bottom:1.5rem;color:var(--muted)}
 .login-box .msg{margin:0 0 1rem 0;text-align:right}
+/* top bar + navigation */
+.topbar{background:linear-gradient(90deg,#1e3a8a,#4c1d95);color:#fff;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,0.15)}
+.topbar-in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:1rem;padding:0.7rem 1.2rem;flex-wrap:wrap}
+.brand{font-size:1.25rem;font-weight:800;display:flex;align-items:center;gap:0.5rem;margin-left:auto}
+.nav{display:flex;gap:0.3rem;flex-wrap:wrap}
+.nav button{background:rgba(255,255,255,0.12);border:none;color:#fff;padding:0.5rem 0.9rem;border-radius:10px;cursor:pointer;font-size:0.95rem;position:relative}
+.nav button.active{background:#fff;color:#1e3a8a;font-weight:700}
+.nav .badge{position:absolute;top:-6px;left:-6px;background:#ef4444;color:#fff;border-radius:999px;font-size:0.72rem;padding:0 0.4rem;min-width:1.2rem;line-height:1.2rem}
+.logout{background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:0.45rem 0.8rem;border-radius:10px;cursor:pointer}
+.container{max-width:1280px;margin:0 auto;padding:1.2rem}
+h2.section{font-size:1.15rem;margin:1.4rem 0 0.8rem;color:#1e293b;display:flex;align-items:center;gap:0.5rem}
+/* cards */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.8rem}
+.stat{background:var(--card);border-radius:var(--radius);padding:1rem 1.1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);border-top:4px solid var(--brand)}
+.stat .k{color:var(--muted);font-size:0.85rem}
+.stat .v{font-size:1.6rem;font-weight:800;margin-top:0.25rem;direction:ltr;text-align:right}
+.stat .s{color:var(--muted);font-size:0.78rem;margin-top:0.2rem}
+.stat.green{border-top-color:var(--green)}.stat.green .v{color:var(--green)}
+.stat.red{border-top-color:var(--red)}.stat.red .v{color:var(--red)}
+.stat.amber{border-top-color:#f59e0b}.stat.amber .v{color:var(--amber)}
+.stat.violet{border-top-color:var(--violet)}.stat.violet .v{color:var(--violet)}
+.hammams{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1rem}
+.hcard{background:var(--card);border-radius:var(--radius);box-shadow:0 1px 3px rgba(15,23,42,0.08);overflow:hidden;display:flex;flex-direction:column}
+.hcard-head{padding:0.9rem 1.1rem;display:flex;justify-content:space-between;align-items:center;gap:0.5rem;border-bottom:1px solid var(--line)}
+.hcard-head h3{font-size:1.15rem}
+.pill{border-radius:999px;padding:0.15rem 0.6rem;font-size:0.8rem;font-weight:700;white-space:nowrap}
+.pill.on{background:#dcfce7;color:#166534}.pill.late{background:#fef3c7;color:#92400e}.pill.off{background:#fee2e2;color:#991b1b}.pill.none{background:#f1f5f9;color:#475569}
+.hcard-body{padding:0.9rem 1.1rem;display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
+.mini .k{color:var(--muted);font-size:0.75rem}.mini .v{font-weight:800;font-size:1.05rem;direction:ltr;text-align:right}
+.hcard-flags{padding:0 1.1rem 0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap}
+.flag{background:#fef2f2;color:#991b1b;border-radius:8px;padding:0.15rem 0.5rem;font-size:0.8rem}
+.flag.amber{background:#fffbeb;color:#92400e}.flag.ok{background:#f0fdf4;color:#166534}
+.hcard-foot{margin-top:auto;padding:0.7rem 1.1rem;background:#f8fafc;display:flex;gap:0.5rem;flex-wrap:wrap;border-top:1px solid var(--line)}
+.btn{border:none;border-radius:10px;padding:0.5rem 0.9rem;cursor:pointer;font-weight:700;font-size:0.9rem;text-decoration:none;display:inline-block}
+.btn.primary{background:var(--brand2);color:#fff}.btn.light{background:#e2e8f0;color:#0f172a}.btn.blue{background:var(--brand);color:#fff}
+.panel{background:var(--card);border-radius:var(--radius);box-shadow:0 1px 3px rgba(15,23,42,0.08);padding:1rem 1.1rem;margin-bottom:1rem}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.6rem}
+.seg{display:inline-flex;background:#f1f5f9;border-radius:10px;padding:0.2rem}
+.seg button{border:none;background:transparent;padding:0.35rem 0.8rem;border-radius:8px;cursor:pointer;font-weight:600;color:#334155}
+.seg button.active{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.1);color:#1e3a8a}
+select{padding:0.4rem 0.6rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff}
+.chart-box{position:relative;height:300px}
+table.t{width:100%;border-collapse:collapse}
+table.t th{background:#f8fafc;color:var(--muted);font-size:0.82rem;text-align:right;padding:0.55rem;border-bottom:1px solid var(--line)}
+table.t td{padding:0.55rem;border-bottom:1px solid #f1f5f9}
+.num{direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
+.alert{display:flex;gap:0.7rem;padding:0.75rem 0.9rem;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,0.06);margin-bottom:0.5rem;align-items:flex-start;border-right:4px solid #cbd5e1}
+.alert.unread{background:#eff6ff;border-right-color:var(--brand)}
+.alert.warn{border-right-color:#f59e0b}.alert.bad{border-right-color:var(--red)}
+.alert .ico{font-size:1.3rem}.alert .ttl{font-weight:700}.alert .sub{color:var(--muted);font-size:0.85rem;margin-top:0.15rem}
+.empty{color:var(--muted);text-align:center;padding:1.5rem}
+.updated{color:var(--muted);font-size:0.8rem}
+/* kept from the previous dashboard (devices / download / settings) */
+.back-btn{background:#64748b;color:#fff;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;margin-bottom:1rem}
+.settings-section{background:#fff;padding:1.3rem;border-radius:var(--radius);margin-bottom:1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08)}
+.settings-section h3{margin-bottom:1rem;color:var(--brand)}
+.settings-section input{padding:0.55rem;border:2px solid #cbd5e1;border-radius:8px;margin-bottom:0.5rem;width:100%;max-width:340px;background:#f8fafc}
+.settings-section button{padding:0.5rem 1rem;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-top:0.5rem}
+.btn-blue{background:var(--brand);color:#fff}.btn-red{background:#ef4444;color:#fff}
+.loc-item{display:flex;justify-content:space-between;align-items:center;padding:0.75rem;border-bottom:1px solid #f1f5f9}
+.msg{padding:0.5rem;border-radius:6px;margin-top:0.5rem;font-size:0.9rem}.msg-ok{background:#d1fae5;color:#065f46}.msg-err{background:#fee2e2;color:#991b1b}
+@media (max-width:640px){
+  .topbar-in{padding:0.6rem}.brand{font-size:1.05rem}.nav button{padding:0.45rem 0.6rem;font-size:0.85rem}
+  .container{padding:0.7rem}.stat .v{font-size:1.3rem}.hammams{grid-template-columns:1fr}.chart-box{height:240px}
+  .hcard-body{grid-template-columns:repeat(2,1fr)}
+  .topbar-in{gap:0.5rem}.brand{flex:1}
+  .nav{order:3;width:100%;flex-wrap:nowrap;overflow-x:auto;padding-top:6px;scrollbar-width:none}
+  .nav button{white-space:nowrap;flex:0 0 auto}
+}
 </style>
 </head>
 <body>
 <div id="loading-view" class="login-container">
-<p style="color:#64748b">جاري التحميل...</p>
+<p style="color:#e2e8f0">جاري التحميل...</p>
 </div>
 <div id="login-view" class="login-container hidden">
 <div class="login-box">
@@ -84,31 +125,84 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 </div>
 </div>
 <div id="dashboard-view" class="hidden">
-<div class="header">
-<h1>HammamPOS <span class="live-dot"></span></h1>
-<div class="header-btns">
-<button onclick="showDevices()">📱 الأجهزة</button>
-<button onclick="showDownload()">⬇ تحميل التطبيق</button>
-<button onclick="showSettings()">⚙️ إعدادات</button>
-<button onclick="logout()">خروج</button>
-</div>
-</div>
+<div class="topbar"><div class="topbar-in">
+<div class="brand">🛁 HammamPOS</div>
+<nav class="nav" id="nav">
+<button data-view="overview" onclick="go('overview')">🏠 الرئيسية</button>
+<button data-view="charts" onclick="go('charts')">📈 الإحصائيات</button>
+<button data-view="alerts" onclick="go('alerts')">🔔 التنبيهات<span class="badge hidden" id="alerts-badge"></span></button>
+<button data-view="devices" onclick="go('devices')">📱 الأجهزة</button>
+<button data-view="download" onclick="go('download')">⬇ التطبيق</button>
+<button data-view="settings" onclick="go('settings')">⚙️</button>
+</nav>
+<button class="logout" onclick="logout()">خروج</button>
+</div></div>
 <div class="container">
-<div class="summary-cards" id="summary-cards"></div>
-<div id="locations-view">
-<h2 style="margin-bottom:1rem">الفروع</h2>
-<div class="locations" id="locations-list"></div>
+
+<div id="view-overview" class="view">
+<div class="panel-head" style="margin-top:0.3rem"><h2 class="section" style="margin:0">اليوم <span class="updated" id="ov-date"></span></h2><span class="updated" id="ov-updated"></span></div>
+<div class="stats" id="ov-stats"></div>
+<h2 class="section">الحمامات</h2>
+<div class="hammams" id="ov-hammams"></div>
+<div class="panel" style="margin-top:1rem">
+<div class="panel-head"><h3>📈 المبيعات — آخر 14 يوماً (كل الحمامات)</h3><button class="btn light" onclick="go('charts')">المزيد</button></div>
+<div class="chart-box" dir="ltr" style="height:220px"><canvas id="ov-chart"></canvas></div>
 </div>
-<div id="detail-view" style="display:none">
-<button class="back-btn" onclick="showLocations()">← العودة</button>
-<h2 id="detail-title" style="margin-bottom:1rem"></h2>
-<div class="summary-cards" id="detail-summary"></div>
-<h3 style="margin:1rem 0">تذاكر اليوم</h3>
-<table class="tickets-table"><thead><tr><th>#</th><th>الفئة</th><th>السعر</th><th>الوقت</th></tr></thead><tbody id="tickets-body"></tbody></table>
+<div class="panel">
+<div class="panel-head"><h3>🔔 آخر التنبيهات</h3><button class="btn light" onclick="go('alerts')">الكل</button></div>
+<div id="ov-alerts"></div>
 </div>
-<div id="devices-view" style="display:none">
-<button class="back-btn" onclick="showLocations()">← العودة</button>
-<h2 style="margin-bottom:1rem">📱 الأجهزة (الفروع)</h2>
+</div>
+
+<div id="view-hammam" class="view hidden">
+<button class="back-btn" onclick="go('overview')">→ العودة</button>
+<div class="panel-head"><h2 class="section" style="margin:0" id="hm-title"></h2><div id="hm-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap"></div></div>
+<p class="updated" id="hm-updated" style="margin-bottom:0.6rem"></p>
+<div id="hm-flags" class="hcard-flags" style="padding:0 0 0.6rem"></div>
+<div class="stats" id="hm-stats"></div>
+<div class="panel" style="margin-top:1rem">
+<div class="panel-head"><h3>📈 المبيعات</h3><div class="seg" id="hm-seg"><button data-p="day" class="active">يومي</button><button data-p="week">أسبوعي</button><button data-p="month">شهري</button></div></div>
+<div class="chart-box" dir="ltr"><canvas id="hm-chart"></canvas></div>
+</div>
+<div class="panel"><h3 style="margin-bottom:0.6rem">مبيعات اليوم حسب الفئة</h3><div id="hm-cats"></div></div>
+<div class="panel"><h3 style="margin-bottom:0.6rem">تذاكر اليوم (من السحابة)</h3><div id="hm-tickets" style="max-height:420px;overflow:auto"></div></div>
+</div>
+
+<div id="view-charts" class="view hidden">
+<div class="panel">
+<div class="panel-head">
+<h3>📈 الإحصائيات</h3>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+<select id="ch-loc" onchange="renderCharts()"></select>
+<div class="seg" id="ch-seg"><button data-p="day" class="active">يومي</button><button data-p="week">أسبوعي</button><button data-p="month">شهري</button></div>
+</div>
+</div>
+<div class="stats" id="ch-stats" style="margin-bottom:1rem"></div>
+<div class="chart-box" dir="ltr"><canvas id="ch-chart"></canvas></div>
+</div>
+<div class="panel"><h3 style="margin-bottom:0.6rem">الأرقام</h3><div id="ch-table" style="overflow:auto"></div></div>
+</div>
+
+<div id="view-alerts" class="view hidden">
+<div class="panel" id="al-now-box">
+<h3 style="margin-bottom:0.6rem">⚠ يحتاج انتباهك الآن</h3>
+<div id="al-now"></div>
+</div>
+<div class="panel">
+<div class="panel-head">
+<h3>🔔 سجل التنبيهات</h3>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+<select id="al-loc" onchange="renderAlerts()"></select>
+<div class="seg" id="al-seg"><button data-f="all" class="active">الكل</button><button data-f="unread">غير المقروءة</button></div>
+<button class="btn light" onclick="markAllRead()">✓ تعليم الكل كمقروء</button>
+</div>
+</div>
+<div id="al-list"></div>
+</div>
+</div>
+
+<div id="view-devices" class="view hidden">
+<h2 class="section" style="margin-top:0.3rem">📱 الأجهزة (الفروع)</h2>
 <div class="settings-section">
 <h3>إضافة جهاز جديد</h3>
 <p style="color:#475569;margin-bottom:0.5rem;line-height:1.8">اكتب اسم الفرع ثم اضغط «إنشاء». سيظهر «رمز الربط»: انسخه والصقه في التطبيق على الجهاز: الإعدادات ← السحابة ← «رمز الربط» ← ربط.</p>
@@ -122,13 +216,13 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 <p style="color:#64748b;font-size:0.85rem;margin-top:0.75rem">الجهاز يرسل إشارة كل 15 ثانية. «اختبار الاتصال» يطلب من الجهاز الرد الآن. الأجهزة التي تعمل بنسخة أقدم من 2.8.29 لا ترسل إشارة: حدّثها أولاً.</p>
 </div>
 </div>
-<div id="download-view" style="display:none">
-<button class="back-btn" onclick="showLocations()">← العودة</button>
-<h2 style="margin-bottom:1rem">⬇ تحميل HammamPOS</h2>
+
+<div id="view-download" class="view hidden">
+<h2 class="section" style="margin-top:0.3rem">⬇ تحميل HammamPOS</h2>
 <div class="settings-section">
 <h3>آخر نسخة</h3>
 <p id="dl-version" style="margin-bottom:0.75rem;color:#334155">جاري البحث عن آخر نسخة...</p>
-<a id="dl-link" href="https://github.com/alijaouhari/hammampos/releases/latest" target="_blank" rel="noopener" style="display:inline-block;background:#2563eb;color:white;padding:0.7rem 1.4rem;border-radius:8px;text-decoration:none;font-weight:700">تحميل التطبيق (Windows)</a>
+<a id="dl-link" href="https://github.com/alijaouhari/hammampos/releases/latest" target="_blank" rel="noopener" style="display:inline-block;background:#1d4ed8;color:white;padding:0.7rem 1.4rem;border-radius:10px;text-decoration:none;font-weight:700">تحميل التطبيق (Windows)</a>
 <p id="dl-size" style="margin-top:0.5rem;color:#64748b;font-size:0.9rem"></p>
 </div>
 <div class="settings-section">
@@ -138,14 +232,14 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 <li>انقر عليه بالزر الأيمن واختر «استخراج الكل» إلى مجلد مثل C:\HammamPOS.</li>
 <li>افتح المجلد وشغّل HammamPOS.exe. يمكنك إنشاء اختصار على سطح المكتب.</li>
 <li>عند أول تشغيل: أدخل اسم الحمام، الفئات والأسعار، ثم كلمة مرور الإدارة.</li>
-<li>لربط الجهاز بهذه اللوحة: الإعدادات ← السحابة، وأدخل بيانات الربط.</li>
+<li>لربط الجهاز بهذه اللوحة: صفحة «الأجهزة» هنا ← إنشاء، ثم الصق الرمز في التطبيق: الإعدادات ← السحابة.</li>
 </ol>
 <p style="color:#64748b;font-size:0.9rem">إذا ظهر تحذير ويندوز SmartScreen: اختر «مزيد من المعلومات» ثم «تشغيل على أي حال».</p>
 </div>
 </div>
-<div id="settings-view" style="display:none">
-<button class="back-btn" onclick="showLocations()">← العودة</button>
-<h2 style="margin-bottom:1rem">⚙️ الإعدادات</h2>
+
+<div id="view-settings" class="view hidden">
+<h2 class="section" style="margin-top:0.3rem">⚙️ الإعدادات</h2>
 <div class="settings-section">
 <h3>تغيير كلمة المرور</h3>
 <input type="password" id="current-password" placeholder="كلمة المرور الحالية" autocomplete="current-password">
@@ -155,10 +249,11 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;m
 <div id="pw-msg"></div>
 </div>
 <div class="settings-section">
-<h3>إدارة الفروع</h3>
-<div id="locations-manage"></div>
+<h3>حذف فرع</h3>
+<p style="color:#475569">لحذف فرع وكل بياناته من السحابة: صفحة «الأجهزة» ← زر «حذف» بجانب الفرع.</p>
 </div>
 </div>
+
 </div>
 </div>
 <script>
@@ -247,53 +342,6 @@ async function submitNewPassword(){
   if(session)enterDashboard();else showLogin();
 })();
 
-async function loadDashboard(){
-  const{data:locs}=await sb.from('locations').select('*');
-  locations=locs||[];
-  const today=new Date().toISOString().split('T')[0];
-  const{data:tickets}=await sb.from('tickets').select('*').eq('date',today);
-  const all=tickets||[];
-  const rev=all.reduce((s,t)=>s+parseFloat(t.price),0);
-  document.getElementById('summary-cards').innerHTML=
-    '<div class="card"><h3>إجمالي اليوم</h3><div class="value green">'+Math.round(rev)+' DH</div></div>'+
-    '<div class="card"><h3>التذاكر</h3><div class="value">'+all.length+'</div></div>'+
-    '<div class="card"><h3>الفروع</h3><div class="value">'+locations.length+'</div></div>';
-  let html='';
-  for(const loc of locations){
-    const lt=all.filter(t=>t.location_id===loc.id);
-    const lr=lt.reduce((s,t)=>s+parseFloat(t.price),0);
-    html+='<div class="location-card" onclick="showDetail(\''+loc.id+'\')"><h3>'+loc.name+'</h3><div class="stat"><span>التذاكر</span><strong>'+lt.length+'</strong></div><div class="stat"><span>الإيرادات</span><strong>'+Math.round(lr)+' DH</strong></div></div>';
-  }
-  document.getElementById('locations-list').innerHTML=html||'<p style="color:#64748b">لا توجد فروع مسجلة</p>';
-}
-
-async function showDetail(id){
-  const loc=locations.find(l=>l.id===id);
-  document.getElementById('locations-view').classList.add('hidden');
-  document.getElementById('settings-view').style.display='none';
-  document.getElementById('download-view').style.display='none';document.getElementById('devices-view').style.display='none';
-  document.getElementById('detail-view').style.display='block';
-  document.getElementById('detail-title').textContent=loc.name;
-  const today=new Date().toISOString().split('T')[0];
-  const{data:tickets}=await sb.from('tickets').select('*').eq('location_id',id).eq('date',today).order('created_at',{ascending:false});
-  const tix=tickets||[];
-  const rev=tix.reduce((s,t)=>s+parseFloat(t.price),0);
-  document.getElementById('detail-summary').innerHTML=
-    '<div class="card"><h3>الإيرادات</h3><div class="value green">'+Math.round(rev)+' DH</div></div>'+
-    '<div class="card"><h3>التذاكر</h3><div class="value">'+tix.length+'</div></div>';
-  let rows='';
-  for(const t of tix){rows+='<tr><td>#'+t.serial_number+'/'+t.year+'</td><td>'+t.category_name+'</td><td>'+Math.round(parseFloat(t.price))+' DH</td><td>'+t.time+'</td></tr>';}
-  document.getElementById('tickets-body').innerHTML=rows||'<tr><td colspan="4" style="text-align:center;color:#64748b">لا توجد تذاكر</td></tr>';
-}
-
-function showLocations(){
-  document.getElementById('locations-view').classList.remove('hidden');
-  document.getElementById('detail-view').style.display='none';
-  document.getElementById('settings-view').style.display='none';
-  document.getElementById('download-view').style.display='none';document.getElementById('devices-view').style.display='none';
-  loadDashboard();
-}
-
 // ═══ Devices: status, add, connection code, test connection ═══
 function esc(t){return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function makeConnectionCode(loc){
@@ -314,14 +362,6 @@ function deviceState(l){
   if(s<60)return{c:'#16a34a',t:'متصل'};
   if(s<600)return{c:'#f59e0b',t:'إشارة متأخرة'};
   return{c:'#dc2626',t:'غير متصل'};
-}
-async function showDevices(){
-  document.getElementById('locations-view').classList.add('hidden');
-  document.getElementById('detail-view').style.display='none';
-  document.getElementById('settings-view').style.display='none';
-  document.getElementById('download-view').style.display='none';
-  document.getElementById('devices-view').style.display='block';
-  await loadDevices();
 }
 let devicesTimer=null;
 async function loadDevices(){
@@ -354,7 +394,7 @@ async function loadDevices(){
   }
   box.innerHTML=html;
   clearTimeout(devicesTimer);
-  devicesTimer=setTimeout(()=>{if(document.getElementById('devices-view').style.display==='block'&&!window.__pinging)loadDevices();},15000);
+  devicesTimer=setTimeout(()=>{if(currentView==='devices'&&!window.__pinging)loadDevices();},15000);
 }
 // Device management: database functions that only the manager may call (no service key).
 async function deviceAdmin(body){
@@ -470,39 +510,6 @@ async function pingDevice(id){
   window.__pinging=false;
 }
 
-async function showDownload(){
-  document.getElementById('locations-view').classList.add('hidden');
-  document.getElementById('detail-view').style.display='none';
-  document.getElementById('settings-view').style.display='none';
-  document.getElementById('devices-view').style.display='none';
-  document.getElementById('download-view').style.display='block';
-  const v=document.getElementById('dl-version'),a=document.getElementById('dl-link'),sz=document.getElementById('dl-size');
-  try{
-    const r=await fetch('https://api.github.com/repos/alijaouhari/hammampos/releases/latest');
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const rel=await r.json();
-    const asset=(rel.assets||[]).find(x=>/\.zip$/i.test(x.name));
-    if(!asset)throw new Error('no asset');
-    a.href=asset.browser_download_url;
-    v.textContent='النسخة '+rel.tag_name.replace(/^v/,'')+' — '+new Date(rel.published_at).toLocaleDateString('ar-MA');
-    sz.textContent='الحجم: '+Math.round(asset.size/1048576)+' ميغابايت';
-  }catch(e){
-    v.textContent='تعذّر قراءة رقم آخر نسخة. الزر يفتح صفحة التحميل على GitHub.';
-    sz.textContent='';
-  }
-}
-
-async function showSettings(){
-  document.getElementById('locations-view').classList.add('hidden');
-  document.getElementById('detail-view').style.display='none';
-  document.getElementById('settings-view').style.display='block';
-  document.getElementById('download-view').style.display='none';document.getElementById('devices-view').style.display='none';
-  const{data:locs}=await sb.from('locations').select('*');
-  let html='';
-  for(const loc of locs||[]){html+='<div class="loc-item"><span>'+loc.name+'</span><button class="btn-red" onclick="deleteLocation(\''+loc.id+'\',\''+loc.name+'\')">حذف</button></div>';}
-  document.getElementById('locations-manage').innerHTML=html||'<p>لا توجد فروع</p>';
-}
-
 async function changePassword(){
   const cur=document.getElementById('current-password').value;
   const np=document.getElementById('new-password').value;
@@ -520,20 +527,314 @@ async function changePassword(){
   setMsg('pw-msg','تم تغيير كلمة المرور',true);
 }
 
-async function deleteLocation(id,name){
-  if(!confirm('حذف فرع "'+name+'"؟ سيتم حذف جميع بياناته!')){return;}
-  await sb.from('tickets').delete().eq('location_id',id);
-  await sb.from('expenses').delete().eq('location_id',id);
-  await sb.from('collections').delete().eq('location_id',id);
-  await sb.from('locations').delete().eq('id',id);
-  showSettings();
+// ═══ Navigation ═══
+let currentView='overview',currentHammam=null;
+const VIEW_IDS=['overview','hammam','charts','alerts','devices','download','settings'];
+function go(view,arg){
+  currentView=view;
+  VIEW_IDS.forEach(v=>document.getElementById('view-'+v).classList.toggle('hidden',v!==view));
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===(view==='hammam'?'overview':view)));
+  window.scrollTo(0,0);
+  if(view==='overview')renderOverview();
+  if(view==='hammam'){currentHammam=arg||currentHammam;renderHammam();}
+  if(view==='charts')renderCharts();
+  if(view==='alerts')renderAlerts();
+  if(view==='devices')loadDevices();
+  if(view==='download')loadDownload();
 }
 
+// ═══ Data: locations (with the summary each PC sends) + notifications ═══
+let notes=[];
+const todayStr=()=>new Date().toISOString().slice(0,10); // Morocco = UTC+0
+async function loadLocations(){
+  const{data,error}=await sb.from('locations').select('*').order('created_at');
+  if(!error)locations=data||[];
+  return locations;
+}
+async function loadNotes(){
+  const{data,error}=await sb.from('notifications').select('*').order('received_at',{ascending:false}).limit(300);
+  if(!error)notes=data||[];
+  updateBadge();
+  return notes;
+}
+async function loadDashboard(){
+  await Promise.all([loadLocations(),loadNotes()]);
+  fillLocSelects();
+  go(currentView,currentHammam);
+  setInterval(refreshTick,30000);
+}
+async function refreshTick(){
+  if(window.__pinging)return;
+  await loadLocations();
+  if(currentView==='overview')renderOverview();
+  else if(currentView==='hammam')renderHammam(true);
+  else if(currentView==='alerts')renderAlerts();
+  updateBadge();
+}
+let rtTimer=null;
 function subscribeRealtime(){
-  sb.channel('tickets-changes').on('postgres_changes',{event:'INSERT',schema:'public',table:'tickets'},()=>{
-    if(document.getElementById('detail-view').style.display!=='none')return;
-    loadDashboard();
+  sb.channel('dash-notes').on('postgres_changes',{event:'*',schema:'public',table:'notifications'},async()=>{
+    await loadNotes();
+    if(currentView==='alerts')renderAlerts();
+    if(currentView==='overview')renderOverviewAlerts();
   }).subscribe();
+  sb.channel('dash-locs').on('postgres_changes',{event:'UPDATE',schema:'public',table:'locations'},()=>{
+    clearTimeout(rtTimer);rtTimer=setTimeout(refreshTick,3000);
+  }).subscribe();
+}
+
+// ═══ Helpers ═══
+function dh(n){if(n==null||isNaN(n))return '—';return '\u2066'+Math.round(Number(n)).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g,' ')+' DH\u2069';}
+function int(n){return n==null?'—':Number(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g,' ');}
+function sumOf(loc){const s=loc.summary;return s&&!s.error?s:null;}
+// Today's numbers only count if the summary is about today.
+function todayOf(loc){const s=sumOf(loc);if(!s||s.day!==todayStr())return{tickets:0,sales:0,expenses:0,refunds:0,byCategory:[]};return s.today||{};}
+function pillOf(l){
+  if(!l.last_seen_at)return{cls:'none',t:'لا إشارة'};
+  const s=(Date.now()-new Date(l.last_seen_at).getTime())/1000;
+  if(s<60)return{cls:'on',t:'● متصل'};
+  if(s<600)return{cls:'late',t:'● إشارة متأخرة'};
+  return{cls:'off',t:'● غير متصل '+agoText(l.last_seen_at)};
+}
+function statCard(k,v,cls,sub){return '<div class="stat '+(cls||'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div>'+(sub?'<div class="s">'+sub+'</div>':'')+'</div>';}
+function mini(k,v){return '<div class="mini"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>';}
+function fillLocSelects(){
+  const opts='<option value="">كل الحمامات</option>'+locations.map(l=>'<option value="'+l.id+'">'+esc(l.name)+'</option>').join('');
+  ['ch-loc','al-loc'].forEach(id=>{const el=document.getElementById(id);const v=el.value;el.innerHTML=opts;el.value=v;});
+}
+function flagsOf(l){
+  const s=sumOf(l),f=[];
+  const p=pillOf(l);
+  if(p.cls==='off')f.push('<span class="flag">📴 الجهاز غير متصل</span>');
+  if(!s){f.push('<span class="flag amber">لا ملخص بعد: حدّث الجهاز إلى 2.8.34</span>');return f;}
+  if(s.pendingLate&&s.pendingLate.count)f.push('<span class="flag amber">⏰ '+s.pendingLate.count+' إدخال متأخر في الانتظار ('+dh(s.pendingLate.total)+')</span>');
+  if(s.openBills&&s.openBills.count)f.push('<span class="flag amber">🧾 '+s.openBills.count+' فاتورة غير مدفوعة ('+dh(s.openBills.total)+')</span>');
+  if(s.day===todayStr()&&s.today&&s.today.refunds)f.push('<span class="flag">↩ '+s.today.refunds+' استرجاع اليوم</span>');
+  if(!f.length)f.push('<span class="flag ok">✓ لا شيء يحتاج انتباهك</span>');
+  return f;
+}
+
+// ═══ Overview ═══
+let ovChart=null;
+function renderOverview(){
+  const today=todayStr();
+  document.getElementById('ov-date').textContent=new Date().toLocaleDateString('ar-MA',{weekday:'long',day:'numeric',month:'long'});
+  let sales=0,tickets=0,exp=0,cash=0,sup=0,mgr=0,online=0;
+  for(const l of locations){
+    const t=todayOf(l),s=sumOf(l);
+    sales+=t.sales||0;tickets+=t.tickets||0;exp+=t.expenses||0;
+    if(s){cash+=s.cashInHand||0;sup+=s.owedToSuppliers||0;mgr+=s.owedToManager||0;}
+    if(pillOf(l).cls==='on')online++;
+  }
+  const unread=notes.filter(n=>!n.read_at).length;
+  document.getElementById('ov-stats').innerHTML=
+    statCard('مبيعات اليوم',dh(sales),'green',int(tickets)+' تذكرة')+
+    statCard('مصروفات اليوم',dh(exp),'')+
+    statCard('النقد في الصندوق',dh(cash),'violet','كل الحمامات')+
+    statCard('ديون الموردين',dh(sup),sup>0?'red':'')+
+    statCard('مستحق للمدير',dh(mgr),mgr>0?'amber':'')+
+    statCard('الأجهزة المتصلة',online+' / '+locations.length,online<locations.length?'red':'green',unread?unread+' تنبيه غير مقروء':'لا تنبيهات جديدة');
+  let html='';
+  for(const l of locations){
+    const s=sumOf(l),t=todayOf(l),p=pillOf(l);
+    html+='<div class="hcard"><div class="hcard-head"><h3>'+esc(l.name)+'</h3><span class="pill '+p.cls+'">'+p.t+'</span></div>'+
+      '<div class="hcard-body">'+
+        mini('مبيعات اليوم',dh(t.sales))+mini('التذاكر',int(t.tickets))+mini('المصروفات',dh(t.expenses))+
+        mini('النقد في الصندوق',s?dh(s.cashInHand):'—')+mini('ديون الموردين',s?dh(s.owedToSuppliers):'—')+mini('مستحق للمدير',s?dh(s.owedToManager):'—')+
+      '</div>'+
+      '<div class="hcard-flags">'+flagsOf(l).join('')+'</div>'+
+      '<div class="hcard-foot"><button class="btn blue" onclick="go(\'hammam\',\''+l.id+'\')">التفاصيل</button>'+
+      '<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">🖥 لوحة الإدارة عن بعد</a>'+
+      '<span class="updated" style="margin-right:auto;align-self:center">'+(l.summary_at?'تحديث '+agoText(l.summary_at):'')+(s&&s.lastTicketAt?' · آخر تذكرة '+esc(String(s.lastTicketAt).slice(11,16)):'')+'</span></div></div>';
+  }
+  document.getElementById('ov-hammams').innerHTML=html||'<div class="empty">لا توجد فروع. أضف جهازاً من صفحة «الأجهزة».</div>';
+  document.getElementById('ov-updated').textContent='يتحدث تلقائياً';
+  const series=seriesFor(null,'day').slice(-14);
+  ovChart=drawChart('ov-chart',ovChart,series,false);
+  renderOverviewAlerts();
+}
+function renderOverviewAlerts(){
+  const live=liveAlerts();
+  const items=live.map(a=>alertHtml(a,true)).concat(notes.slice(0,5).map(n=>alertHtml(noteView(n))));
+  document.getElementById('ov-alerts').innerHTML=items.join('')||'<div class="empty">لا تنبيهات</div>';
+}
+
+// ═══ Hammam detail ═══
+let hmChart=null,hmPeriod='day';
+async function renderHammam(quiet){
+  const l=locations.find(x=>x.id===currentHammam);
+  if(!l){go('overview');return;}
+  const s=sumOf(l),t=todayOf(l),p=pillOf(l);
+  document.getElementById('hm-title').innerHTML=esc(l.name)+' <span class="pill '+p.cls+'">'+p.t+'</span>';
+  document.getElementById('hm-actions').innerHTML='<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">🖥 لوحة الإدارة عن بعد</a><button class="btn light" onclick="go(\'devices\')">📱 أوامر الجهاز</button>';
+  document.getElementById('hm-updated').textContent=(l.summary_at?'آخر ملخص من الجهاز '+agoText(l.summary_at):'لم يرسل الجهاز ملخصاً بعد')+(l.app_version?' · النسخة '+l.app_version:'')+(s&&s.lastTicketAt?' · آخر تذكرة '+s.lastTicketAt:'');
+  document.getElementById('hm-flags').innerHTML=flagsOf(l).join('');
+  document.getElementById('hm-stats').innerHTML=!s?'<div class="empty">لا ملخص من هذا الجهاز بعد.</div>':
+    statCard('مبيعات اليوم',dh(t.sales),'green',int(t.tickets)+' تذكرة')+
+    statCard('مصروفات اليوم',dh(t.expenses),'')+
+    statCard('استرجاع اليوم',int(t.refunds||0),t.refunds?'red':'',s.refundsEnabled?'الاسترجاع مفعّل للبائع':'الاسترجاع غير مفعّل للبائع')+
+    statCard('النقد في الصندوق',dh(s.cashInHand),'violet')+
+    (s.changeFloat!=null?statCard('صندوق الصرف',dh(s.changeFloat),''):'')+
+    statCard('ديون الموردين',dh(s.owedToSuppliers),s.owedToSuppliers>0?'red':'')+
+    statCard('مستحق للمدير',dh(s.owedToManager),s.owedToManager>0?'amber':'')+
+    statCard('على البائع',dh(s.owedBySeller),s.owedBySeller>0?'amber':'')+
+    statCard('فواتير غير مدفوعة',int(s.openBills&&s.openBills.count||0),s.openBills&&s.openBills.count?'amber':'',dh(s.openBills&&s.openBills.total||0))+
+    statCard('إدخالات متأخرة',int(s.pendingLate&&s.pendingLate.count||0),s.pendingLate&&s.pendingLate.count?'amber':'',dh(s.pendingLate&&s.pendingLate.total||0));
+  const cats=t.byCategory||[];
+  document.getElementById('hm-cats').innerHTML=cats.length?'<table class="t"><thead><tr><th>الفئة</th><th>التذاكر</th><th>المبلغ</th></tr></thead><tbody>'+
+    cats.map(c=>'<tr><td>'+esc(c[0])+'</td><td class="num">'+int(c[1])+'</td><td class="num">'+dh(c[2])+'</td></tr>').join('')+'</tbody></table>':'<div class="empty">لا مبيعات اليوم</div>';
+  hmChart=drawChart('hm-chart',hmChart,seriesFor(l.id,hmPeriod),true);
+  if(quiet)return;
+  const box=document.getElementById('hm-tickets');
+  box.innerHTML='<div class="empty">جاري التحميل...</div>';
+  const{data:tix,error}=await sb.from('tickets').select('serial_number,year,category_name,price,time').eq('location_id',l.id).eq('date',todayStr()).order('created_at',{ascending:false}).limit(300);
+  if(error){box.innerHTML='<div class="msg msg-err">'+esc(error.message)+'</div>';return;}
+  box.innerHTML=(tix&&tix.length)?'<table class="t"><thead><tr><th>#</th><th>الفئة</th><th>السعر</th><th>الوقت</th></tr></thead><tbody>'+
+    tix.map(x=>'<tr><td class="num">'+x.serial_number+'/'+x.year+'</td><td>'+esc(x.category_name)+'</td><td class="num">'+dh(x.price)+'</td><td class="num">'+esc(x.time)+'</td></tr>').join('')+'</tbody></table>':'<div class="empty">لا توجد تذاكر اليوم</div>';
+}
+
+// ═══ Charts: day / week / month from the summaries ═══
+let chChart=null,chPeriod='day';
+function weekKey(d){ // Monday of the week, YYYY-MM-DD
+  const x=new Date(d+'T00:00:00Z');const wd=(x.getUTCDay()+6)%7;x.setUTCDate(x.getUTCDate()-wd);return x.toISOString().slice(0,10);
+}
+// rows: [label, tickets, sales, expenses]
+function seriesFor(locId,period){
+  const locs=locations.filter(l=>(!locId||l.id===locId)&&sumOf(l));
+  const map=new Map();
+  const add=(k,n,s,e)=>{const r=map.get(k)||[k,0,0,0];r[1]+=n;r[2]+=s;r[3]+=e;map.set(k,r);};
+  for(const l of locs){
+    const s=sumOf(l);
+    if(period==='month')(s.months||[]).forEach(([m,n,v,e])=>add(m,n,v,e));
+    else(s.days||[]).forEach(([d,n,v,e])=>add(period==='week'?weekKey(d):d,n,v,e));
+  }
+  let rows=[...map.values()].sort((a,b)=>a[0]<b[0]?-1:1);
+  if(period==='day')rows=rows.slice(-30);
+  return rows;
+}
+function labelOf(k,period){
+  if(period==='month'){const[y,m]=k.split('-');return new Date(Date.UTC(+y,+m-1,1)).toLocaleDateString('ar-MA',{month:'short',year:'2-digit'});}
+  const d=new Date(k+'T00:00:00Z');const t=d.toLocaleDateString('ar-MA',{day:'numeric',month:'short'});
+  return period==='week'?'أسبوع '+t:t;
+}
+function drawChart(canvasId,chart,rows,withTickets,period){
+  if(typeof Chart==='undefined')return null;
+  period=period||(rows.length&&rows[0][0].length===7?'month':(canvasId==='hm-chart'?hmPeriod:canvasId==='ch-chart'?chPeriod:'day'));
+  const labels=rows.map(r=>labelOf(r[0],period));
+  const ds=[
+    {type:'bar',label:'المبيعات (DH)',data:rows.map(r=>Math.round(r[2])),backgroundColor:'rgba(29,78,216,0.75)',borderRadius:6,yAxisID:'y'},
+    {type:'bar',label:'المصروفات (DH)',data:rows.map(r=>Math.round(r[3])),backgroundColor:'rgba(220,38,38,0.55)',borderRadius:6,yAxisID:'y'}
+  ];
+  if(withTickets)ds.push({type:'line',label:'التذاكر',data:rows.map(r=>r[1]),borderColor:'#7c3aed',backgroundColor:'#7c3aed',tension:0.3,yAxisID:'y1',pointRadius:2});
+  const cfg={data:{labels,datasets:ds},options:{maintainAspectRatio:false,responsive:true,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',rtl:true,labels:{font:{family:'Segoe UI, Tahoma'}}},tooltip:{rtl:true}},
+    scales:{y:{beginAtZero:true,position:'left'},...(withTickets?{y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false}}}:{})}}};
+  if(chart)chart.destroy();
+  return new Chart(document.getElementById(canvasId),cfg);
+}
+function setupSeg(id,cb){
+  document.getElementById(id).addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('active',x===b));
+    cb(b.dataset.p||b.dataset.f);
+  });
+}
+setupSeg('ch-seg',p=>{chPeriod=p;renderCharts();});
+setupSeg('hm-seg',p=>{hmPeriod=p;hmChart=drawChart('hm-chart',hmChart,seriesFor(currentHammam,hmPeriod),true);});
+function renderCharts(){
+  const locId=document.getElementById('ch-loc').value||null;
+  const rows=seriesFor(locId,chPeriod);
+  const tot=rows.reduce((a,r)=>[a[0]+r[1],a[1]+r[2],a[2]+r[3]],[0,0,0]);
+  const name={day:'آخر '+rows.length+' يوماً',week:'آخر '+rows.length+' أسابيع',month:'آخر '+rows.length+' شهراً'}[chPeriod];
+  document.getElementById('ch-stats').innerHTML=
+    statCard('المبيعات',dh(tot[1]),'green',name)+statCard('التذاكر',int(tot[0]),'',name)+
+    statCard('المصروفات',dh(tot[2]),'red',name)+statCard('الصافي',dh(tot[1]-tot[2]),'violet','المبيعات ناقص المصروفات')+
+    statCard('معدل '+({day:'اليوم',week:'الأسبوع',month:'الشهر'}[chPeriod]),dh(rows.length?tot[1]/rows.length:0),'');
+  chChart=drawChart('ch-chart',chChart,rows,true,chPeriod);
+  document.getElementById('ch-table').innerHTML=rows.length?'<table class="t"><thead><tr><th>الفترة</th><th>التذاكر</th><th>المبيعات</th><th>المصروفات</th><th>الصافي</th></tr></thead><tbody>'+
+    rows.slice().reverse().map(r=>'<tr><td>'+labelOf(r[0],chPeriod)+'</td><td class="num">'+int(r[1])+'</td><td class="num">'+dh(r[2])+'</td><td class="num">'+dh(r[3])+'</td><td class="num">'+dh(r[2]-r[3])+'</td></tr>').join('')+
+    '</tbody></table>':'<div class="empty">لا بيانات بعد. الأجهزة ترسل الأرقام بعد التحديث إلى 2.8.34.</div>';
+}
+
+// ═══ Alerts ═══
+const NOTE_TYPES={
+  seller_collection:{ico:'💰',t:'تحصيل سجّله البائع',cls:''},
+  refund:{ico:'↩',t:'استرجاع تذكرة',cls:'bad'},
+  paid_by_manager:{ico:'🧾',t:'مصروف على حساب المدير',cls:'warn'},
+  late_entry:{ico:'⏰',t:'إدخال متأخر',cls:'warn'}
+};
+function locName(id){const l=locations.find(x=>x.id===id);return l?l.name:'—';}
+function noteView(n){
+  const ty=NOTE_TYPES[n.type]||{ico:'🔔',t:n.type,cls:''};const p=n.payload||{};
+  let sub='';
+  if(n.type==='seller_collection')sub=[dh(p.amount),p.label,p.recipient&&('إلى '+p.recipient),p.reference&&('مرجع '+p.reference)].filter(Boolean).join(' · ');
+  else if(n.type==='refund')sub=[dh(p.amount),p.category,p.serial&&('#'+p.serial),p.reason&&('السبب: '+p.reason)].filter(Boolean).join(' · ');
+  else if(n.type==='paid_by_manager')sub=[dh(p.amount)+(p.total&&p.total!==p.amount?' من '+dh(p.total):''),p.description,p.supplier].filter(Boolean).join(' · ');
+  else if(n.type==='late_entry')sub=[dh(p.amount),p.description,p.supplier,p.date&&('بتاريخ '+p.date)].filter(Boolean).join(' · ');
+  else sub=esc(JSON.stringify(p));
+  return{id:n.id,ico:ty.ico,cls:ty.cls,title:ty.t+' — '+locName(n.location_id),sub,when:n.created_at||n.received_at,unread:!n.read_at};
+}
+// Current situations computed from the summaries (not stored).
+function liveAlerts(){
+  const out=[];
+  for(const l of locations){
+    const p=pillOf(l),s=sumOf(l);
+    if(p.cls==='off')out.push({ico:'📴',cls:'bad',title:l.name+': الجهاز غير متصل',sub:'آخر إشارة '+agoText(l.last_seen_at)+'. الجهاز مغلق أو بلا إنترنت.'});
+    if(s&&s.pendingLate&&s.pendingLate.count)out.push({ico:'⏰',cls:'warn',title:l.name+': '+s.pendingLate.count+' إدخال متأخر في انتظار مراجعتك',sub:'المجموع '+dh(s.pendingLate.total)+'. راجعها من لوحة الإدارة عن بعد.',loc:l.id});
+    if(s&&s.openBills&&s.openBills.count)out.push({ico:'🧾',cls:'warn',title:l.name+': '+s.openBills.count+' فاتورة غير مدفوعة',sub:'الباقي '+dh(s.openBills.total)+'.',loc:l.id});
+  }
+  return out;
+}
+function alertHtml(a,live){
+  return '<div class="alert '+(a.cls||'')+(a.unread?' unread':'')+'"'+(a.id?' style="cursor:pointer" onclick="markRead('+a.id+')"':'')+'><div class="ico">'+a.ico+'</div><div style="flex:1"><div class="ttl">'+esc(a.title)+'</div><div class="sub">'+esc(a.sub)+'</div></div>'+
+    (a.when?'<div class="updated" title="'+esc(new Date(a.when).toLocaleString('ar-MA'))+'">'+agoText(a.when)+'</div>':'')+
+    (live&&a.loc?'<a class="btn light" style="padding:0.3rem 0.6rem" href="admin.html?loc='+a.loc+'" target="_blank" rel="noopener">🖥 فتح</a>':'')+'</div>';
+}
+let alFilter='all';
+setupSeg('al-seg',f=>{alFilter=f;renderAlerts();});
+function renderAlerts(){
+  const live=liveAlerts();
+  document.getElementById('al-now').innerHTML=live.map(a=>alertHtml(a,true)).join('')||'<div class="empty">✓ لا شيء يحتاج انتباهك الآن</div>';
+  const loc=document.getElementById('al-loc').value;
+  const list=notes.filter(n=>(!loc||n.location_id===loc)&&(alFilter==='all'||!n.read_at));
+  document.getElementById('al-list').innerHTML=list.map(n=>alertHtml(noteView(n))).join('')||'<div class="empty">لا تنبيهات</div>';
+}
+function updateBadge(){
+  const n=notes.filter(x=>!x.read_at).length;
+  const b=document.getElementById('alerts-badge');
+  b.textContent=n>99?'99+':n;b.classList.toggle('hidden',!n);
+}
+async function markRead(id){
+  const n=notes.find(x=>x.id===id);if(!n||n.read_at)return;
+  const{error}=await sb.from('notifications').update({read_at:new Date().toISOString()}).eq('id',id);
+  if(!error)n.read_at=new Date().toISOString();
+  updateBadge();
+  if(currentView==='alerts')renderAlerts();else renderOverviewAlerts();
+}
+async function markAllRead(){
+  const ids=notes.filter(x=>!x.read_at).map(x=>x.id);
+  if(!ids.length)return;
+  const{error}=await sb.from('notifications').update({read_at:new Date().toISOString()}).in('id',ids);
+  if(error){alert(error.message);return;}
+  await loadNotes();renderAlerts();
+}
+
+// ═══ Download ═══
+async function loadDownload(){
+  const v=document.getElementById('dl-version'),a=document.getElementById('dl-link'),sz=document.getElementById('dl-size');
+  try{
+    const r=await fetch('https://api.github.com/repos/alijaouhari/hammampos/releases/latest');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const rel=await r.json();
+    const asset=(rel.assets||[]).find(x=>/\.zip$/i.test(x.name));
+    if(!asset)throw new Error('no asset');
+    a.href=asset.browser_download_url;
+    v.textContent='النسخة '+rel.tag_name.replace(/^v/,'')+' — '+new Date(rel.published_at).toLocaleDateString('ar-MA');
+    sz.textContent='الحجم: '+Math.round(asset.size/1048576)+' ميغابايت';
+  }catch(e){
+    v.textContent='تعذّر قراءة رقم آخر نسخة. الزر يفتح صفحة التحميل على GitHub.';
+    sz.textContent='';
+  }
 }
 
 document.getElementById('password').addEventListener('keydown',e=>{if(e.key==='Enter')login();});

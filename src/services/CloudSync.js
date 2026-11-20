@@ -275,6 +275,26 @@ class CloudSync {
     return !!(this.storage.getSetting('device_email') && this.storage.getSetting('device_password'));
   }
 
+  _summary() {
+    try { return this.options.getSummary ? this.options.getSummary() : undefined; } catch (_) { return undefined; }
+  }
+
+  /** Send notifications stored on this PC to the dashboard's feed (device logins only). */
+  async pushNotifications() {
+    const n = this.options.notifications;
+    if (!n || !this.enabled || !this.locationId || !this.isDeviceMode()) return 0;
+    const items = n.pending();
+    if (!items.length) return 0;
+    const rows = items.map(i => ({
+      location_id: this.locationId, local_id: i.id, type: i.type, payload: i.payload || {},
+      created_at: i.created_at ? String(i.created_at).replace(' ', 'T') + 'Z' : null
+    }));
+    const { error } = await this.supabase.from('notifications').upsert(rows, { onConflict: 'location_id,local_id', ignoreDuplicates: true });
+    if (error) { this._noteError(error); return 0; }
+    n.delivered(items.map(i => i.id));
+    return items.length;
+  }
+
   /** Live commands from the dashboard (device logins only: the shared key cannot reach them). */
   _startCommands() {
     if (!this.options.commandHandlers || !this.isDeviceMode() || !this.locationId) return;
@@ -505,6 +525,7 @@ class CloudSync {
       app_version: this.options.appVersion || null,
       queue_size: this.queueSize(),
       live: !!(this.commands && this.commands.live),
+      summary: this._summary(),
       last_sync_at: this.lastSyncAt,
       last_error: this.lastError,
       device_info: info
@@ -526,6 +547,7 @@ class CloudSync {
     }
     if (this.commands) await this.commands.poll().catch(() => {});
     else this._startCommands();
+    await this.pushNotifications().catch(() => {});
     // the remote admin channel dropped: open it again
     if (this.remoteAdmin && !this.remoteAdmin.live) this.remoteAdmin.start().catch(() => {});
   }

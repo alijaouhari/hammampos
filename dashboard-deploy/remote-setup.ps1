@@ -84,19 +84,71 @@ Say 'Tailscale connected.' 'Green'
 
 # 2. OpenSSH server: the official Microsoft package (fast). The Windows-Update
 #    feature install (Add-WindowsCapability) is NOT used: it often hangs for a long time.
+function Register-ExistingSshd {
+    $scripts = @()
+    foreach ($dir in @('C:\Program Files\OpenSSH', 'C:\Windows\System32\OpenSSH')) {
+        if (Test-Path $dir) { $scripts += Get-ChildItem $dir -Recurse -Filter 'install-sshd.ps1' -ErrorAction SilentlyContinue }
+    }
+    foreach ($sc in $scripts) {
+        if (-not (Test-Path (Join-Path $sc.DirectoryName 'sshd.exe'))) { continue }
+        Say "Registering the SSH service from $($sc.DirectoryName)..."
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $sc.FullName | Out-Host
+        Start-Sleep 2
+        if (Get-Service sshd -ErrorAction SilentlyContinue) { return $true }
+    }
+    # last resort: the program is there but without its setup script
+    foreach ($exe in @('C:\Program Files\OpenSSH\sshd.exe', 'C:\Windows\System32\OpenSSH\sshd.exe')) {
+        if (Test-Path $exe) {
+            Say "Creating the SSH service for $exe..."
+            New-Service -Name sshd -DisplayName 'OpenSSH SSH Server' -BinaryPathName "`"$exe`"" -StartupType Automatic | Out-Null
+            if (Get-Service sshd -ErrorAction SilentlyContinue) { return $true }
+        }
+    }
+    return $false
+}
+
+if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) { [void](Register-ExistingSshd) }
+
 if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {
     Say 'Installing the OpenSSH server (about 1 minute)...'
     $rel = Invoke-RestMethod -TimeoutSec 60 'https://api.github.com/repos/PowerShell/Win32-OpenSSH/releases/latest'
+    # a) the official installer package, with a log
     $asset = $rel.assets | Where-Object { $_.name -match 'Win64.*\.msi$' } | Select-Object -First 1
-    if (-not $asset) { throw 'Could not find the OpenSSH package. Try again later.' }
-    $msi2 = Join-Path $env:TEMP 'openssh.msi'
-    Invoke-WebRequest -UseBasicParsing -TimeoutSec 600 $asset.browser_download_url -OutFile $msi2
-    Start-Process msiexec.exe -ArgumentList "/i `"$msi2`" /quiet /norestart" -Wait
-    Start-Sleep 3
+    if ($asset) {
+        $msi2 = Join-Path $env:TEMP 'openssh.msi'
+        $msiLog = Join-Path $env:TEMP 'openssh-install.log'
+        Invoke-WebRequest -UseBasicParsing -TimeoutSec 600 $asset.browser_download_url -OutFile $msi2
+        $p = Start-Process msiexec.exe -ArgumentList "/i `"$msi2`" /quiet /norestart /l*v `"$msiLog`"" -Wait -PassThru
+        Start-Sleep 3
+        if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) { Write-Host "Installer package did not work (code $($p.ExitCode)). Trying the ZIP version..." -ForegroundColor Yellow }
+    }
+    # b) the official ZIP version + its own service setup script (no installer involved)
+    if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {
+        $zipAsset = $rel.assets | Where-Object { $_.name -eq 'OpenSSH-Win64.zip' } | Select-Object -First 1
+        if (-not $zipAsset) { throw 'Could not find the OpenSSH ZIP package. Try again later.' }
+        $zip = Join-Path $env:TEMP 'OpenSSH-Win64.zip'
+        Invoke-WebRequest -UseBasicParsing -TimeoutSec 600 $zipAsset.browser_download_url -OutFile $zip
+        $unz = Join-Path $env:TEMP 'openssh-zip'
+        if (Test-Path $unz) { Remove-Item $unz -Recurse -Force -ErrorAction SilentlyContinue }
+        Expand-Archive -LiteralPath $zip -DestinationPath $unz -Force
+        $src = (Get-ChildItem $unz -Recurse -Filter 'sshd.exe' | Select-Object -First 1).DirectoryName
+        $dest = 'C:\Program Files\OpenSSH'
+        New-Item -ItemType Directory -Force $dest | Out-Null
+        Copy-Item (Join-Path $src '*') $dest -Recurse -Force
+        [void](Register-ExistingSshd)
+    }
 }
-if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) { throw 'OpenSSH did not install. Send a photo of this window to support.' }
+if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {
+    Write-Host ''
+    Write-Host 'OpenSSH did not install. Details for support:' -ForegroundColor Red
+    Get-WindowsCapability -Online -Name 'OpenSSH.Server*' -ErrorAction SilentlyContinue | Format-List Name, State
+    $msiLog = Join-Path $env:TEMP 'openssh-install.log'
+    if (Test-Path $msiLog) { Get-Content $msiLog -Encoding Unicode | Select-String -Pattern 'error|failed|Erreur|1603|1618|1925' | Select-Object -Last 8 }
+    throw 'OpenSSH did not install. Send a photo of this window to support.'
+}
 Start-Service sshd
 Set-Service sshd -StartupType Automatic
+Start-Sleep 2
 
 # 3. Key-only login
 $cfg = 'C:\ProgramData\ssh\sshd_config'
@@ -118,6 +170,7 @@ foreach ($f in @($AdminKeys, (Join-Path $env:USERPROFILE '.ssh\authorized_keys')
 icacls $AdminKeys /inheritance:r /grant '*S-1-5-32-544:F' /grant '*S-1-5-18:F' | Out-Null
 
 # PowerShell as the SSH shell
+New-Item -Path 'HKLM:\SOFTWARE\OpenSSH' -Force | Out-Null
 New-ItemProperty -Path 'HKLM:\SOFTWARE\OpenSSH' -Name DefaultShell -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -PropertyType String -Force | Out-Null
 Restart-Service sshd
 
