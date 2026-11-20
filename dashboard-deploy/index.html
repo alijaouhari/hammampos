@@ -338,10 +338,14 @@ async function loadDevices(){
     const counts=info.counts?('تذاكر '+info.counts.tickets+' · مصروفات '+info.counts.expenses+' · تحصيل '+info.counts.collections):'';
     html+='<div class="loc-item" style="flex-wrap:wrap;gap:0.5rem" id="dev-'+l.id+'">'+
       '<div style="min-width:220px"><strong>'+esc(l.name)+'</strong><br>'+
-      '<span style="color:'+st.c+'">● '+st.t+'</span> <span style="color:#64748b;font-size:0.85rem">('+agoText(l.last_seen_at)+')</span><br>'+
+      '<span style="color:'+st.c+'">● '+st.t+'</span> <span style="color:#64748b;font-size:0.85rem">('+agoText(l.last_seen_at)+')</span>'+(l.live&&st.t==='متصل'?' <span style="background:#ede9fe;color:#6d28d9;border-radius:6px;padding:0 0.4rem;font-size:0.8rem">⚡ مباشر</span>':'')+'<br>'+
       '<span style="color:#64748b;font-size:0.85rem">'+(l.__hasLogin?'🔐 دخول خاص':'⚠ بدون دخول خاص (رمز قديم)')+' · النسخة: '+esc(l.app_version||'—')+' · في الانتظار: '+(l.queue_size||0)+' · آخر مزامنة: '+agoText(l.last_sync_at)+'</span>'+
       (counts?'<br><span style="color:#64748b;font-size:0.85rem">'+counts+'</span>':'')+
       (l.last_error?'<br><span style="color:#b91c1c;font-size:0.85rem">آخر خطأ: '+esc(l.last_error)+'</span>':'')+
+      '<div class="cmd-row" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.5rem">'+
+        cmdBtn(l.id,'ping','⚡ اختبار فوري')+cmdBtn(l.id,'sync_now','🔄 مزامنة الآن')+cmdBtn(l.id,'diagnostics','🩺 تشخيص')+
+        cmdBtn(l.id,'restart_app','♻ إعادة تشغيل البرنامج')+cmdBtn(l.id,'restart_pc','⏻ إعادة تشغيل الجهاز')+cmdBtn(l.id,'install_update','⬆ تثبيت آخر تحديث')+
+      '</div>'+
       '<div class="ping-result" id="ping-'+l.id+'"></div></div>'+
       '<div><button class="btn-blue" onclick="pingDevice(\''+l.id+'\')">🔌 اختبار الاتصال</button> '+
       '<button class="btn-blue" style="background:#64748b" onclick="showCode(\''+l.id+'\')">رمز ربط جديد</button> '+
@@ -351,9 +355,17 @@ async function loadDevices(){
   clearTimeout(devicesTimer);
   devicesTimer=setTimeout(()=>{if(document.getElementById('devices-view').style.display==='block'&&!window.__pinging)loadDevices();},15000);
 }
+// Device management: database functions that only the manager may call (no service key).
 async function deviceAdmin(body){
-  const{data,error}=await sb.functions.invoke('device-admin',{body});
-  if(error){let msg=error.message;try{const j=await error.context.json();msg=j.error||msg;}catch(_){}throw new Error(msg==='not allowed'?'هذا الحساب ليس حساب المدير':msg);}
+  const map={create:['admin_create_device',{device_name:body.name}],new_code:['admin_new_device_code',{loc_id:body.location_id}],delete:['admin_delete_device',{loc_id:body.location_id}]};
+  const m=map[body.action];
+  const{data,error}=await sb.rpc(m[0],m[1]);
+  if(error)throw new Error(/not allowed/.test(error.message)?'هذا الحساب ليس حساب المدير':error.message);
+  if(data&&data.email){
+    const json=JSON.stringify({u:CONFIG.SUPABASE_URL,k:CONFIG.SUPABASE_KEY,l:data.location.id,n:data.location.name,e:data.email,p:data.password});
+    data.code='HPOS2.'+btoa(unescape(encodeURIComponent(json)));
+    delete data.password;
+  }
   return data;
 }
 async function createDevice(){
@@ -390,6 +402,50 @@ async function deleteDevice(id){
   try{await deviceAdmin({action:'delete',location_id:id});loadDevices();}
   catch(e){alert(e.message);}
 }
+// ═══ Support actions over the live connection (app v2.8.32+) ═══
+const CMD_INFO={
+  ping:{timeout:20},
+  sync_now:{timeout:120},
+  diagnostics:{timeout:30},
+  restart_app:{timeout:30,confirm:'إعادة تشغيل برنامج HammamPOS على هذا الجهاز؟ يتوقف البيع حوالي 15 ثانية.'},
+  restart_pc:{timeout:30,confirm:'إعادة تشغيل الجهاز بالكامل؟ ستظهر رسالة للبائع ويعاد التشغيل بعد 30 ثانية، ويتوقف البيع 2-3 دقائق.'},
+  install_update:{timeout:600,confirm:'تحميل وتثبيت آخر نسخة على هذا الجهاز؟ يتوقف البيع حوالي دقيقة أثناء التثبيت.'}
+};
+function cmdBtn(id,action,label){return '<button class="btn-blue" style="background:#475569;padding:0.35rem 0.6rem;font-size:0.85rem;margin-top:0" onclick="sendCommand(\''+id+'\',\''+action+'\')">'+label+'</button>';}
+function showCmd(id,cls,html){document.getElementById('ping-'+id).innerHTML='<div class="msg '+cls+'">'+html+'</div>';}
+function cmdResultHtml(action,r,secs){
+  r=r||{};
+  if(action==='ping')return '✅ الجهاز يرد مباشرة (خلال '+secs+' ث) · النسخة '+esc(r.version||'—')+' · يعمل منذ '+esc(r.uptimeMin)+' د';
+  if(action==='sync_now'){const t=r;const p=(k,n)=>t[k]?n+': '+t[k].local+' (أُرسل '+t[k].sent+'، حُذف '+t[k].removed+')':'';return '✅ تمت المزامنة · '+[p('tickets','تذاكر'),p('expenses','مصروفات'),p('collections','تحصيل')].filter(Boolean).join(' · ');}
+  if(action==='diagnostics')return '✅ تقرير الجهاز:<pre style="direction:ltr;text-align:left;max-height:300px;overflow:auto;background:#0f172a;color:#e2e8f0;padding:0.5rem;border-radius:6px;font-size:0.75rem;white-space:pre-wrap">'+esc(JSON.stringify(r,null,2))+'</pre>';
+  if(action==='restart_app')return '♻ يعاد تشغيل البرنامج الآن. سيعود الجهاز متصلاً خلال 20-40 ثانية.';
+  if(action==='restart_pc')return '⏻ سيعاد تشغيل الجهاز بعد '+esc(r.restartingInSeconds||30)+' ثانية. سيعود متصلاً بعد 2-3 دقائق.';
+  if(action==='install_update')return r.upToDate?'✅ الجهاز يعمل بآخر نسخة ('+esc(r.version)+')':'⬆ جاري تثبيت النسخة '+esc(r.installing)+' (كانت '+esc(r.from)+'). سيعود الجهاز متصلاً خلال دقيقة إلى دقيقتين.';
+  return '✅ تم';
+}
+async function sendCommand(id,action){
+  const info=CMD_INFO[action]||{timeout:30};
+  if(info.confirm&&!confirm(info.confirm))return;
+  window.__pinging=true;
+  showCmd(id,'" style="background:#e0f2fe;color:#075985','⏳ تم إرسال الأمر، في انتظار الجهاز...');
+  const t0=Date.now();
+  const{data:cmd,error}=await sb.from('device_commands').insert({location_id:id,action}).select('id').single();
+  if(error){showCmd(id,'msg-err',esc(error.message));window.__pinging=false;return;}
+  let last=null;
+  while(Date.now()-t0<info.timeout*1000){
+    await new Promise(r=>setTimeout(r,1000));
+    const{data}=await sb.from('device_commands').select('status,result').eq('id',cmd.id).maybeSingle();
+    if(!data)continue;
+    last=data.status;
+    if(data.status==='running')showCmd(id,'" style="background:#e0f2fe;color:#075985','⏳ الجهاز ينفّذ الأمر...');
+    if(data.status==='done'){showCmd(id,'msg-ok',cmdResultHtml(action,data.result,((Date.now()-t0)/1000).toFixed(1)));window.__pinging=false;return;}
+    if(data.status==='failed'){showCmd(id,'msg-err','❌ '+esc((data.result&&data.result.error)||'فشل التنفيذ'));window.__pinging=false;return;}
+    if(data.status==='expired'){showCmd(id,'msg-err','❌ انتهت صلاحية الأمر قبل أن يستلمه الجهاز');window.__pinging=false;return;}
+  }
+  showCmd(id,'msg-err',last==='running'?'⏳ الجهاز ما زال ينفّذ الأمر. أعد فتح الصفحة لاحقاً لرؤية النتيجة.':'❌ لم يستلم الجهاز الأمر. الجهاز مغلق أو بلا إنترنت، أو يعمل بنسخة أقدم من 2.8.32.');
+  window.__pinging=false;
+}
+
 async function pingDevice(id){
   const el=document.getElementById('ping-'+id);
   window.__pinging=true;

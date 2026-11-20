@@ -40,28 +40,31 @@ Deno.serve(async (req: Request) => {
   const { data: isAdmin, error: adminErr } = await asCaller.rpc('is_admin');
   if (adminErr || isAdmin !== true) return json({ error: 'not allowed' }, 403);
 
-  const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  // Least privilege: table changes run as the calling manager (RLS allows managers);
+  // the service key is used ONLY for the Auth admin API (create / delete device logins).
+  const authAdmin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } }).auth.admin;
+  const db = asCaller;
   let body: { action?: string; name?: string; location_id?: string };
   try { body = await req.json(); } catch { return json({ error: 'bad request' }, 400); }
 
   async function newDeviceLogin(loc: { id: string; name: string }) {
     const email = `device-${crypto.randomUUID()}@devices.hammampos.app`;
     const password = randomSecret(32);
-    const { data, error } = await admin.auth.admin.createUser({
+    const { data, error } = await authAdmin.createUser({
       email, password, email_confirm: true,
       app_metadata: { role: 'device', location_id: loc.id },
       user_metadata: { location_name: loc.name }
     });
     if (error || !data.user) throw new Error(error?.message || 'could not create device login');
-    const { error: e2 } = await admin.from('devices').insert({ user_id: data.user.id, location_id: loc.id, label: loc.name });
-    if (e2) { await admin.auth.admin.deleteUser(data.user.id); throw new Error(e2.message); }
+    const { error: e2 } = await db.from('devices').insert({ user_id: data.user.id, location_id: loc.id, label: loc.name });
+    if (e2) { await authAdmin.deleteUser(data.user.id); throw new Error(e2.message); }
     return { code: connectionCode(url, anonKey, loc, email, password), deviceUserId: data.user.id };
   }
 
   async function revokeLogins(locationId: string, keepUserId?: string) {
-    const { data } = await admin.from('devices').select('user_id').eq('location_id', locationId);
+    const { data } = await db.from('devices').select('user_id').eq('location_id', locationId);
     for (const d of data || []) {
-      if (d.user_id !== keepUserId) await admin.auth.admin.deleteUser(d.user_id); // cascades the devices row
+      if (d.user_id !== keepUserId) await authAdmin.deleteUser(d.user_id); // cascades the devices row
     }
   }
 
@@ -69,13 +72,13 @@ Deno.serve(async (req: Request) => {
     if (body.action === 'create') {
       const name = String(body.name || '').trim();
       if (!name) return json({ error: 'name required' }, 400);
-      const { data: loc, error } = await admin.from('locations').insert({ name }).select('id,name').single();
+      const { data: loc, error } = await db.from('locations').insert({ name }).select('id,name').single();
       if (error) throw new Error(error.message);
       const r = await newDeviceLogin(loc);
       return json({ ok: true, location: loc, code: r.code });
     }
     if (body.action === 'new_code') {
-      const { data: loc, error } = await admin.from('locations').select('id,name').eq('id', body.location_id).maybeSingle();
+      const { data: loc, error } = await db.from('locations').select('id,name').eq('id', body.location_id).maybeSingle();
       if (error || !loc) return json({ error: 'location not found' }, 404);
       const r = await newDeviceLogin(loc);
       await revokeLogins(loc.id, r.deviceUserId);
@@ -85,8 +88,8 @@ Deno.serve(async (req: Request) => {
       const id = String(body.location_id || '');
       if (!id) return json({ error: 'location_id required' }, 400);
       await revokeLogins(id);
-      for (const t of ['tickets', 'expenses', 'collections']) await admin.from(t).delete().eq('location_id', id);
-      const { error } = await admin.from('locations').delete().eq('id', id);
+      for (const t of ['tickets', 'expenses', 'collections']) await db.from(t).delete().eq('location_id', id);
+      const { error } = await db.from('locations').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return json({ ok: true });
     }

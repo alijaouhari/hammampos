@@ -19,6 +19,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const WebSocket = require('ws');
+const RemoteCommands = require('./RemoteCommands');
 
 const TABLES = ['tickets', 'expenses', 'collections'];
 const CODE_PREFIX = 'HPOS1.';
@@ -65,6 +66,7 @@ class CloudSync {
     this.online = false;
     this.reconciling = false;
     this.lastReconcile = null;
+    this.commands = null;
   }
 
   // ─── Connection code (what the dashboard gives to a new device) ─────
@@ -202,6 +204,7 @@ class CloudSync {
 
     this._startTimers();
     if (this.online) {
+      this._startCommands();
       await this.processQueue();
       this.heartbeat().catch(() => {});
       // Repair any difference between this device and the cloud (once, a bit after start).
@@ -250,6 +253,7 @@ class CloudSync {
         await this.ensureLocation();
         this.online = true;
         this.lastError = null;
+        this._startCommands();
         this.scheduleReconcile(5000); // we were offline: make sure nothing was missed
       } catch (error) {
         this.online = false;
@@ -267,6 +271,13 @@ class CloudSync {
    */
   isDeviceMode() {
     return !!(this.storage.getSetting('device_email') && this.storage.getSetting('device_password'));
+  }
+
+  /** Live commands from the dashboard (device logins only: the shared key cannot reach them). */
+  _startCommands() {
+    if (!this.options.commandHandlers || !this.isDeviceMode() || !this.locationId) return;
+    if (!this.commands) this.commands = new RemoteCommands(this, this.options.commandHandlers);
+    this.commands.start().catch(() => {});
   }
 
   /** Sign in with this PC's own login (device mode). force=true signs in again. */
@@ -487,6 +498,7 @@ class CloudSync {
       last_seen_at: now,
       app_version: this.options.appVersion || null,
       queue_size: this.queueSize(),
+      live: !!(this.commands && this.commands.live),
       last_sync_at: this.lastSyncAt,
       last_error: this.lastError,
       device_info: info
@@ -506,6 +518,8 @@ class CloudSync {
     if (data && data.ping_requested_at && (!data.ping_reply_at || data.ping_requested_at > data.ping_reply_at)) {
       await this.supabase.from('locations').update({ ping_reply_at: new Date().toISOString() }).eq('id', this.locationId);
     }
+    if (this.commands) await this.commands.poll().catch(() => {});
+    else this._startCommands();
   }
 
   // ─── Full comparison with the cloud ─────────────────────────────────
@@ -610,6 +624,7 @@ class CloudSync {
       locationId: this.locationId,
       locationName: this.storage.getSetting('location_name'),
       mode: this.isDeviceMode() ? 'device' : 'shared-key',
+      live: !!(this.commands && this.commands.live),
       queueSize: this.queueSize(),
       lastError: this.lastError,
       lastSyncAt: this.lastSyncAt,
@@ -620,6 +635,7 @@ class CloudSync {
 
   async stop() {
     this._clearTimers();
+    if (this.commands) { this.commands.stop(); this.commands = null; }
     if (this._reconcileTimer) { clearTimeout(this._reconcileTimer); this._reconcileTimer = null; }
     this.enabled = false;
     this.online = false;

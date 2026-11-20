@@ -541,8 +541,46 @@ function deviceInfo() {
   };
 }
 
+// Support actions the manager can run from the dashboard (see RemoteCommands.ALLOWED_ACTIONS).
+const remoteCommandHandlers = {
+  ping: () => ({ version: app.getVersion(), time: new Date().toISOString(), uptimeMin: Math.round(process.uptime() / 60) }),
+  sync_now: async () => {
+    if (!cloudSync) throw new Error('السحابة غير مفعلة');
+    const r = await cloudSync.reconcile();
+    if (!r.ok) throw new Error(r.error || 'فشلت المزامنة');
+    return r.tables;
+  },
+  diagnostics: () => {
+    historyCache = null; // fresh numbers
+    return { ...deviceInfo(), cloud: cloudSync ? cloudSync.getStatus() : null };
+  },
+  restart_app: () => ({
+    result: { restarting: true },
+    after: () => { app.relaunch(); app.exit(0); }
+  }),
+  restart_pc: () => ({
+    result: { restartingInSeconds: 30 },
+    after: () => {
+      require('child_process').exec('shutdown /r /t 30 /c "HammamPOS: إعادة تشغيل الجهاز بطلب من المدير"', { windowsHide: true });
+    }
+  }),
+  install_update: async () => {
+    if (!updateManager) throw new Error('مدير التحديث غير جاهز');
+    const u = await updateManager.checkForUpdate();
+    if (!u) return { upToDate: true, version: app.getVersion() };
+    await updateManager.downloadUpdate();
+    return {
+      result: { installing: u.version, from: app.getVersion() },
+      after: () => { updateManager.applyAndRestart(); setTimeout(() => app.quit(), 1000); }
+    };
+  }
+};
+
 function newCloudSync() {
-  return new CloudSync(storage, { appVersion: app.getVersion(), getDeviceInfo: deviceInfo, getLocalRows: cloudLocalRows });
+  return new CloudSync(storage, {
+    appVersion: app.getVersion(), getDeviceInfo: deviceInfo, getLocalRows: cloudLocalRows,
+    commandHandlers: remoteCommandHandlers
+  });
 }
 
 // Called after anything that deletes / edits / refunds / cancels: the cloud copy is compared soon.
