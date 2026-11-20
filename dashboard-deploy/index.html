@@ -329,6 +329,7 @@ async function loadDevices(){
   const{data,error}=await sb.from('locations').select('*').order('created_at');
   if(error){box.innerHTML='<div class="msg msg-err">تعذّر تحميل الأجهزة: '+esc(error.message)+'</div>';return;}
   window.__devices=data||[];
+  try{const{data:dv}=await sb.from('devices').select('location_id');const has=new Set((dv||[]).map(d=>d.location_id));window.__devices.forEach(l=>{l.__hasLogin=has.has(l.id);});}catch(_){}
   if(!data||!data.length){box.innerHTML='<p style="color:#64748b">لا توجد أجهزة</p>';return;}
   let html='';
   for(const l of data){
@@ -338,50 +339,56 @@ async function loadDevices(){
     html+='<div class="loc-item" style="flex-wrap:wrap;gap:0.5rem" id="dev-'+l.id+'">'+
       '<div style="min-width:220px"><strong>'+esc(l.name)+'</strong><br>'+
       '<span style="color:'+st.c+'">● '+st.t+'</span> <span style="color:#64748b;font-size:0.85rem">('+agoText(l.last_seen_at)+')</span><br>'+
-      '<span style="color:#64748b;font-size:0.85rem">النسخة: '+esc(l.app_version||'—')+' · في الانتظار: '+(l.queue_size||0)+' · آخر مزامنة: '+agoText(l.last_sync_at)+'</span>'+
+      '<span style="color:#64748b;font-size:0.85rem">'+(l.__hasLogin?'🔐 دخول خاص':'⚠ بدون دخول خاص (رمز قديم)')+' · النسخة: '+esc(l.app_version||'—')+' · في الانتظار: '+(l.queue_size||0)+' · آخر مزامنة: '+agoText(l.last_sync_at)+'</span>'+
       (counts?'<br><span style="color:#64748b;font-size:0.85rem">'+counts+'</span>':'')+
       (l.last_error?'<br><span style="color:#b91c1c;font-size:0.85rem">آخر خطأ: '+esc(l.last_error)+'</span>':'')+
       '<div class="ping-result" id="ping-'+l.id+'"></div></div>'+
       '<div><button class="btn-blue" onclick="pingDevice(\''+l.id+'\')">🔌 اختبار الاتصال</button> '+
-      '<button class="btn-blue" style="background:#64748b" onclick="showCode(\''+l.id+'\')">رمز الربط</button> '+
+      '<button class="btn-blue" style="background:#64748b" onclick="showCode(\''+l.id+'\')">رمز ربط جديد</button> '+
       '<button class="btn-red" onclick="deleteDevice(\''+l.id+'\')">حذف</button></div></div>';
   }
   box.innerHTML=html;
   clearTimeout(devicesTimer);
   devicesTimer=setTimeout(()=>{if(document.getElementById('devices-view').style.display==='block'&&!window.__pinging)loadDevices();},15000);
 }
+async function deviceAdmin(body){
+  const{data,error}=await sb.functions.invoke('device-admin',{body});
+  if(error){let msg=error.message;try{const j=await error.context.json();msg=j.error||msg;}catch(_){}throw new Error(msg==='not allowed'?'هذا الحساب ليس حساب المدير':msg);}
+  return data;
+}
 async function createDevice(){
   const input=document.getElementById('new-device-name');
   const name=input.value.trim();
   const out=document.getElementById('new-device-result');
   if(!name){out.innerHTML='<div class="msg msg-err">اكتب اسم الفرع</div>';return;}
-  const{data,error}=await sb.from('locations').insert({name}).select('*').single();
-  if(error){out.innerHTML='<div class="msg msg-err">'+esc(error.message)+'</div>';return;}
-  input.value='';
-  renderCode(out,data);
-  loadDevices();
+  out.innerHTML='<div class="msg" style="background:#e0f2fe;color:#075985">جاري الإنشاء...</div>';
+  try{
+    const r=await deviceAdmin({action:'create',name});
+    input.value='';
+    renderCode(out,r.location,r.code);
+    loadDevices();
+  }catch(e){out.innerHTML='<div class="msg msg-err">'+esc(e.message)+'</div>';}
 }
-function renderCode(target,loc){
-  const code=makeConnectionCode(loc);
+function renderCode(target,loc,code){
   target.innerHTML='<div class="msg msg-ok">رمز الربط للجهاز «'+esc(loc.name)+'»:</div>'+
-    '<textarea readonly style="width:100%;max-width:560px;height:90px;direction:ltr;font-size:0.75rem;margin-top:0.5rem" onclick="this.select()">'+code+'</textarea>'+
+    '<textarea readonly style="width:100%;max-width:560px;height:110px;direction:ltr;font-size:0.75rem;margin-top:0.5rem" onclick="this.select()">'+code+'</textarea>'+
     '<br><button class="btn-blue" onclick="copyText(this.parentNode.querySelector(\'textarea\').value)">نسخ</button>'+
-    '<p style="color:#64748b;font-size:0.85rem;margin-top:0.5rem">الصقه في التطبيق: الإعدادات ← السحابة ← رمز الربط ← ربط. لا تشاركه مع غير مالك الفرع.</p>';
+    '<p style="color:#64748b;font-size:0.85rem;margin-top:0.5rem">الصقه في التطبيق: الإعدادات ← السحابة ← رمز الربط ← ربط.<br>هذا الرمز يحتوي على دخول خاص بهذا الجهاز فقط ويظهر مرة واحدة. لا تشاركه.</p>';
 }
 function copyText(t){navigator.clipboard.writeText(t).then(()=>alert('تم النسخ')).catch(()=>alert('انسخ النص يدوياً'));}
-function showCode(id){
+async function showCode(id){
   const loc=(window.__devices||[]).find(l=>l.id===id);
   if(!loc)return;
+  if(!confirm('إنشاء رمز ربط جديد لـ«'+loc.name+'»؟\nالرمز القديم يتوقف فوراً، ويبقى الجهاز غير متصل حتى تلصق الرمز الجديد فيه.'))return;
   const el=document.getElementById('ping-'+id);
-  renderCode(el,loc);
+  try{const r=await deviceAdmin({action:'new_code',location_id:id});renderCode(el,r.location,r.code);}
+  catch(e){el.innerHTML='<div class="msg msg-err">'+esc(e.message)+'</div>';}
 }
 async function deleteDevice(id){
   const loc=(window.__devices||[]).find(l=>l.id===id);
-  if(!loc||!confirm('حذف «'+loc.name+'» وكل بياناته من السحابة؟ لا يمكن التراجع.'))return;
-  for(const t of['tickets','expenses','collections']){await sb.from(t).delete().eq('location_id',id);}
-  const{error}=await sb.from('locations').delete().eq('id',id);
-  if(error){alert(error.message);return;}
-  loadDevices();
+  if(!loc||!confirm('حذف «'+loc.name+'» وكل بياناته من السحابة، وإلغاء دخول جهازه؟ لا يمكن التراجع.'))return;
+  try{await deviceAdmin({action:'delete',location_id:id});loadDevices();}
+  catch(e){alert(e.message);}
 }
 async function pingDevice(id){
   const el=document.getElementById('ping-'+id);

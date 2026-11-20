@@ -11,7 +11,10 @@
  *  - A heartbeat every 15 s tells the dashboard the device is alive (version, queue,
  *    last error) and answers "test connection" pings sent from the dashboard.
  *
- * Config (stored in settings): cloud_url, cloud_key, location_id, location_name
+ * Config (stored in settings): cloud_url, cloud_key, location_id, location_name,
+ *   device_email / device_password = this PC's own login (v2.8.31+, from an HPOS2
+ *   connection code). With a device login the PC can only reach its own location;
+ *   it never registers a location itself (the manager creates it in the dashboard).
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -19,6 +22,8 @@ const WebSocket = require('ws');
 
 const TABLES = ['tickets', 'expenses', 'collections'];
 const CODE_PREFIX = 'HPOS1.';
+const CODE_PREFIX_V2 = 'HPOS2.';
+const CLIENT_OPTS = { auth: { persistSession: false, autoRefreshToken: true, detectSessionInUrl: false } };
 
 function describeError(error) {
   const msg = String((error && (error.message || error.details)) || error || '');
@@ -27,6 +32,12 @@ function describeError(error) {
   }
   if (/invalid api key|jwt|apikey/i.test(msg) || (error && (error.status === 401 || error.status === 403))) {
     return 'مفتاح الاتصال غير صحيح';
+  }
+  if (/invalid login credentials/i.test(msg)) {
+    return 'دخول الجهاز مرفوض: أنشئ رمز ربط جديد من لوحة المراقبة';
+  }
+  if (/row-level security|permission denied|42501/i.test(msg)) {
+    return 'لا صلاحية: هذا الجهاز يحتاج رمز ربط جديد من لوحة المراقبة';
   }
   if (/relation .* does not exist|schema cache|PGRST205|42P01/i.test(msg)) {
     return 'الجداول غير موجودة في مشروع Supabase هذا';
@@ -65,7 +76,8 @@ class CloudSync {
 
   static decodeConnection(code) {
     const text = String(code || '').trim();
-    if (!text.startsWith(CODE_PREFIX)) throw new Error('رمز الربط غير صالح');
+    const v2 = text.startsWith(CODE_PREFIX_V2);
+    if (!v2 && !text.startsWith(CODE_PREFIX)) throw new Error('رمز الربط غير صالح');
     let obj;
     try {
       obj = JSON.parse(Buffer.from(text.slice(CODE_PREFIX.length), 'base64').toString('utf8'));
@@ -73,7 +85,11 @@ class CloudSync {
       throw new Error('رمز الربط غير صالح');
     }
     if (!obj || !obj.u || !obj.k) throw new Error('رمز الربط ناقص');
-    return { url: obj.u, key: obj.k, locationId: obj.l || null, name: obj.n || null };
+    if (v2 && (!obj.e || !obj.p || !obj.l)) throw new Error('رمز الربط ناقص');
+    return {
+      url: obj.u, key: obj.k, locationId: obj.l || null, name: obj.n || null,
+      deviceEmail: v2 ? obj.e : null, devicePassword: v2 ? obj.p : null
+    };
   }
 
   // ─── Connection test (does not need the sync to be running) ─────────
@@ -82,7 +98,7 @@ class CloudSync {
    * Checks, step by step, that this device can reach the project, that the key works,
    * that the tables exist, and (when a location id is known) that it can write.
    */
-  static async testConnection(url, key, locationId = null) {
+  static async testConnection(url, key, locationId = null, device = null) {
     const steps = [];
     const started = Date.now();
     const add = (name, ok, detail) => steps.push({ name, ok, detail });
@@ -96,10 +112,20 @@ class CloudSync {
     }
     let client;
     try {
-      client = createClient(url, key, { realtime: { transport: WebSocket } });
+      client = createClient(url, key, { ...CLIENT_OPTS, realtime: { transport: WebSocket } });
     } catch (e) {
       add('الإعدادات', false, describeError(e));
       return { ok: false, steps, latencyMs: null };
+    }
+    if (device && device.email && device.password) {
+      try {
+        const { error } = await client.auth.signInWithPassword({ email: device.email, password: device.password });
+        if (error) { add('دخول الجهاز', false, describeError(error)); return { ok: false, steps, latencyMs: null }; }
+        add('دخول الجهاز', true, 'تم');
+      } catch (e) {
+        add('دخول الجهاز', false, describeError(e));
+        return { ok: false, steps, latencyMs: null };
+      }
     }
     let latencyMs = null;
     try {
@@ -149,6 +175,7 @@ class CloudSync {
 
     try {
       this.supabase = createClient(url, key, {
+        ...CLIENT_OPTS,
         realtime: { transport: WebSocket }
       });
     } catch (error) {
@@ -163,6 +190,7 @@ class CloudSync {
     this.enabled = true;
 
     try {
+      await this._signInIfDevice();
       await this.ensureLocation();
       this.online = true;
       this.lastError = null;
@@ -216,8 +244,9 @@ class CloudSync {
 
   async _tick() {
     if (!this.enabled) return;
-    if (!this.online || !this.locationId) {
+    if (!this.online || !this.locationId || this._needsSignIn) {
       try {
+        await this._signInIfDevice(true);
         await this.ensureLocation();
         this.online = true;
         this.lastError = null;
@@ -236,8 +265,33 @@ class CloudSync {
    * cannot be reached. A known location is only re-registered if the cloud answers
    * and the row is really gone.
    */
+  isDeviceMode() {
+    return !!(this.storage.getSetting('device_email') && this.storage.getSetting('device_password'));
+  }
+
+  /** Sign in with this PC's own login (device mode). force=true signs in again. */
+  async _signInIfDevice(force = false) {
+    if (!this.isDeviceMode()) return;
+    if (!force && this._signedIn) return;
+    const { error } = await this.supabase.auth.signInWithPassword({
+      email: this.storage.getSetting('device_email'),
+      password: this.storage.getSetting('device_password')
+    });
+    if (error) { this._signedIn = false; throw error; }
+    this._signedIn = true;
+    this._needsSignIn = false;
+  }
+
   async ensureLocation() {
     const locationId = this.storage.getSetting('location_id');
+    if (this.isDeviceMode()) {
+      if (!locationId) throw new Error('هذا الجهاز غير مرتبط بفرع: أنشئ رمز ربط من لوحة المراقبة');
+      const { data, error } = await this.supabase.from('locations').select('id').eq('id', locationId).maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error('هذا الجهاز لم يعد مسجلاً في اللوحة: أنشئ رمز ربط جديد');
+      this.locationId = locationId;
+      return;
+    }
     const locationName = this.storage.getSetting('location_name') || this.storage.getSetting('hammam_name') || 'Unknown';
 
     if (locationId) {
@@ -314,7 +368,7 @@ class CloudSync {
       if (error) throw error;
       this.lastSyncAt = new Date().toISOString();
     } catch (error) {
-      this.lastError = describeError(error);
+      this._noteError(error);
       this.queueItem(table, localId, row, 'upsert');
     }
   }
@@ -327,7 +381,7 @@ class CloudSync {
       if (error) throw error;
       this.lastSyncAt = new Date().toISOString();
     } catch (error) {
-      this.lastError = describeError(error);
+      this._noteError(error);
       this.queueItem(table, localId, {}, 'delete');
     }
   }
@@ -344,6 +398,15 @@ class CloudSync {
   async deleteCollection(id) { return this._delete('collections', id); }
 
   // ─── OFFLINE QUEUE ──────────────────────────────────────────────────
+
+  _noteError(error) {
+    this.lastError = describeError(error);
+    const msg = String((error && error.message) || error || '');
+    if (/jwt|token|row-level security|42501|401/i.test(msg) && this.isDeviceMode()) {
+      this._needsSignIn = true;
+      this.online = false;
+    }
+  }
 
   queueItem(tableName, localId, data, op = 'upsert') {
     try {
@@ -534,6 +597,7 @@ class CloudSync {
       online: this.online,
       locationId: this.locationId,
       locationName: this.storage.getSetting('location_name'),
+      mode: this.isDeviceMode() ? 'device' : 'shared-key',
       queueSize: this.queueSize(),
       lastError: this.lastError,
       lastSyncAt: this.lastSyncAt,

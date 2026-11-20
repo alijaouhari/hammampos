@@ -58,7 +58,16 @@ function fakeSupabase() {
       return { data: out, error: null };
     }
   }
-  return { db, state, from: (t) => new Q(t) };
+  const auth = {
+    good: { email: 'dev@x', password: 'pw' }, signIns: 0,
+    async signInWithPassword({ email, password }) {
+      auth.signIns++;
+      if (state.failing) return { error: { message: 'fetch failed' } };
+      if (email === auth.good.email && password === auth.good.password) return { data: { session: {} }, error: null };
+      return { data: null, error: { message: 'Invalid login credentials' } };
+    }
+  };
+  return { db, state, auth, from: (t) => new Q(t) };
 }
 
 async function setup() {
@@ -177,7 +186,7 @@ test('heartbeat records version and answers a dashboard ping', async () => {
 test('connection code round trip and bad codes', () => {
   const code = CloudSync.encodeConnection({ url: 'https://a.supabase.co', key: 'KEY', locationId: 'abc', name: 'حمام' });
   assert.ok(code.startsWith('HPOS1.'));
-  assert.deepEqual(CloudSync.decodeConnection(' ' + code + ' '), { url: 'https://a.supabase.co', key: 'KEY', locationId: 'abc', name: 'حمام' });
+  assert.deepEqual(CloudSync.decodeConnection(' ' + code + ' '), { url: 'https://a.supabase.co', key: 'KEY', locationId: 'abc', name: 'حمام', deviceEmail: null, devicePassword: null });
   assert.throws(() => CloudSync.decodeConnection('hello'));
   assert.throws(() => CloudSync.decodeConnection('HPOS1.@@@'));
   assert.throws(() => CloudSync.decodeConnection('HPOS1.' + Buffer.from('{}').toString('base64')));
@@ -222,5 +231,58 @@ test('wipeCloud deletes only this location and clears the queue', async () => {
     assert.equal(r.ok, true);
     assert.deepEqual(fake.db.tickets.map(t => t.location_id), ['OTHER']);
     assert.equal(cs.queueSize(), 0);
+  } finally { cleanup(s); }
+});
+
+// ── Device logins (v2.8.31) ─────────────────────────────────────────────
+test('HPOS2 connection code carries the device login', () => {
+  const payload = { u: 'https://a.supabase.co', k: 'KEY', l: 'L9', n: 'حمام', e: 'device-1@devices.hammampos.app', p: 'secret' };
+  const code = 'HPOS2.' + Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
+  const c = CloudSync.decodeConnection(code);
+  assert.deepEqual(c, { url: payload.u, key: 'KEY', locationId: 'L9', name: 'حمام', deviceEmail: payload.e, devicePassword: 'secret' });
+  const missing = 'HPOS2.' + Buffer.from(JSON.stringify({ u: 'x', k: 'y', l: 'z' })).toString('base64');
+  assert.throws(() => CloudSync.decodeConnection(missing));
+  // old codes still decode, without a login
+  const old = CloudSync.decodeConnection(CloudSync.encodeConnection({ url: 'u', key: 'k', locationId: 'l', name: 'n' }));
+  assert.equal(old.deviceEmail, null);
+});
+
+test('device mode: signs in first, never registers a location, re-signs in after an auth error', async () => {
+  const { s, fake, cs } = await setup();
+  try {
+    s.setSetting('device_email', 'dev@x');
+    s.setSetting('device_password', 'pw');
+    s.setSetting('location_id', 'L1');
+    cs.locationId = null;
+    assert.equal(cs.isDeviceMode(), true);
+    await cs._signInIfDevice();
+    assert.equal(fake.auth.signIns, 1);
+    await cs.ensureLocation();
+    assert.equal(cs.locationId, 'L1');
+    // a location that no longer exists is NOT re-created by the device
+    s.setSetting('location_id', 'GONE');
+    await assert.rejects(() => cs.ensureLocation(), /لم يعد مسجلاً/);
+    assert.equal(fake.db.locations.length, 1);
+    // auth-type error -> a fresh sign-in on the next tick
+    s.setSetting('location_id', 'L1');
+    cs._noteError({ message: 'JWT expired' });
+    assert.equal(cs._needsSignIn, true);
+    await cs._tick();
+    assert.equal(fake.auth.signIns, 2);
+    assert.equal(cs._needsSignIn, false);
+    assert.equal(cs.online, true);
+    assert.equal(cs.getStatus().mode, 'device');
+  } finally { cleanup(s); }
+});
+
+test('device mode: a wrong login is reported plainly and nothing is written', async () => {
+  const { s, fake, cs } = await setup();
+  try {
+    s.setSetting('device_email', 'dev@x');
+    s.setSetting('device_password', 'WRONG');
+    await assert.rejects(() => cs._signInIfDevice(), (e) => /Invalid login/.test(e.message));
+    assert.match(CloudSync.describeError({ message: 'Invalid login credentials' }), /رمز ربط جديد/);
+    assert.match(CloudSync.describeError({ message: 'new row violates row-level security policy' }), /صلاحية/);
+    assert.equal(fake.db.locations.length, 1);
   } finally { cleanup(s); }
 });

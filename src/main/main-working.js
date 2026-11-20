@@ -554,7 +554,10 @@ ipcMain.handle('cloud:getStatus', () => (cloudSync ? cloudSync.getStatus() : { e
 ipcMain.handle('cloud:testConnection', async (event, url, key) => {
   const locationId = storage.getSetting('location_id') || null;
   const sameProject = !url || url === storage.getSetting('cloud_url');
-  return CloudSync.testConnection(url || storage.getSetting('cloud_url'), key || storage.getSetting('cloud_key'), sameProject ? locationId : null);
+  const device = sameProject && storage.getSetting('device_email')
+    ? { email: storage.getSetting('device_email'), password: storage.getSetting('device_password') }
+    : null;
+  return CloudSync.testConnection(url || storage.getSetting('cloud_url'), key || storage.getSetting('cloud_key'), sameProject ? locationId : null, device);
 });
 ipcMain.handle('cloud:reconnect', async () => {
   if (cloudSync) { try { await cloudSync.stop(); } catch (_) {} }
@@ -569,16 +572,46 @@ ipcMain.handle('cloud:fullSync', async () => {
 ipcMain.handle('cloud:applyConnectionCode', async (event, code) => {
   let c;
   try { c = CloudSync.decodeConnection(code); } catch (e) { return { ok: false, error: e.message }; }
+  // HPOS2 codes carry this PC's own login; an old HPOS1 code clears it (shared key).
+  const st = await applyConnectionCodeValue(code);
+  return { ok: st.enabled === true && st.online === true, name: c.name, status: st, error: st.online ? null : st.lastError };
+});
+ipcMain.handle('diagnostics:get', () => ({ ...deviceInfo(), cloud: cloudSync ? cloudSync.getStatus() : null, appData: process.env.APPDATA || null }));
+
+// Remote linking: support can drop a connection code in the data folder as
+// connection-code.txt (over SSH); the running app applies it within 30 s and deletes it.
+async function applyConnectionCodeValue(code) {
+  const c = CloudSync.decodeConnection(code);
   storage.setSetting('cloud_url', c.url);
   storage.setSetting('cloud_key', c.key);
   if (c.locationId) storage.setSetting('location_id', c.locationId);
   if (c.name) storage.setSetting('location_name', c.name);
+  storage.setSetting('device_email', c.deviceEmail || '');
+  storage.setSetting('device_password', c.devicePassword || '');
   if (cloudSync) { try { await cloudSync.stop(); } catch (_) {} }
   cloudSync = newCloudSync();
-  const res = await cloudSync.initialize();
-  return { ok: !!res.success, name: c.name, status: cloudSync.getStatus() };
-});
-ipcMain.handle('diagnostics:get', () => ({ ...deviceInfo(), cloud: cloudSync ? cloudSync.getStatus() : null, appData: process.env.APPDATA || null }));
+  await cloudSync.initialize();
+  return cloudSync.getStatus();
+}
+let codeFileBusy = false;
+setInterval(async () => {
+  if (codeFileBusy || !storage) return;
+  const file = path.join(path.dirname(storage.dbPath), 'connection-code.txt');
+  if (!fs.existsSync(file)) return;
+  codeFileBusy = true;
+  try {
+    const code = fs.readFileSync(file, 'utf8').trim();
+    fs.unlinkSync(file);
+    const st = await applyConnectionCodeValue(code);
+    storage.logAudit('CLOUD_LINK', 'settings', null, `connection code applied from file (mode ${st.mode}, online ${st.online})`);
+    storage.save();
+    console.log('☁️ Connection code applied from file:', st.mode, st.online ? 'online' : st.lastError);
+  } catch (error) {
+    console.error('Connection code file rejected:', error.message);
+  } finally {
+    codeFileBusy = false;
+  }
+}, 30000).unref();
 
 ipcMain.handle('storage:getTodayTickets', () => {
   return storage.getTodayTickets();
@@ -1085,7 +1118,10 @@ ipcMain.handle('settings:verifyAdminPassword', (event, password) => {
 });
 
 ipcMain.handle('settings:getAll', () => {
-  return storage.getAllSettings();
+  const all = storage.getAllSettings();
+  // The device login stays in the main process; the screen only needs to know it exists.
+  if (all.device_password) all.device_password = '••••••';
+  return all;
 });
 
 ipcMain.handle('settings:updateSettings', (event, settings) => {
