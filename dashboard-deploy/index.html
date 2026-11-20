@@ -394,9 +394,10 @@ async function pingDevice(id){
   const el=document.getElementById('ping-'+id);
   window.__pinging=true;
   el.innerHTML='<div class="msg" style="background:#e0f2fe;color:#075985">جاري الاتصال بالجهاز... (حتى 40 ثانية)</div>';
-  const requested=new Date().toISOString();
+  let requested=new Date().toISOString();
   const t0=Date.now();
-  const{error}=await sb.from('locations').update({ping_requested_at:requested}).eq('id',id);
+  const{data:rq,error}=await sb.from('locations').update({ping_requested_at:requested}).eq('id',id).select('ping_requested_at').maybeSingle();
+  if(rq&&rq.ping_requested_at)requested=rq.ping_requested_at; // server time (the PC clock may differ)
   if(error){el.innerHTML='<div class="msg msg-err">'+esc(error.message)+'</div>';window.__pinging=false;return;}
   while(Date.now()-t0<40000){
     await new Promise(r=>setTimeout(r,2000));
