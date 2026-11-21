@@ -505,6 +505,9 @@ function buildSummary() {
     data = {
       v: 1,
       hammam: storage.getSetting('hammam_name') || null,
+      // French names for the dashboard (Arabic name → French name)
+      names: Object.fromEntries([[storage.getSetting('hammam_name'), storage.getSetting('hammam_name_fr')],
+        ...storage.getCategories(false).map(c => [c.name, c.name_fr])].filter(([a, f]) => a && f)),
       day: today,
       switchedOver: !!b.switchedOver,
       cashInHand: b.cashInHand || 0,
@@ -1145,8 +1148,29 @@ ipcMain.handle('float:getHistory', (event) => {
   return storage.getFloatHistory();
 });
 
+// French tickets: the hammam's and the category's French names (or the usual French word).
+let frWords = null;
+function frenchWord(text) {
+  if (!frWords) {
+    try {
+      const ctx = { window: {} };
+      require('vm').runInNewContext(fs.readFileSync(path.join(__dirname, '../renderer/i18n-fr.js'), 'utf8'), ctx);
+      frWords = ctx.window.HPOS_FR || {};
+    } catch (_) { frWords = {}; }
+  }
+  return frWords[String(text || '').trim()] || null;
+}
+function frenchTicket(ticket, hammamData = {}) {
+  const cat = storage.getCategories(false).find(c => c.id === ticket.category_id || c.name === ticket.category_name);
+  const name = storage.getSetting('hammam_name_fr') || hammamData.name;
+  return {
+    ticket: { ...ticket, category_name: (cat && cat.name_fr) || frenchWord(ticket.category_name) || ticket.category_name },
+    hammamData: { ...hammamData, name }
+  };
+}
 // Printer operations
 ipcMain.handle('printer:printTicket', async (event, ticket, hammamData) => {
+  if (storage.getSetting('ticket_language') === 'fr') ({ ticket, hammamData } = frenchTicket(ticket, hammamData));
   return await printer.printTicket(ticket, hammamData);
 });
 
@@ -1180,13 +1204,13 @@ ipcMain.handle('settings:setSetting', (event, key, value) => {
 });
 
 // Category management operations
-ipcMain.handle('storage:addCategory', async (event, name, price) => {
-  const id = storage.addCategory(name, price);
+ipcMain.handle('storage:addCategory', async (event, name, price, nameFr) => {
+  const id = storage.addCategory(name, price, nameFr);
   return id;
 });
 
-ipcMain.handle('storage:updateCategory', async (event, id, name, price) => {
-  const result = storage.updateCategory(id, name, price);
+ipcMain.handle('storage:updateCategory', async (event, id, name, price, nameFr) => {
+  const result = storage.updateCategory(id, name, price, nameFr);
   return result;
 });
 
@@ -1573,6 +1597,8 @@ ipcMain.handle('setup:complete', async (event, setupData) => {
     
     // Save hammam settings
     storage.setSetting('hammam_name', setupData.hammamName);
+    if (setupData.hammamNameFr) storage.setSetting('hammam_name_fr', setupData.hammamNameFr);
+    storage.setSetting('ticket_language', setupData.language === 'fr' ? 'fr' : 'ar');
     storage.changeAdminPassword(setupData.adminPassword);
     const recoveryKey = storage.generateRecoveryKey();
     storage.setSetting('printer_name', setupData.printer || '');
@@ -1591,7 +1617,7 @@ ipcMain.handle('setup:complete', async (event, setupData) => {
     
     // Create categories
     setupData.categories.forEach(category => {
-      storage.addCategory(category.name, category.price);
+      storage.addCategory(category.name, category.price, category.nameFr || null);
     });
     
     // Initialize Printer

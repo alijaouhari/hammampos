@@ -19,10 +19,14 @@
   var norm = function (s) { return s.replace(/\s+/g, ' ').trim(); };
   var exact = Object.create(null);
   Object.keys(dict).forEach(function (k) { exact[norm(k)] = dict[k]; });
-  // Pieces, longest first, matched only as whole words.
-  var keys = Object.keys(exact).filter(function (k) { return k.length > 1; }).sort(function (a, b) { return b.length - a.length; });
   var esc = function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
-  var pieceRe = keys.length ? new RegExp('(?<![\\u0600-\\u06FF])(' + keys.map(esc).join('|') + ')(?![\\u0600-\\u06FF])', 'g') : null;
+  var pieceRe = null;
+  // Pieces, longest first, matched only as whole words.
+  function rebuild() {
+    var keys = Object.keys(exact).filter(function (k) { return k.length > 1; }).sort(function (a, b) { return b.length - a.length; });
+    pieceRe = keys.length ? new RegExp('(?<![\\u0600-\\u06FF])(' + keys.map(esc).join('|') + ')(?![\\u0600-\\u06FF])', 'g') : null;
+  }
+  rebuild();
   // Sentences with numbers in them.
   var PATTERNS = [
     [/^الخطوة (\d+) من (\d+)$/, 'Étape $1 sur $2'],
@@ -151,7 +155,26 @@
       return orig.apply(window, args);
     };
   });
+  // Names typed by the owner (hammam, categories) with their French version.
+  function addTerms(map) {
+    var changed = false;
+    Object.keys(map || {}).forEach(function (k) {
+      var v = map[k];
+      k = norm(String(k || ''));
+      if (!k || !v || !AR.test(k) || exact[k] === v) return;
+      exact[k] = String(v);
+      changed = true;
+    });
+    if (!changed) return;
+    rebuild();
+    if (lang === 'fr' && document.body) { applying = true; try { walk(document.body); } finally { applying = false; } }
+  }
+  // The last language used in this window, applied before the page draws anything.
+  document.addEventListener('DOMContentLoaded', function () {
+    try { if (localStorage.getItem('hpos_lang') === 'fr') setLang('fr'); } catch (_) {}
+  });
   window.i18n = {
+    addTerms: addTerms,
     setLang: setLang,
     getLang: function () { return lang; },
     t: function (s) { if (lang !== 'fr') return s; var r = translate(String(s)); return r == null ? s : r; }

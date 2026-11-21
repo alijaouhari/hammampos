@@ -298,6 +298,8 @@ class StorageManager {
     // as income anywhere (daily summary, zakat, today's counters, cash in hand).
     try { this.db.run("ALTER TABLE tickets ADD COLUMN refunded_at TEXT"); } catch (_) {}
     try { this.db.run("ALTER TABLE tickets ADD COLUMN refund_reason TEXT"); } catch (_) {}
+    // Optional French name of a category (screens in French, French tickets).
+    try { this.db.run("ALTER TABLE categories ADD COLUMN name_fr TEXT"); } catch (_) {}
 
     // zakat_tracking: one row per collection_days row, stores the set-aside status
     // for the owner's personal Zakat tracking. NEVER touched by financial queries.
@@ -539,8 +541,8 @@ class StorageManager {
     return categories;
   }
 
-  addCategory(name, price) {
-    this.db.run('INSERT INTO categories (name, price, active, serial_counter) VALUES (?, ?, 1, 0)', [name, price]);
+  addCategory(name, price, nameFr = null) {
+    this.db.run('INSERT INTO categories (name, price, active, serial_counter, name_fr) VALUES (?, ?, 1, 0, ?)', [name, price, (nameFr || '').trim() || null]);
     const result = this.db.exec('SELECT last_insert_rowid()');
     const id = result[0].values[0][0];
     this.logAudit('CREATE', 'categories', id, `${name} - ${price}dh`);
@@ -548,8 +550,9 @@ class StorageManager {
     return id;
   }
 
-  updateCategory(id, name, price) {
+  updateCategory(id, name, price, nameFr) {
     this.db.run('UPDATE categories SET name = ?, price = ? WHERE id = ?', [name, price, id]);
+    if (nameFr !== undefined) this.db.run('UPDATE categories SET name_fr = ? WHERE id = ?', [(nameFr || '').trim() || null, id]);
     this.logAudit('UPDATE', 'categories', id, `${name} - ${price}dh`);
     this.save();
     return true;

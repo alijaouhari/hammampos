@@ -140,7 +140,7 @@
             gap: 0.25rem;
         }
         
-        .status-item span:first-child {
+        .status-item > span:first-child {
             color: #6b7280;
             font-size: 1rem;
             font-weight: 500;
@@ -1495,7 +1495,7 @@
     <div class="main-content">
         <!-- Header -->
         <div class="header">
-            <h1 id="hammam-name" data-no-i18n>حمام جديد</h1>
+            <h1 id="hammam-name">حمام جديد</h1>
             <div class="header-actions">
                 <button id="add-expense-btn" class="btn btn-warning">إضافة مصروف</button>
                 <button id="remote-collection-btn" class="btn btn-info" style="display:none;">💸 إيداع / تحويل</button>
@@ -2582,6 +2582,7 @@
                 <form id="add-category-form">
                     <div class="form-row">
                         <input type="text" id="new-category-name" placeholder="اسم الفئة" required>
+                        <input type="text" id="new-category-name-fr" placeholder="الاسم بالفرنسية (اختياري)" dir="ltr">
                         <input type="number" id="new-category-price" placeholder="السعر (درهم)" step="0.01" min="0" required>
                         <button type="submit" class="btn btn-success">إضافة</button>
                     </div>
@@ -2624,6 +2625,10 @@
                 <div class="form-group">
                     <label>اسم الفئة:</label>
                     <input type="text" id="edit-category-name" required>
+                </div>
+                <div class="form-group">
+                    <label>الاسم بالفرنسية (اختياري):</label>
+                    <input type="text" id="edit-category-name-fr" dir="ltr">
                 </div>
                 <div class="form-group">
                     <label>السعر (درهم):</label>
@@ -2797,6 +2802,18 @@
                 <div class="form-group">
                     <label>اسم الحمام:</label>
                     <input type="text" id="settings-hammam-name" placeholder="اسم الحمام">
+                </div>
+                <div class="form-group">
+                    <label>اسم الحمام بالفرنسية (اختياري):</label>
+                    <input type="text" id="settings-hammam-name-fr" placeholder="Hammam ..." dir="ltr">
+                </div>
+                <div class="form-group">
+                    <label for="settings-ticket-language">لغة التذكرة المطبوعة:</label>
+                    <select id="settings-ticket-language" data-no-i18n>
+                        <option value="ar">العربية</option>
+                        <option value="fr">Français</option>
+                    </select>
+                    <small style="color:#6b7280;">بالفرنسية: يُطبع الاسم الفرنسي للحمام والفئة إن وُجد.</small>
                 </div>
             </div>
             <div class="category-section">
@@ -3295,8 +3312,8 @@
                 setZakatDay: (date, setAside) => ipcRenderer.invoke('storage:setZakatDay', date, setAside),
                 getZakatSetAsideDates: () => ipcRenderer.invoke('storage:getZakatSetAsideDates'),
                 getZakatDaysHistory: () => ipcRenderer.invoke('storage:getZakatDaysHistory'),
-                addCategory: (name, price) => ipcRenderer.invoke('storage:addCategory', name, price),
-                updateCategory: (id, name, price) => ipcRenderer.invoke('storage:updateCategory', id, name, price),
+                addCategory: (name, price, nameFr) => ipcRenderer.invoke('storage:addCategory', name, price, nameFr),
+                updateCategory: (id, name, price, nameFr) => ipcRenderer.invoke('storage:updateCategory', id, name, price, nameFr),
                 toggleCategory: (id, active) => ipcRenderer.invoke('storage:toggleCategory', id, active),
                 deleteTicket: (ticketId) => ipcRenderer.invoke('storage:deleteTicket', ticketId),
                 deleteExpense: (expenseId) => ipcRenderer.invoke('storage:deleteExpense', expenseId),
@@ -3516,6 +3533,7 @@
                 hammamData.name = settings.hammam_name || 'حمام جديد';
                 applyAlertSettings(settings);
                 applyLanguage(settings.ui_language);
+                if (settings.hammam_name && settings.hammam_name_fr) hammamNames = { [settings.hammam_name]: settings.hammam_name_fr };
                 console.log('Hammam name set to:', hammamData.name);
                 
                 // Update UI
@@ -3566,7 +3584,16 @@
             }
         }
         
+        // The owner's French names, used wherever these names appear on screen.
+        let hammamNames = {};
+        function registerDataNames() {
+            if (!window.i18n) return;
+            const map = Object.assign({}, hammamNames);
+            (categories || []).forEach(c => { if (c.name_fr) map[c.name] = c.name_fr; });
+            window.i18n.addTerms(map);
+        }
         function showCategories() {
+            registerDataNames();
             const categoriesGrid = document.getElementById('categories-grid');
             categoriesGrid.innerHTML = '';
             
@@ -3575,7 +3602,7 @@
                     const categoryBtn = document.createElement('button');
                     categoryBtn.className = 'category-btn';
                     categoryBtn.innerHTML = `
-                        <div class="category-name" data-no-i18n>${category.name}</div>
+                        <div class="category-name">${(window.i18n && window.i18n.getLang() === 'fr' && category.name_fr) || category.name}</div>
                         <div class="category-price">${category.price} درهم</div>
                     `;
                     categoryBtn.onclick = () => sellTicket(category);
@@ -7311,6 +7338,8 @@
                 
                 // Populate form with current values
                 document.getElementById('settings-hammam-name').value = settings.hammam_name || '';
+                document.getElementById('settings-hammam-name-fr').value = settings.hammam_name_fr || '';
+                document.getElementById('settings-ticket-language').value = settings.ticket_language === 'fr' ? 'fr' : 'ar';
                 document.getElementById('settings-current-password').value = '';
                 document.getElementById('settings-new-password').value = '';
                 document.getElementById('settings-confirm-password').value = '';
@@ -8005,10 +8034,15 @@
         async function saveGeneralSettings() {
             try {
                 const hammamName = document.getElementById('settings-hammam-name').value.trim();
+                const hammamNameFr = document.getElementById('settings-hammam-name-fr').value.trim();
                 await api.settings.updateSettings({
                     hammam_name: hammamName,
+                    hammam_name_fr: hammamNameFr,
+                    ticket_language: document.getElementById('settings-ticket-language').value,
                     printer_name: document.getElementById('settings-printer-name').value
                 });
+                hammamNames = hammamName && hammamNameFr ? { [hammamName]: hammamNameFr } : {};
+                registerDataNames();
                 if (hammamName) {
                     document.getElementById('hammam-name').textContent = hammamName;
                 }
@@ -8810,6 +8844,7 @@
         async function loadCategoriesForManagement() {
             try {
                 const allCategories = await api.storage.getCategories(false); // Get all categories (active and inactive)
+                window.__allCategories = allCategories;
                 const todayTickets = await api.storage.getTodayTickets();
                 
                 const tbody = document.getElementById('categories-management-tbody');
@@ -8823,7 +8858,7 @@
                     
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td style="font-weight: 600;">${category.name}</td>
+                        <td style="font-weight: 600;" data-no-i18n>${category.name}${category.name_fr ? '<div style="font-weight:400;color:#6b7280;font-size:0.85rem" dir="ltr">' + category.name_fr + '</div>' : ''}</td>
                         <td>${category.price} درهم</td>
                         <td>
                             <span class="status-badge ${category.active ? 'active' : 'inactive'}">
@@ -8832,7 +8867,7 @@
                         </td>
                         <td>${todaySales}</td>
                         <td>
-                            <button class="action-btn edit" onclick="editCategory(${category.id}, '${category.name.replace(/'/g, "\\'")}', ${category.price})">تعديل</button>
+                            <button class="action-btn edit" onclick="editCategory(${category.id})">تعديل</button>
                             <button class="action-btn toggle ${category.active ? '' : 'activate'}" onclick="toggleCategory(${category.id}, ${!category.active})">
                                 ${category.active ? 'إلغاء تفعيل' : 'تفعيل'}
                             </button>
@@ -8850,6 +8885,7 @@
         async function addNewCategory() {
             const name = document.getElementById('new-category-name').value.trim();
             const price = parseFloat(document.getElementById('new-category-price').value);
+            const nameFr = document.getElementById('new-category-name-fr').value.trim();
 
             if (!name || !price || price <= 0) {
                 showToast('يرجى إدخال اسم وسعر صحيح للفئة', 'error');
@@ -8858,7 +8894,7 @@
 
             try {
                 // Add category to database
-                const id = await api.storage.addCategory(name, price);
+                const id = await api.storage.addCategory(name, price, nameFr);
                 showToast(`تم إضافة فئة جديدة: ${name} - ${price} درهم`, 'success');
                 
                 // Reset form
@@ -8877,11 +8913,13 @@
             }
         }
 
-        function editCategory(id, name, price) {
-            // Fill edit form
+        function editCategory(id) {
+            const c = (window.__allCategories || []).find(x => x.id === id);
+            if (!c) return;
             document.getElementById('edit-category-id').value = id;
-            document.getElementById('edit-category-name').value = name;
-            document.getElementById('edit-category-price').value = price;
+            document.getElementById('edit-category-name').value = c.name;
+            document.getElementById('edit-category-name-fr').value = c.name_fr || '';
+            document.getElementById('edit-category-price').value = c.price;
             
             // Show edit modal
             document.getElementById('edit-category-modal').classList.remove('hidden');
@@ -8891,6 +8929,7 @@
             const id = parseInt(document.getElementById('edit-category-id').value);
             const name = document.getElementById('edit-category-name').value.trim();
             const price = parseFloat(document.getElementById('edit-category-price').value);
+            const nameFr = document.getElementById('edit-category-name-fr').value.trim();
 
             if (!name || !price || price <= 0) {
                 showToast('يرجى إدخال اسم وسعر صحيح للفئة', 'error');
@@ -8899,7 +8938,7 @@
 
             try {
                 // Update category in database
-                await api.storage.updateCategory(id, name, price);
+                await api.storage.updateCategory(id, name, price, nameFr);
                 showToast(`تم تحديث الفئة: ${name} - ${price} درهم`, 'success');
                 
                 // Close edit modal
@@ -9322,6 +9361,7 @@
             let l = fromSettings === 'fr' ? 'fr' : 'ar';
             if (isRemotePanel()) { try { l = localStorage.getItem('hpos_lang') === 'fr' ? 'fr' : 'ar'; } catch (_) {} }
             if (window.i18n) window.i18n.setLang(l);
+            if (!isRemotePanel()) { try { localStorage.setItem('hpos_lang', l); } catch (_) {} }
             const btn = document.getElementById('lang-btn');
             if (btn) btn.textContent = l === 'fr' ? 'ع' : 'FR';
             const sel = document.getElementById('settings-language');

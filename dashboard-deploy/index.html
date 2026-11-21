@@ -603,6 +603,8 @@ const todayStr=()=>new Date().toISOString().slice(0,10); // Morocco = UTC+0
 async function loadLocations(){
   const{data,error}=await sb.from('locations').select('*').order('created_at');
   if(!error)locations=data||[];
+  // French names typed on each PC (hammam, categories); the location name follows the hammam's French name
+  if(window.i18n){const map={};locations.forEach(l=>{const n=(l.summary&&l.summary.names)||{};Object.assign(map,n);const s=l.summary;if(s&&s.hammam&&n[s.hammam])map[l.name]=n[s.hammam];});window.i18n.addTerms(map);}
   return locations;
 }
 async function loadNotes(){

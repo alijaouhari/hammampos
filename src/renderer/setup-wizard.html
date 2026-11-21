@@ -308,6 +308,10 @@
                     <input type="text" id="hammam-name" placeholder="مثال: حمام الأندلس" required>
                     <small>سيظهر هذا الاسم على التذاكر المطبوعة</small>
                 </div>
+                <div class="form-group">
+                    <label for="hammam-name-fr">اسم الحمام بالفرنسية (اختياري)</label>
+                    <input type="text" id="hammam-name-fr" placeholder="Hammam ..." dir="ltr">
+                </div>
                 
                 <div class="form-group">
                     <label for="admin-password">كلمة مرور الإدارة *</label>
@@ -329,21 +333,25 @@
                 <div class="categories-grid" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
                     <div class="category-item" style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" id="cat-1-name" placeholder="اسم الفئة" value="رجال" style="flex: 2;">
+                        <input type="text" id="cat-1-name-fr" placeholder="Nom en français" dir="ltr" style="flex: 2;">
                         <input type="number" id="cat-1-price" placeholder="السعر" value="15" min="0" step="0.01" style="flex: 1;">
                         <span>DH</span>
                     </div>
                     <div class="category-item" style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" id="cat-2-name" placeholder="اسم الفئة" value="نساء" style="flex: 2;">
+                        <input type="text" id="cat-2-name-fr" placeholder="Nom en français" dir="ltr" style="flex: 2;">
                         <input type="number" id="cat-2-price" placeholder="السعر" value="15" min="0" step="0.01" style="flex: 1;">
                         <span>DH</span>
                     </div>
                     <div class="category-item" style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" id="cat-3-name" placeholder="اسم الفئة" value="أولاد" style="flex: 2;">
+                        <input type="text" id="cat-3-name-fr" placeholder="Nom en français" dir="ltr" style="flex: 2;">
                         <input type="number" id="cat-3-price" placeholder="السعر" value="10" min="0" step="0.01" style="flex: 1;">
                         <span>DH</span>
                     </div>
                     <div class="category-item" style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" id="cat-4-name" placeholder="اسم الفئة" value="بنات" style="flex: 2;">
+                        <input type="text" id="cat-4-name-fr" placeholder="Nom en français" dir="ltr" style="flex: 2;">
                         <input type="number" id="cat-4-price" placeholder="السعر" value="10" min="0" step="0.01" style="flex: 1;">
                         <span>DH</span>
                     </div>
@@ -630,6 +638,7 @@
                     }
                     
                     setupData.hammamName = hammamName;
+                    setupData.hammamNameFr = document.getElementById('hammam-name-fr').value.trim();
                     setupData.adminPassword = password;
                     return true;
                     
@@ -638,9 +647,10 @@
                     for (let i = 1; i <= 4; i++) {
                         const name = document.getElementById(`cat-${i}-name`).value.trim();
                         const price = parseFloat(document.getElementById(`cat-${i}-price`).value);
+                        const nameFr = document.getElementById(`cat-${i}-name-fr`).value.trim();
                         
                         if (name && price > 0) {
-                            setupData.categories.push({ name, price });
+                            setupData.categories.push({ name, price, nameFr });
                         }
                     }
                     
