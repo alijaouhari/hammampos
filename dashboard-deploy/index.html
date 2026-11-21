@@ -14,6 +14,8 @@
 <meta name="theme-color" content="#0a0a0b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="i18n-fr.js"></script>
+<script src="i18n.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
@@ -177,6 +179,7 @@ table.t tr:last-child td{border-bottom:none}
 <button data-view="download" onclick="go('download')"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>التطبيق</button>
 </nav>
 <div class="bottom nav">
+<button type="button" id="lang-switch" data-no-i18n onclick="toggleLang()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><span id="lang-switch-label">Français</span></button>
 <button data-view="settings" onclick="go('settings')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>الإعدادات</button>
 <button class="logout" onclick="logout()"><svg viewBox="0 0 24 24"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l-5-5 5-5M5 12h11"/></svg>خروج</button>
 </div>
@@ -313,6 +316,12 @@ const CONFIG = {
 // the session or an error in it).
 const INITIAL_HASH = location.hash;
 const sb=supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_KEY);
+// Language: saved in this browser (the remote panel uses the same choice)
+function currentLang(){try{return localStorage.getItem('hpos_lang')==='fr'?'fr':'ar';}catch(_){return 'ar';}}
+function applyLang(){const l=currentLang();if(window.i18n)window.i18n.setLang(l);const lb=document.getElementById('lang-switch-label');if(lb)lb.textContent=l==='fr'?'العربية':'Français';}
+function toggleLang(){try{localStorage.setItem('hpos_lang',currentLang()==='fr'?'ar':'fr');}catch(_){}applyLang();if(typeof go==='function'&&document.getElementById('view-'+currentView))go(currentView,currentHammam);}
+const T=(s)=>window.i18n?window.i18n.t(s):s;
+document.addEventListener('DOMContentLoaded',applyLang);
 let locations=[];
 
 // ── Auth (Supabase Auth, one user, password-only screen) ──
@@ -392,7 +401,8 @@ function makeConnectionCode(loc){
   const json=JSON.stringify({u:CONFIG.SUPABASE_URL,k:CONFIG.SUPABASE_KEY,l:loc.id,n:loc.name});
   return 'HPOS1.'+btoa(unescape(encodeURIComponent(json)));
 }
-function agoText(iso){
+function agoText(iso){return T(agoTextAr(iso));}
+function agoTextAr(iso){
   if(!iso)return '—';
   const s=Math.max(0,Math.round((Date.now()-new Date(iso).getTime())/1000));
   if(s<60)return 'قبل '+s+' ث';
@@ -689,7 +699,7 @@ function renderOverview(){
       '<div class="hcard-flags">'+flagsOf(l).join('')+'</div>'+
       '<div class="hcard-foot"><button class="btn blue" onclick="go(\'hammam\',\''+l.id+'\')">التفاصيل</button>'+
       '<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">لوحة الإدارة عن بعد</a>'+
-      '<span class="updated" style="margin-right:auto;align-self:center">'+(l.summary_at?'تحديث '+agoText(l.summary_at):'')+(s&&s.lastTicketAt?' · آخر تذكرة '+esc(String(s.lastTicketAt).slice(11,16)):'')+'</span></div></div>';
+      '<span class="updated" style="margin-right:auto;align-self:center">'+(l.summary_at?'آخر تحديث '+agoText(l.summary_at):'')+(s&&s.lastTicketAt?' · آخر تذكرة '+esc(String(s.lastTicketAt).slice(11,16)):'')+'</span></div></div>';
   }
   document.getElementById('ov-hammams').innerHTML=html||'<div class="empty">لا توجد فروع. أضف جهازاً من صفحة «الأجهزة».</div>';
   document.getElementById('ov-updated').textContent='يتحدث تلقائياً';
@@ -765,15 +775,15 @@ function drawChart(canvasId,chart,rows,withTickets,period){
   if(typeof Chart==='undefined')return null;
   Chart.defaults.color='#8b8b93';Chart.defaults.borderColor='#1f1f23';Chart.defaults.font.family="'IBM Plex Sans Arabic', system-ui, sans-serif";Chart.defaults.font.size=11;
   period=period||(rows.length&&rows[0][0].length===7?'month':(canvasId==='hm-chart'?hmPeriod:canvasId==='ch-chart'?chPeriod:'day'));
-  const labels=rows.map(r=>labelOf(r[0],period));
+  const labels=rows.map(r=>T(labelOf(r[0],period)));
   const ds=[
     canvasId==='ov-chart'
-      ?{type:'line',label:'المبيعات (DH)',data:rows.map(r=>Math.round(r[2])),borderColor:'#3ecf8e',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.3,fill:true,yAxisID:'y',
+      ?{type:'line',label:T('المبيعات (DH)'),data:rows.map(r=>Math.round(r[2])),borderColor:'#3ecf8e',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.3,fill:true,yAxisID:'y',
         backgroundColor:(c)=>{const a=c.chart.chartArea;if(!a)return 'rgba(62,207,142,0.1)';const g=c.chart.ctx.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,'rgba(62,207,142,0.25)');g.addColorStop(1,'rgba(62,207,142,0)');return g;}}
-      :{type:'bar',label:'المبيعات (DH)',data:rows.map(r=>Math.round(r[2])),backgroundColor:'#3ecf8e',borderRadius:4,maxBarThickness:28,yAxisID:'y'},
-    ...(canvasId==='ov-chart'?[]:[{type:'bar',label:'المصروفات (DH)',data:rows.map(r=>Math.round(r[3])),backgroundColor:'#3a3a40',borderRadius:4,maxBarThickness:28,yAxisID:'y'}])
+      :{type:'bar',label:T('المبيعات (DH)'),data:rows.map(r=>Math.round(r[2])),backgroundColor:'#3ecf8e',borderRadius:4,maxBarThickness:28,yAxisID:'y'},
+    ...(canvasId==='ov-chart'?[]:[{type:'bar',label:T('المصروفات (DH)'),data:rows.map(r=>Math.round(r[3])),backgroundColor:'#3a3a40',borderRadius:4,maxBarThickness:28,yAxisID:'y'}])
   ];
-  if(withTickets)ds.push({type:'line',label:'التذاكر',data:rows.map(r=>r[1]),borderColor:'#ededef',backgroundColor:'#ededef',borderWidth:1.5,tension:0.3,yAxisID:'y1',pointRadius:0,pointHoverRadius:4});
+  if(withTickets)ds.push({type:'line',label:T('التذاكر'),data:rows.map(r=>r[1]),borderColor:'#ededef',backgroundColor:'#ededef',borderWidth:1.5,tension:0.3,yAxisID:'y1',pointRadius:0,pointHoverRadius:4});
   const cfg={data:{labels,datasets:ds},options:{maintainAspectRatio:false,responsive:true,interaction:{mode:'index',intersect:false},
     plugins:{legend:{display:canvasId!=='ov-chart',position:'bottom',rtl:true,labels:{boxWidth:10,boxHeight:10,useBorderRadius:true,borderRadius:2}},tooltip:{rtl:true,backgroundColor:'#18181b',borderColor:'#2a2a30',borderWidth:1,titleColor:'#ededef',bodyColor:'#c4c4ca'}},
     scales:{x:{grid:{display:false}},y:{beginAtZero:true,position:'left',border:{display:false}},...(withTickets?{y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},border:{display:false}}}:{})}}};

@@ -21,7 +21,6 @@ const PrintManager = require('../services/PrintManager');
 const SchedulerService = require('../services/SchedulerService');
 const EmailService = require('../services/EmailService');
 const ExpenseTemplateManager = require('../services/ExpenseTemplateManager');
-const LicenseManager = require('../plugins/core/LicenseManager');
 const CloudSync = require('../services/CloudSync');
 // Last errors, shown in the diagnostics and sent to the dashboard with the heartbeat.
 const recentErrors = [];
@@ -42,7 +41,6 @@ const MoneyService = require('../services/MoneyService');
 let mainWindow;
 let money;
 let setupWindow;
-let licenseWindow;
 let storage;
 let backupManager;
 let excelManager;
@@ -50,43 +48,8 @@ let printer;
 let scheduler;
 let emailService;
 let expenseTemplates;
-let licenseManager;
 let cloudSync;
 let updateManager;
-
-function createLicenseWindow() {
-  // Create the license activation window
-  licenseWindow = new BrowserWindow({
-    width: 600,
-    height: 700,
-    show: true,
-    resizable: false,
-    autoHideMenuBar: true,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      enableRemoteModule: true,
-      webSecurity: false,
-      allowRunningInsecureContent: true,
-      experimentalFeatures: true,
-      autoplayPolicy: 'no-user-gesture-required'
-    }
-  });
-
-  // Load the license activation HTML
-  const licensePath = path.join(__dirname, '../renderer/license-activation.html');
-  console.log('Loading License Activation from:', licensePath);
-  licenseWindow.loadFile(licensePath);
-
-  // Open DevTools in development mode
-  if (process.argv.includes('--dev')) {
-    licenseWindow.webContents.openDevTools();
-  }
-
-  licenseWindow.on('closed', () => {
-    licenseWindow = null;
-  });
-}
 
 function createSetupWindow() {
   // Create the setup wizard window
@@ -246,26 +209,6 @@ app.whenReady().then(async () => {
   }
   
   try {
-    // Initialize License Manager FIRST
-    licenseManager = new LicenseManager();
-    try {
-      await licenseManager.initialize();
-      console.log('✅ License Manager ready');
-      console.log(`🖥️ Machine ID: ${licenseManager.getHardwareFingerprint().substring(0, 16)}...`);
-    } catch (error) {
-      console.error('❌ License Manager initialization failed:', error);
-      licenseManager = null;
-    }
-    
-    // Check base license BEFORE anything else — BYPASSED FOR TESTING
-    const hasBaseLicense = licenseManager && await licenseManager.validateLicense('hammampos-core');
-    
-    if (!hasBaseLicense) {
-      console.log('⚠️ LICENSE BYPASS: No valid license but continuing for testing');
-    } else {
-      console.log('✅ Base license validated - continuing startup');
-    }
-    
     await initializeApplication();
     
   } catch (error) {
@@ -406,33 +349,6 @@ app.on('activate', () => {
 
 // IPC Handlers for database operations
 console.log('Setting up IPC handlers...');
-
-// License operations
-ipcMain.handle('license:getMachineId', async () => {
-  if (!licenseManager) {
-    throw new Error('License Manager not initialized');
-  }
-  return licenseManager.getHardwareFingerprint();
-});
-
-ipcMain.handle('license:activate', async (event, licenseKey, featureId) => {
-  if (!licenseManager) {
-    return { success: false, error: 'License Manager not initialized' };
-  }
-  return await licenseManager.activateLicense(licenseKey, featureId);
-});
-
-ipcMain.on('license:activated', () => {
-  console.log('License activated - closing license window and continuing startup');
-  
-  if (licenseWindow) {
-    licenseWindow.close();
-    licenseWindow = null;
-  }
-  
-  // Restart the initialization process
-  initializeApplication();
-});
 
 // Storage operations
 ipcMain.handle('storage:getCategories', () => {
@@ -684,14 +600,16 @@ ipcMain.handle('diagnostics:get', () => ({ ...deviceInfo(), cloud: cloudSync ? c
 
 // Remote linking: support can drop a connection code in the data folder as
 // connection-code.txt (over SSH); the running app applies it within 30 s and deletes it.
-async function applyConnectionCodeValue(code) {
-  const c = CloudSync.decodeConnection(code);
+function saveConnectionSettings(c) {
   storage.setSetting('cloud_url', c.url);
   storage.setSetting('cloud_key', c.key);
   if (c.locationId) storage.setSetting('location_id', c.locationId);
   if (c.name) storage.setSetting('location_name', c.name);
   storage.setSetting('device_email', c.deviceEmail || '');
   storage.setSetting('device_password', c.devicePassword || '');
+}
+async function applyConnectionCodeValue(code) {
+  saveConnectionSettings(CloudSync.decodeConnection(code));
   if (cloudSync) { try { await cloudSync.stop(); } catch (_) {} }
   cloudSync = newCloudSync();
   await cloudSync.initialize();
@@ -969,6 +887,26 @@ ipcMain.handle('excel:getStatus', async () => {
   }
 });
 
+// Open the Excel copy (rebuilt first if it's missing or a change is waiting).
+ipcMain.handle('excel:open', async () => {
+  if (!excelManager || !storage) return { error: 'ملف Excel غير متاح' };
+  try {
+    const st = excelManager.getStatus();
+    if (!st.exists || st.pending) await excelManager.rebuildFromDatabase(storage, money);
+  } catch (error) {
+    if (!excelManager.getStatus().exists) return { error: error.message };
+  }
+  const { shell } = require('electron');
+  const err = await shell.openPath(excelManager.excelPath);
+  return err ? { error: 'لا يوجد برنامج لفتح ملفات Excel على هذا الجهاز (' + err + ')' } : { success: true };
+});
+ipcMain.handle('excel:showInFolder', async () => {
+  if (!excelManager) return { error: 'ملف Excel غير متاح' };
+  const { shell } = require('electron');
+  if (fs.existsSync(excelManager.excelPath)) shell.showItemInFolder(excelManager.excelPath);
+  else { const e = await shell.openPath(path.dirname(excelManager.excelPath)); if (e) return { error: e }; }
+  return { success: true };
+});
 // Rebuild Excel from database
 ipcMain.handle('excel:rebuild', async () => {
   if (!excelManager || !storage) {
@@ -1624,9 +1562,14 @@ ipcMain.handle('email:testConnection', async (event, emailConfig) => {
   }
 });
 
+ipcMain.handle('setup:checkCode', (event, code) => {
+  try { const c = CloudSync.decodeConnection(String(code || '')); return { ok: true, name: c.name || null }; }
+  catch (e) { return { ok: false, error: e.message }; }
+});
 ipcMain.handle('setup:complete', async (event, setupData) => {
   try {
-    console.log('Completing setup with data:', setupData);
+    console.log('Completing setup for:', setupData.hammamName);
+    storage.setSetting('ui_language', setupData.language === 'fr' ? 'fr' : 'ar');
     
     // Save hammam settings
     storage.setSetting('hammam_name', setupData.hammamName);
@@ -1643,12 +1586,8 @@ ipcMain.handle('setup:complete', async (event, setupData) => {
       storage.setSetting('email_password', setupData.emailPassword);
     }
     
-    // Save cloud sync settings (optional)
-    if (setupData.cloudUrl) {
-      storage.setSetting('cloud_url', setupData.cloudUrl);
-      storage.setSetting('cloud_key', setupData.cloudKey);
-      storage.setSetting('location_name', setupData.locationName || setupData.hammamName);
-    }
+    // Cloud link (optional): the app connects when it starts after the wizard
+    if (setupData.connectionCode) saveConnectionSettings(CloudSync.decodeConnection(setupData.connectionCode));
     
     // Create categories
     setupData.categories.forEach(category => {
@@ -1660,7 +1599,9 @@ ipcMain.handle('setup:complete', async (event, setupData) => {
       printer = new PrintManager();
     }
     printer._getSavedPrinter = () => storage.getSetting('printer_name') || null;
-    await printer.initialize(setupData.printer || null);
+    // A printer problem must not stop the setup (it can be fixed in the settings).
+    try { await printer.initialize(setupData.printer || null); }
+    catch (e) { console.warn('Printer not ready after setup:', e.message); }
     
     console.log('✅ Setup completed successfully');
     return { success: true, recoveryKey };

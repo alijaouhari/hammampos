@@ -2,11 +2,17 @@
 <html lang="ar" dir="rtl">
 <!-- HammamPOS - Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved. -->
 <head>
+    <script src="i18n-fr.js"></script>
+    <script src="i18n.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HammamPOS - معالج الإعداد</title>
     
     <style>
+        html[dir="ltr"] body, html[dir="ltr"] .wizard-content { direction: ltr; text-align: left; }
+        .lang-choice { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; }
+        .lang-choice button { flex: 1; padding: 0.8rem; font-size: 1.05rem; font-weight: 700; border: 2px solid #c7d2fe; background: #fff; border-radius: 10px; cursor: pointer; }
+        .lang-choice button.active { border-color: #4f46e5; background: #eef2ff; color: #3730a3; }
         body {
             font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -280,7 +286,7 @@
         
         <div class="wizard-content">
             <div class="step-indicator">
-                <span id="step-counter">الخطوة 1 من 5</span>
+                <span id="step-counter">الخطوة 1 من 6</span>
             </div>
             
             <div class="progress-bar">
@@ -289,6 +295,13 @@
             
             <!-- Step 1: Welcome & Hammam Info -->
             <div class="step active" id="step-1">
+                <div class="form-group">
+                    <label>🌐 اللغة / Langue</label>
+                    <div class="lang-choice" data-no-i18n>
+                        <button type="button" data-lang="ar" class="active">العربية</button>
+                        <button type="button" data-lang="fr">Français</button>
+                    </div>
+                </div>
                 <h2>🏛️ معلومات الحمام</h2>
                 <div class="form-group">
                     <label for="hammam-name">اسم الحمام *</label>
@@ -412,21 +425,11 @@
             <div class="step" id="step-5">
                 <h2>☁️ المزامنة السحابية (اختياري)</h2>
                 <p>ربط هذا الفرع بالسحابة لمراقبة المبيعات عن بُعد</p>
-                
                 <div class="form-group">
-                    <label for="cloud-url">رابط Supabase:</label>
-                    <input type="text" id="cloud-url" placeholder="https://xxxxx.supabase.co" style="direction:ltr;text-align:left">
-                    <small>اتركه فارغاً إذا لم تكن تريد المزامنة السحابية</small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="cloud-key">مفتاح API:</label>
-                    <input type="text" id="cloud-key" placeholder="eyJhbGci..." style="direction:ltr;text-align:left">
-                </div>
-                
-                <div class="form-group">
-                    <label for="location-name">اسم الفرع:</label>
-                    <input type="text" id="location-name" placeholder="حمام الأندلس - الفرع الرئيسي">
+                    <label for="connection-code">رمز الربط (اختياري)</label>
+                    <textarea id="connection-code" rows="4" placeholder="HPOS2...." style="direction:ltr;text-align:left;width:100%;font-family:Consolas,monospace;font-size:0.8rem;box-sizing:border-box"></textarea>
+                    <small>الصق هنا «رمز الربط» الذي أنشأته من لوحة المراقبة (صفحة الأجهزة). اتركه فارغاً إذا لم تكن تريد السحابة الآن، ويمكن إضافته لاحقاً من الإعدادات ← السحابة.</small>
+                    <div id="connection-code-result" style="margin-top:0.5rem;font-weight:600;"></div>
                 </div>
             </div>
 
@@ -441,7 +444,6 @@
                 
                 <p style="color: #059669; font-weight: 600;">
                     ✅ تم إنشاء قاعدة البيانات<br>
-                    ✅ تم إنشاء ملف Excel<br>
                     ✅ تم حفظ الإعدادات<br>
                     ✅ النظام جاهز للاستخدام
                 </p>
@@ -473,7 +475,12 @@
         let currentStep = 1;
         const totalSteps = 6;
         let selectedPrinter = null;
-        let setupData = {};
+        let setupData = { language: 'ar' };
+        function chooseLanguage(l) {
+            setupData.language = l === 'fr' ? 'fr' : 'ar';
+            document.querySelectorAll('.lang-choice button').forEach(b => b.classList.toggle('active', b.dataset.lang === setupData.language));
+            if (window.i18n) window.i18n.setLang(setupData.language);
+        }
         
         // Hardware check function
         function checkHardware() {
@@ -564,6 +571,7 @@
         }
 
         function setupEventListeners() {
+            document.querySelectorAll('.lang-choice button').forEach(b => b.addEventListener('click', () => chooseLanguage(b.dataset.lang)));
             document.getElementById('next-btn').addEventListener('click', nextStep);
             document.getElementById('prev-btn').addEventListener('click', prevStep);
             document.getElementById('finish-btn').addEventListener('click', finishSetup);
@@ -674,18 +682,34 @@
                     return true;
                     
                 case 5:
-                    setupData.cloudUrl = document.getElementById('cloud-url').value.trim();
-                    setupData.cloudKey = document.getElementById('cloud-key').value.trim();
-                    setupData.locationName = document.getElementById('location-name').value.trim();
-                    return true;
+                    return checkConnectionCode();
                     
                 default:
                     return true;
             }
         }
         
-        function nextStep() {
-            if (validateStep(currentStep)) {
+        // Checks the code's format only; the PC connects when the app starts.
+        async function checkConnectionCode() {
+            const code = document.getElementById('connection-code').value.trim();
+            const out = document.getElementById('connection-code-result');
+            setupData.connectionCode = '';
+            setupData.locationName = '';
+            if (!code) { out.textContent = ''; return true; }
+            const r = await ipcRenderer.invoke('setup:checkCode', code);
+            if (!r || !r.ok) {
+                out.style.color = '#b91c1c';
+                out.textContent = '❌ ' + (r && r.error ? r.error : 'رمز الربط غير صالح');
+                return false;
+            }
+            setupData.connectionCode = code;
+            setupData.locationName = r.name || '';
+            out.style.color = '#047857';
+            out.textContent = '✅ ' + 'سيُربط بـ' + ' ' + (r.name || '');
+            return true;
+        }
+        async function nextStep() {
+            if (await validateStep(currentStep)) {
                 if (currentStep < totalSteps) {
                     currentStep++;
                     showStep(currentStep);
@@ -790,16 +814,17 @@
             const summary = document.getElementById('setup-summary');
             let html = `
                 <h4 style="margin-top: 0; color: #2563eb;">📋 ملخص الإعدادات:</h4>
-                <p><strong>اسم الحمام:</strong> ${setupData.hammamName}</p>
+                <p><strong>اسم الحمام:</strong> <span data-no-i18n>${setupData.hammamName}</span></p>
                 <p><strong>عدد الفئات:</strong> ${setupData.categories.length}</p>
                 <p><strong>الطابعة:</strong> ${setupData.printer}</p>
                 <p><strong>البريد الإلكتروني:</strong> ${setupData.emailEnabled ? 'مفعل' : 'غير مفعل'}</p>
+                <p><strong>السحابة:</strong> ${setupData.connectionCode ? 'مربوط بالسحابة' + ' — ' + setupData.locationName : 'غير مربوط'}</p>
             `;
             
             if (setupData.categories.length > 0) {
                 html += '<p><strong>الفئات:</strong></p><ul>';
                 setupData.categories.forEach(cat => {
-                    html += `<li>${cat.name} - ${cat.price} درهم</li>`;
+                    html += `<li><span data-no-i18n>${cat.name}</span> - ${cat.price} درهم</li>`;
                 });
                 html += '</ul>';
             }

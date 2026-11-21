@@ -4,6 +4,7 @@
 <head>
 <!-- Remote admin panel built from HammamPOS v2.8.34 -->
 <meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>window.HPOS_CONFIG = {
   SUPABASE_URL: 'https://ddocgqwzagbwasufnvfi.supabase.co',
@@ -152,6 +153,1435 @@ module.exports = {
 return module.exports; })();</script>
 <script src="remote-shim.js?v=2.8.34"></script>
 
+    <script>
+/**
+ * HammamPOS - French texts for the screens (see i18n.js).
+ * Key: the Arabic text as written in the screens. Value: the French text.
+ * To fix a translation, change the value. To translate a new text, add a line.
+ */
+window.HPOS_FR = /*BEGIN*/{
+"، حُذف": ", supprimé",
+"، حُذف من السحابة": ", supprimé du cloud",
+"» وكل بياناته من السحابة، وإلغاء دخول جهازه؟ لا يمكن التراجع.": "» et toutes ses données du cloud, et annuler la connexion de son ordinateur ? Action irréversible.",
+"/ معدود": "/ compté",
+"• الذاكرة": "• Mémoire",
+"• المعالج": "• Processeur",
+"← العودة إلى لوحة المراقبة": "← Retour au tableau de bord",
+"↩️ استرجاع تذكرة": "↩️ Rembourser un ticket",
+"↩️ إلغاء الاسترجاع": "↩️ Annuler le remboursement",
+"↵ إدخال": "↵ Entrée",
+"=== التذاكر المباعة ===": "=== Tickets vendus ===",
+"=== المصروفات ===": "=== Dépenses ===",
+"=== الملخص اليومي ===": "=== Résumé journalier ===",
+"=== عمليات التحصيل ===": "=== Encaissements ===",
+"⌨ لوحة المفاتيح — اسحب من هنا لتحريكها": "⌨ Clavier — faites glisser ici pour le déplacer",
+"⌫ حذف": "⌫ Effacer",
+"⏳ اختبار قاعدة البيانات...": "⏳ Test de la base de données...",
+"⏳ بدء التشخيص...": "⏳ Démarrage du diagnostic...",
+"⏳ تم الإعداد — سيتم الاتصال عند إعادة التشغيل": "⏳ Configuré — la connexion se fera au redémarrage",
+"⏳ جاري تحميل الإصدارات...": "⏳ Chargement des versions...",
+"☁️ المزامنة السحابية (اختياري": "☁️ Synchronisation cloud (facultatif",
+"☁️ المزامنة السحابية (Cloud Sync": "☁️ Synchronisation cloud (Cloud Sync",
+"⚙️ إعدادات النظام": "⚙️ Paramètres du système",
+"⚙️ الإعدادات": "⚙️ Paramètres",
+"⚠ الاسترجاع يعمل فقط بعد تفعيل نظام المال الجديد. الخطوات: حصّل المال من شاشة التحصيل الحالية، ثم اضغط «تفعيل» في أعلى لوحة الإدارة.": "⚠ Le remboursement ne fonctionne qu'après l'activation du nouveau système de caisse. Étapes : encaissez l'argent depuis l'écran d'encaissement actuel, puis appuyez sur « Activer » en haut du panneau d'administration.",
+"⚠️ البريد غير مُعدّ (تبويب «البريد»). لن يعمل الاسترداد عبر الرمز.": "⚠️ L'e-mail n'est pas configuré (onglet « E-mail »). La récupération par code ne fonctionnera pas.",
+"⚠️ تأكيد": "⚠️ Confirmation",
+"⚠ تأكيد": "⚠ Confirmation",
+"⚠️ تحذير: مسح جميع البيانات": "⚠️ Attention : effacer toutes les données",
+"⚠️ تحذير: مواصفات الجهاز": "⚠️ Attention : caractéristiques de l'ordinateur",
+"⚠️ تغيير الإصدار": "⚠️ Changer de version",
+"⚠ تغييرات غير محفوظة": "⚠ Modifications non enregistrées",
+"⚠ تم المسح لكن بقي في الملف": "⚠ Effacé, mais il reste dans le fichier",
+"⚠️ زيادة في الصندوق": "⚠️ Excédent en caisse",
+"⚠️ مفتاح الاسترداد": "⚠️ Clé de récupération",
+"⚠️ نقص في الصندوق": "⚠️ Manque en caisse",
+"⚠️ هذا الدفع يخص فترة أغلقها المدير بتحصيله. سيُرسل إليه للمراجعة ولا يُخصم من الصندوق الآن.": "⚠️ Ce paiement concerne une période clôturée par l'encaissement du gérant. Il lui sera envoyé pour vérification et n'est pas déduit de la caisse maintenant.",
+"⚠ هذه العملية تخص فترة أُغلقت بتحصيل سابق، وحذفها يغيّر النقد المتوقع الآن.": "⚠ Cette opération concerne une période clôturée par un encaissement précédent ; la supprimer modifie l'argent attendu maintenant.",
+"⚠️ يظهر مرة واحدة فقط. اكتبه أو صوّره واحفظه في مكان آمن بعيداً عن الصندوق.": "⚠️ Affichée une seule fois. Notez-la ou photographiez-la et gardez-la en lieu sûr, loin de la caisse.",
+"⚠️ يظهر هذا المفتاح مرة واحدة فقط ولا يمكن استرجاعه لاحقاً. اكتبه أو صوّره واحفظه في مكان آمن بعيداً عن الصندوق.": "⚠️ Cette clé n'est affichée qu'une seule fois et ne peut pas être récupérée plus tard. Notez-la ou photographiez-la et gardez-la en lieu sûr, loin de la caisse.",
+"⚪ المزامنة غير مفعلة. أدخل الرابط والمفتاح (أو رمز الربط) ثم احفظ.": "⚪ Synchronisation désactivée. Saisissez le lien et la clé (ou le code de liaison) puis enregistrez.",
+"✅ الاتصال سليم": "✅ Connexion correcte",
+"✅ البريد المستخدم لإرسال الرمز": "✅ E-mail utilisé pour envoyer le code",
+"✅ التطبيق محدث لآخر إصدار": "✅ L'application est à jour",
+"✅ النظام جاهز للاستخدام": "✅ Le système est prêt",
+"✅ تم اختبار الاتصال بنجاح": "✅ Test de connexion réussi",
+"✅ تم اختبار الطباعة بنجاح": "✅ Test d'impression réussi",
+"✅ تم إنشاء قاعدة البيانات": "✅ Base de données créée",
+"✅ تم إنشاء ملف Excel": "✅ Fichier Excel créé",
+"✅ تم حفظ الإعدادات": "✅ Paramètres enregistrés",
+"✅ تم حفظ الإعدادات وملف Excel جاهز": "✅ Paramètres enregistrés, fichier Excel prêt",
+"✅ تمت المزامنة. تذاكر": "✅ Synchronisé. Tickets",
+"✅ قاعدة البيانات تعمل": "✅ La base de données fonctionne",
+"✅ قبول الإدخال المتأخر": "✅ Accepter la saisie tardive",
+"✅ متصل — آخر مزامنة": "✅ Connecté — dernière synchronisation",
+"✅ متصل — معرف الفرع": "✅ Connecté — identifiant de l'établissement",
+"✅ مفتاح الاسترداد: تم إنشاؤه": "✅ Clé de récupération : créée",
+"✅ يُربط بالسحابة عند بدء الاستخدام": "✅ Liaison au cloud au démarrage",
+"✅ Electron API متاح": "✅ API Electron disponible",
+"✅ JavaScript يعمل": "✅ JavaScript fonctionne",
+"✏️ تعديل الفئة": "✏️ Modifier la catégorie",
+"✏️ تعديل مصروف": "✏️ Modifier une dépense",
+"✏️ تعديل معلومات عملية": "✏️ Modifier les informations de l'opération",
+"✓ مطابق للمتوقع": "✓ Conforme à l'attendu",
+"✖️ إلغاء عملية": "✖️ Annuler une opération",
+"✖️ رفض الإدخال المتأخر": "✖️ Refuser la saisie tardive",
+"❌ تعذّر إجراء الفحص": "❌ Impossible d'effectuer la vérification",
+"❌ خطأ قاعدة البيانات": "❌ Erreur de base de données",
+"❌ خطأ Electron": "❌ Erreur Electron",
+"❌ غير متصل": "❌ Non connecté",
+"❌ فشل في اختبار الطباعة": "❌ Échec du test d'impression",
+"❌ فشل في الاتصال": "❌ Échec de la connexion",
+"❌ فشلت المزامنة": "❌ Échec de la synchronisation",
+"❌ يوجد مشكلة في الاتصال (انظر الأحمر أعلاه": "❌ Problème de connexion (voir en rouge ci-dessus",
+"➕ إضافة": "➕ Ajouter",
+"➕ إضافة مال للصندوق": "➕ Ajouter de l'argent à la caisse",
+"➕ إضافة مورد": "➕ Ajouter un fournisseur",
+"➕ تسجيل إيصال": "➕ Enregistrer un reçu",
+"➖ استرجاع مال من الصندوق": "➖ Retirer de l'argent de la caisse",
+"⬆️ تحديث متاح v": "⬆️ Mise à jour disponible v",
+"⬆ تحديث متاح v": "⬆ Mise à jour disponible v",
+"🌐 اللغة": "🌐 Langue",
+"🌙 إعدادات الزكاة": "🌙 Paramètres de la zakat",
+"🎉 اكتمل الإعداد!": "🎉 Configuration terminée !",
+"🎉 كل شيء يعمل! المشكلة في initializeApp": "🎉 Tout fonctionne ! Le problème est dans initializeApp",
+"🏛️ لوحة الإدارة": "🏛️ Administration",
+"🏛 لوحة الإدارة": "🏛 Administration",
+"🏛️ معلومات الحمام": "🏛️ Informations du hammam",
+"🏛 معلومات الحمام": "🏛 Informations du hammam",
+"💡 يمكنك ترك الحقول فارغة إذا لم تكن تحتاج لجميع الفئات": "💡 Vous pouvez laisser des champs vides si vous n'avez pas besoin de toutes les catégories",
+"💰 تحصيل المال (حضوري": "💰 Encaisser l'argent (sur place",
+"💰 تحصيل المال من الصندوق": "💰 Encaisser l'argent de la caisse",
+"💰 تفاصيل عملية التحصيل": "💰 Détails de l'encaissement",
+"💰 تفعيل نظام المال الجديد": "💰 Activer le nouveau système de caisse",
+"💰 سجل تحصيل الأموال": "💰 Historique des encaissements",
+"💰 نظام المال الجديد جاهز للتفعيل": "💰 Le nouveau système de caisse est prêt à être activé",
+"💵 صندوق الصرف": "💵 Fonds de monnaie",
+"💸 إضافة مصروف": "💸 Ajouter une dépense",
+"💸 إيداع / تحويل": "💸 Dépôt / virement",
+"💸 إيداع / تحويل للمدير": "💸 Dépôt / virement au gérant",
+"💸 تسجيل إيصال (لم يسجله البائع": "💸 Enregistrer un reçu (non saisi par le vendeur",
+"💸 سجل التحصيل (زيارات، إيداعات، تحويلات": "💸 Historique des encaissements (visites, dépôts, virements",
+"💼 تسديد من البائع": "💼 Remboursement du vendeur",
+"💼 ما على البائع": "💼 Dû par le vendeur",
+"📁 فتح المجلد": "📁 Ouvrir le dossier",
+"📈 الرسوم البيانية للنمو": "📈 Graphiques de croissance",
+"📈 نقاط مهمة": "📈 Points importants",
+"📊 الملخص اليومي - إدارة المعاملات": "📊 Résumé journalier - gestion des opérations",
+"📊 تحليل الأداء": "📊 Analyse des performances",
+"📊 تصدير البيانات": "📊 Exporter les données",
+"📊 فتح ملف Excel": "📊 Ouvrir le fichier Excel",
+"📋 إدارة الفئات": "📋 Gérer les catégories",
+"📋 إعداد الفئات": "📋 Configuration des catégories",
+"📋 ملخص الإعدادات": "📋 Résumé de la configuration",
+"📜 سجل العمليات": "📜 Journal des opérations",
+"📦 الإصدارات السابقة": "📦 Versions précédentes",
+"📧 إعداد البريد الإلكتروني (اختياري": "📧 Configuration de l'e-mail (facultatif",
+"📧 إعدادات البريد الإلكتروني": "📧 Paramètres e-mail",
+"🔄 تحديث": "🔄 Mettre à jour",
+"🔄 تحديث التطبيق": "🔄 Mettre à jour l'application",
+"🔄 تحديث القائمة": "🔄 Actualiser la liste",
+"🔄 تحديثات النظام": "🔄 Mises à jour du système",
+"🔄 مزامنة كاملة الآن": "🔄 Synchronisation complète maintenant",
+"🔌 فحص الاتصال": "🔌 Vérifier la connexion",
+"🔐 مفتاح الاسترداد": "🔐 Clé de récupération",
+"🔑 استرداد كلمة المرور": "🔑 Récupérer le mot de passe",
+"🔒 كلمة مرور الإدارة": "🔒 Mot de passe administrateur",
+"🔔 سجل الإشعارات": "🔔 Historique des notifications",
+"🔧 تشخيص النظام": "🔧 Diagnostic du système",
+"🕒 إدخالات متأخرة": "🕒 Saisies tardives",
+"🖥 جلسة إدارة عن بعد": "🖥 Session d'administration à distance",
+"🖥 لوحة الإدارة عن بعد": "🖥 Administration à distance",
+"🖨️ إعداد الطابعة": "🖨️ Configuration de l'imprimante",
+"🖨 إعداد الطابعة": "🖨 Configuration de l'imprimante",
+"🗑 حذف": "🗑 Supprimer",
+"🗑️ مسح جميع البيانات": "🗑️ Effacer toutes les données",
+"🗑 مسح جميع البيانات": "🗑 Effacer toutes les données",
+"🧾 الفواتير غير المدفوعة": "🧾 Factures impayées",
+"🧾 دفع فاتورة": "🧾 Payer une facture",
+"🩺 تشخيص هذا الجهاز": "🩺 Diagnostic de cet ordinateur",
+"🪵 شراء خشب": "🪵 Achat de bois",
+"🪵 مشتريات الخشب": "🪵 Achats de bois",
+"🚨 هذا الإجراء لا يمكن التراجع عنه!": "🚨 Cette action est irréversible !",
+"0 درهم": "0 DH",
+"0 كغ": "0 kg",
+"0 يوم": "0 jour",
+"6 أحرف على الأقل": "6 caractères minimum",
+"آخر": "Derniers",
+"آخر إشارة": "Dernier signal",
+"آخر التنبيهات": "Dernières alertes",
+"آخر تحديث": "Dernière mise à jour",
+"آخر تذكرة": "dernier ticket",
+"آخر خطأ": "Dernière erreur",
+"آخر مزامنة": "dernière synchronisation",
+"آخر ملخص من الجهاز": "Dernier résumé de l'ordinateur",
+"آخر نسخة": "Dernière version",
+"اتركه فارغاً إذا لم تكن تريد المزامنة السحابية": "Laissez vide si vous ne voulez pas de synchronisation cloud",
+"أجر الفرناتشي": "Salaire du chauffeur (fernatchi)",
+"أجر صاحب الصندوق": "Salaire du caissier",
+"إجراء": "Action",
+"إجراء غير معروف": "Action inconnue",
+"إجمالي الإيرادات": "Total des recettes",
+"إجمالي الزكاة": "Total de la zakat",
+"إجمالي الشهر": "Total du mois",
+"إجمالي المبلغ": "Montant total",
+"إجمالي المبلغ المحدد": "Total du montant sélectionné",
+"إجمالي المصروفات": "Total des dépenses",
+"إحصائيات الفئات": "Statistiques par catégorie",
+"إحصائيات اليوم": "Statistiques du jour",
+"اختبار الاتصال": "Tester la connexion",
+"اختبار الطابعة": "Test de l'imprimante",
+"اختبار الطباعة": "Tester l'impression",
+"اختبار فوري": "Test instantané",
+"اختر الأيام التي تريد تحصيل أموالها من الصندوق": "Choisissez les jours dont vous voulez encaisser l'argent",
+"اختر التاريخ الذي وقع فيه المصروف فعلاً (يمكن اختيار يوم سابق).": "Choisissez la date réelle de la dépense (un jour passé est possible).",
+"اختر الطابعة الحرارية لطباعة التذاكر": "Choisissez l'imprimante thermique pour les tickets",
+"اختر المورد أولاً...": "Choisissez d'abord le fournisseur...",
+"اختر المورد...": "Choisir le fournisseur...",
+"اختر طابعة": "Choisir une imprimante",
+"اختر طابعة من الإعدادات.": "Choisissez une imprimante dans les paramètres.",
+"اختر كلمة مرور جديدة للوحة المراقبة (6 أحرف على الأقل).": "Choisissez un nouveau mot de passe pour le tableau de bord (6 caractères minimum).",
+"اختر لغة البرنامج": "Choisissez la langue du logiciel",
+"اختر مصروف...": "Choisir une dépense...",
+"اختر نوع الخشب...": "Choisir le type de bois...",
+"اختر نوع الرسم البياني لعرض البيانات": "Choisissez le type de graphique",
+"إدارة": "Administration",
+"إدخال متأخر": "Saisie tardive",
+"إدخال متأخر في الانتظار": "saisie tardive en attente",
+"إدخال متأخر في انتظار مراجعتك": "saisie tardive en attente de votre vérification",
+"إدخال متأخر مقبول": "Saisie tardive acceptée",
+"إدخال متأخر ينتظر مراجعة المدير": "Saisie tardive en attente de vérification par le gérant",
+"إدخالات متأخرة": "Saisies tardives",
+"أدخل الرمز المكوّن من 6 أرقام.": "Saisissez le code à 6 chiffres.",
+"أدخل المبلغ الذي عددته": "Saisissez le montant compté",
+"أدخل كلمة المرور": "Saisissez le mot de passe",
+"أدخل كلمة المرور الحالية": "Saisissez le mot de passe actuel",
+"أدخل كلمة مرور الإدارة الحالية": "Saisissez le mot de passe administrateur actuel",
+"أدخل كلمة مرور الإدارة الخاصة بهذا الحمام": "Saisissez le mot de passe administrateur de ce hammam",
+"أدخل كلمة مرور قوية": "Saisissez un mot de passe solide",
+"أدخل مبلغاً صحيحاً": "Saisissez un montant valide",
+"أدخل مفتاح الاسترداد.": "Saisissez la clé de récupération.",
+"إذا ضغطت «متابعة» يُسجَّل الفرق «فائضاً غير مفسَّر».": "Si vous appuyez sur « Continuer », la différence sera enregistrée comme « excédent inexpliqué ».",
+"إذا ظهر تحذير ويندوز SmartScreen: اختر «مزيد من المعلومات» ثم «تشغيل على أي حال».": "Si l'avertissement Windows SmartScreen apparaît : choisissez « Informations complémentaires » puis « Exécuter quand même ».",
+"إذا نسيت كلمة مرور الإدارة فهذا المفتاح هو وسيلتك لاستردادها بدون إنترنت.": "Si vous oubliez le mot de passe administrateur, cette clé vous permet de le récupérer sans Internet.",
+"إرسال الرابط": "Envoyer le lien",
+"إرسال الرمز إلى البريد": "Envoyer le code par e-mail",
+"أُرسل": "envoyé",
+"أسابيع": "semaines",
+"أسبوع": "Semaine du",
+"أسبوعي": "Hebdomadaire",
+"استخدم كلمة مرور التطبيق وليس كلمة مرور الحساب العادية": "Utilisez un mot de passe d'application, pas le mot de passe habituel du compte",
+"استرجاع": "Remboursement",
+"استرجاع التذاكر من طرف البائع": "Remboursement des tickets par le vendeur",
+"استرجاع اليوم": "remboursement(s) aujourd'hui",
+"استرجاع تذكرة": "Rembourser un ticket",
+"استرجاعات": "Remboursements",
+"استرداد كلمة المرور": "Récupération du mot de passe",
+"اسم البائع مطلوب": "Le nom du vendeur est obligatoire",
+"اسم الحمام": "Nom du hammam",
+"اسم الحمام *": "Nom du hammam *",
+"اسم الفئة": "Nom de la catégorie",
+"اسم الفرع": "Nom de l'établissement",
+"اسم الفرع، مثال: حمام الهدى - الفرع الثاني": "Nom de l'établissement, ex. : Hammam Al Houda - 2e établissement",
+"اسم المستلم": "Nom du destinataire",
+"اسم المستلم مطلوب": "Le nom du destinataire est obligatoire",
+"اسم المورد": "Nom du fournisseur",
+"اسم نوع المصروف الجديد...": "Nom du nouveau type de dépense...",
+"إشارة متأخرة": "Signal en retard",
+"إصلاح": "Réparer",
+"إضافة": "Ajouter",
+"إضافة المصروف": "Ajouter la dépense",
+"إضافة جهاز جديد": "Ajouter un ordinateur",
+"إضافة فئة جديدة": "Ajouter une catégorie",
+"إضافة مصروف": "Ajouter une dépense",
+"اضغط \"تحميل القائمة\" لعرض الإصدارات المتاحة": "Appuyez sur « Charger la liste » pour voir les versions disponibles",
+"اضغط \"موافق\" للتأكيد.": "Appuyez sur « OK » pour confirmer.",
+"اضغط \"موافق\" للدفع من الجيب الخاص (لا يُخصم من النقد)،": "Appuyez sur « OK » pour payer de votre poche (non déduit de la caisse),",
+"اضغط لإدارة صندوق الصرف": "Appuyez pour gérer le fonds de monnaie",
+"اضغط لتثبيت التحديث": "Appuyez pour installer la mise à jour",
+"اضغط لتحصيل المال": "Appuyez pour encaisser l'argent",
+"اضغط لعرض الأيام المحصّلة": "Appuyez pour voir les jours encaissés",
+"اضغط لعرض الإيداعات والتسديدات": "Appuyez pour voir les dépôts et remboursements",
+"اضغط لعرض الفواتير غير المدفوعة": "Appuyez pour voir les factures impayées",
+"اضغط لعرض ما على البائع": "Appuyez pour voir ce que doit le vendeur",
+"إظهار إشعار على الشاشة عندما يكون المدير متصلاً عن بعد": "Afficher un avis à l'écran quand le gérant est connecté à distance",
+"إظهار عمود الزكاة في الملخص اليومي للإدارة": "Afficher la colonne zakat dans le résumé journalier de l'administration",
+"إظهار عمود الزكاة في الملخص اليومي للمبيعات": "Afficher la colonne zakat dans le résumé journalier des ventes",
+"إظهار/إخفاء الرسوم البيانية": "Afficher/masquer les graphiques",
+"إعادة تشغيل البرنامج": "Redémarrer le logiciel",
+"إعادة تشغيل الجهاز": "Redémarrer l'ordinateur",
+"إعادة تشغيل الجهاز بالكامل؟ ستظهر رسالة للبائع ويعاد التشغيل بعد 30 ثانية، ويتوقف البيع 2-3 دقائق.": "Redémarrer complètement l'ordinateur ? Un message s'affichera pour le vendeur, le redémarrage aura lieu dans 30 secondes et la vente s'arrêtera 2 à 3 minutes.",
+"إعادة تشغيل برنامج HammamPOS على هذا الجهاز؟ يتوقف البيع حوالي 15 ثانية.": "Redémarrer HammamPOS sur cet ordinateur ? La vente s'arrête environ 15 secondes.",
+"إعادة تعيين كلمة المرور": "Réinitialiser le mot de passe",
+"أعد إدخال كلمة المرور": "Ressaisissez le mot de passe",
+"إعداد": "Configurer",
+"إعداد المال": "Configuration de la caisse",
+"إعدادات الأمان": "Paramètres de sécurité",
+"إعدادات الطباعة": "Paramètres d'impression",
+"إعدادات العمل": "Paramètres de l'établissement",
+"أعلى ربح": "Bénéfice le plus élevé",
+"إغلاق": "Fermer",
+"إغلاق بدون حفظ": "Fermer sans enregistrer",
+"افتح المجلد وشغّل HammamPOS.exe. يمكنك إنشاء اختصار على سطح المكتب.": "Ouvrez le dossier et lancez HammamPOS.exe. Vous pouvez créer un raccourci sur le bureau.",
+"افتح بريدك واضغط على الرابط (تحقق من البريد غير المرغوب فيه).": "Ouvrez votre messagerie et cliquez sur le lien (vérifiez les courriers indésirables).",
+"أفضل يوم": "Meilleur jour",
+"اكتب اسم الفرع": "Saisissez le nom de l'établissement",
+"اكتب اسم الفرع ثم اضغط «إنشاء». سيظهر «رمز الربط»: انسخه والصقه في التطبيق على الجهاز: الإعدادات ← السحابة ← «رمز الربط» ← ربط.": "Saisissez le nom de l'établissement puis appuyez sur « Créer ». Le « code de liaison » s'affiche : copiez-le et collez-le dans l'application de l'ordinateur : Paramètres → Cloud → « Code de liaison » → Lier.",
+"اكتب اسم المستلم": "Saisissez le nom du destinataire",
+"اكتب الرقم هنا": "Saisissez le numéro ici",
+"اكتب سبب الإلغاء": "Saisissez le motif de l'annulation",
+"أكثر مما على البائع": "plus que ce que doit le vendeur",
+"أكثر من المبلغ الإجمالي": "plus que le montant total",
+"أكثر من المتبقي": "plus que le reste",
+"أكثر من النقد الموجود في الصندوق": "plus que l'argent présent en caisse",
+"الإجراء غير مسموح": "Action non autorisée",
+"الإجراءات": "Actions",
+"الإجمالي": "Total",
+"الأجهزة": "Appareils",
+"الأجهزة (الفروع": "Appareils (établissements",
+"الأجهزة المتصلة": "Appareils connectés",
+"الأجهزة المرتبطة": "Appareils liés",
+"الإحصائيات": "Statistiques",
+"الإدخال غير موجود": "Saisie introuvable",
+"الإرسال": "Envoi",
+"الأرقام": "Les chiffres",
+"الأسبوع": "la semaine",
+"الاسترجاع": "Remboursement",
+"الاسترجاع غير مفعّل للبائع": "Remboursement désactivé pour le vendeur",
+"الاسترجاع غير مفعّل من طرف المدير": "Le remboursement n'est pas activé par le gérant",
+"الاسترجاع مفعّل للبائع": "Remboursement activé pour le vendeur",
+"الاسترجاعات": "Remboursements",
+"الاسم": "Nom",
+"الاسم مطلوب": "Le nom est obligatoire",
+"الإصدار الحالي": "Version actuelle",
+"الإعدادات": "Paramètres",
+"الأمان": "Sécurité",
+"الأنوية": "Cœurs",
+"الأيام المتاحة للتحصيل": "Jours disponibles à l'encaissement",
+"الأيام المحصّلة": "Jours encaissés",
+"الإيرادات": "Recettes",
+"البائع": "Vendeur",
+"الباقي": "Reste",
+"البريد": "E-mail",
+"البريد الإلكتروني": "E-mail",
+"البيانات": "Données",
+"البيانات المطلوب تصديرها": "Données à exporter",
+"التاريخ": "Date",
+"التاريخ غير صالح": "Date non valide",
+"التاريخ,إجمالي التذاكر,الإيرادات,المصروفات,صافي الربح": "Date,Total tickets,Recettes,Dépenses,Bénéfice net",
+"التاريخ,الوقت,الفئة,السعر,رقم التذكرة": "Date,Heure,Catégorie,Prix,N° ticket",
+"التاريخ,الوقت,المبلغ,الملاحظات": "Date,Heure,Montant,Notes",
+"التاريخ,الوقت,الوصف,المبلغ": "Date,Heure,Description,Montant",
+"التالي": "Suivant",
+"التحديثات": "Mises à jour",
+"التحصيلات": "Encaissements",
+"التحقق من التحديثات": "Vérifier les mises à jour",
+"التحميل جاري بالفعل": "Téléchargement déjà en cours",
+"التذاكر": "Tickets",
+"التذاكر المباعة": "Tickets vendus",
+"التذكرة": "Ticket",
+"التذكرة غير موجودة": "Ticket introuvable",
+"التطبيق": "Application",
+"التطبيق محدث لآخر إصدار": "L'application est à jour",
+"التفاصيل": "Détails",
+"التنبيهات": "Alertes",
+"الجداول غير موجودة في مشروع Supabase هذا": "Les tables sont absentes de ce projet Supabase",
+"الجلسة غير مفتوحة: أدخل كلمة مرور الإدارة": "Session non ouverte : saisissez le mot de passe administrateur",
+"الجهاز غير متصل": "Ordinateur non connecté",
+"الجهاز ما زال ينفّذ الأمر. أعد فتح الصفحة لاحقاً لرؤية النتيجة.": "L'ordinateur exécute encore la commande. Rouvrez la page plus tard pour voir le résultat.",
+"الجهاز مغلق أو بلا إنترنت.": "L'ordinateur est éteint ou sans Internet.",
+"الجهاز يرد (خلال": "L'ordinateur répond (en",
+"الجهاز يرد مباشرة (خلال": "L'ordinateur répond en direct (en",
+"الجهاز يرسل إشارة كل 15 ثانية. «اختبار الاتصال» يطلب من الجهاز الرد الآن. الأجهزة التي تعمل بنسخة أقدم من 2.8.29 لا ترسل إشارة: حدّثها أولاً.": "L'ordinateur envoie un signal toutes les 15 secondes. « Tester la connexion » lui demande de répondre maintenant. Les ordinateurs avec une version antérieure à 2.8.29 n'envoient pas de signal : mettez-les à jour d'abord.",
+"الجهاز يعمل بآخر نسخة": "L'ordinateur a la dernière version",
+"الجهاز ينفّذ الأمر...": "L'ordinateur exécute la commande...",
+"الحالة": "État",
+"الحالة / إجراء": "État / action",
+"الحجم": "Taille",
+"الحساب": "Compte",
+"الحمامات": "Hammams",
+"الخشب غير المدفوع (آجل) لا يُخصم من النقد حتى تضغط \"تم الدفع\".": "Le bois non payé (à crédit) n'est pas déduit de la caisse tant que vous n'appuyez pas sur « Payé ».",
+"الخطوة": "Étape",
+"الخطوة 1 من 5": "Étape 1 sur 5",
+"الدخل": "Revenu",
+"الدفع من نقد الصندوق: سيُخصم": "Paiement avec l'argent de la caisse : sera déduit",
+"الديون للموردين. يمكنك دفع أي جزء من الصندوق أو من جيبك (يُسجَّل دَيناً لك على النشاط).": "Dettes envers les fournisseurs. Vous pouvez payer une partie depuis la caisse ou de votre poche (enregistré comme une dette de l'établissement envers vous).",
+"الذاكرة": "Mémoire",
+"الرئيسية": "Accueil",
+"الرصيد الحالي في صندوق الصرف": "Solde actuel du fonds de monnaie",
+"الرصيد بعد العملية": "Solde après l'opération",
+"الرقم المكتوب على الإيصال": "Numéro inscrit sur le reçu",
+"الرمز (6 أرقام": "Code (6 chiffres",
+"الرمز القديم يتوقف فوراً، ويبقى الجهاز غير متصل حتى تلصق الرمز الجديد فيه.": "L'ancien code cesse de fonctionner immédiatement, et l'ordinateur reste déconnecté jusqu'à ce que vous y colliez le nouveau.",
+"الرمز غير صحيح. المحاولات المتبقية": "Code incorrect. Tentatives restantes",
+"الزكاة": "Zakat",
+"الزكاة (2.5%": "Zakat (2,5 %",
+"الزكاة = 2.5% من دخل كل يوم (إيرادات المبيعات)، بغض النظر عن المصروفات أو الربح. إعلامية فقط — لا تؤثر على النقد أو التحصيل.": "Zakat = 2,5 % du revenu de chaque jour (recettes des ventes), quels que soient les dépenses ou le bénéfice. À titre indicatif uniquement — n'affecte ni la caisse ni les encaissements.",
+"السابق": "Précédent",
+"السبب": "Motif",
+"السحابة": "Cloud",
+"السحابة غير مفعلة": "Cloud désactivé",
+"السحابة: تم المسح": "Cloud : effacé",
+"السحابة: غير مفعلة": "Cloud : désactivé",
+"السحابة: لم يمكن المسح الآن (سيُمسح عند عودة الاتصال": "Cloud : impossible d'effacer maintenant (sera effacé au retour de la connexion",
+"السرعة": "Vitesse",
+"السعر": "Prix",
+"السعر (درهم": "Prix (DH",
+"السعر الإجمالي": "Prix total",
+"السعر الإجمالي المتفق عليه (درهم": "Prix total convenu (DH",
+"السعر/كغ": "Prix/kg",
+"السماح للبائع باسترجاع التذاكر": "Autoriser le vendeur à rembourser des tickets",
+"الشهر": "le mois",
+"الشهر التالي": "Mois suivant",
+"الشهر الحالي": "Mois en cours",
+"الشهر السابق": "Mois précédent",
+"الصافي": "Net",
+"الصق رمز الربط أولاً": "Collez d'abord le code de liaison",
+"الصق هنا «رمز الربط» الذي أنشأته من لوحة المراقبة (صفحة الأجهزة). اتركه فارغاً إذا لم تكن تريد السحابة الآن، ويمكن إضافته لاحقاً من الإعدادات ← السحابة.": "Collez ici le « code de liaison » créé depuis le tableau de bord (page Appareils). Laissez vide si vous ne voulez pas le cloud maintenant ; vous pourrez l'ajouter plus tard dans Paramètres → Cloud.",
+"الصقه في التطبيق: الإعدادات ← السحابة ← رمز الربط ← ربط.": "Collez-le dans l'application : Paramètres → Cloud → Code de liaison → Lier.",
+"الطابعات المتاحة": "Imprimantes disponibles",
+"الطابعة": "Imprimante",
+"الطابعة المحددة": "Imprimante sélectionnée",
+"الطابعة غير متوفرة": "Imprimante indisponible",
+"الطابعة غير مهيأة": "Imprimante non configurée",
+"العربية": "العربية",
+"العملية": "Opération",
+"العملية غير موجودة": "Opération introuvable",
+"العملية ملغاة": "Opération annulée",
+"العودة لتسجيل الدخول": "Retour à la connexion",
+"العودة للبيع": "Retour à la vente",
+"إلغاء": "Annuler",
+"إلغاء استرجاع": "Annuler le remboursement",
+"إلغاء استرجاع التذكرة رقم": "Annuler le remboursement du ticket n°",
+"إلغاء الاسترجاع": "Annuler le remboursement",
+"إلغاء التحديد": "Tout désélectionner",
+"إلغاء تفعيل": "Désactiver",
+"الفئات": "Catégories",
+"الفئات الموجودة": "Catégories existantes",
+"الفئات والبيانات": "Catégories et données",
+"الفئة": "Catégorie",
+"الفئة بنجاح": "la catégorie avec succès",
+"الفئة...": "Catégorie...",
+"الفاتورة غير موجودة": "Facture introuvable",
+"الفاتورة مدفوعة بالكامل": "Facture entièrement payée",
+"الفترة": "Période",
+"الكل": "Tout",
+"الكمية": "Quantité",
+"اللغة": "Langue",
+"المال": "Caisse",
+"المبلغ": "Montant",
+"المبلغ (درهم": "Montant (DH",
+"المبلغ الإجمالي": "Montant total",
+"المبلغ الذي عددته في الصندوق (نقد المبيعات فقط": "Montant compté dans la caisse (argent des ventes uniquement",
+"المبلغ المحدد غير صحيح": "Le montant sélectionné est incorrect",
+"المبلغ المحدد للتحصيل": "Montant sélectionné à encaisser",
+"المبلغ المدفوع الآن": "Montant payé maintenant",
+"المبلغ المدفوع من الصندوق": "Montant payé depuis la caisse",
+"المبلغ المدفوع من الصندوق أكبر من المبلغ الإجمالي": "Le montant payé depuis la caisse dépasse le montant total",
+"المبلغ المدفوع من الصندوق غير صالح": "Le montant payé depuis la caisse n'est pas valide",
+"المبلغ المرجَع للزبون": "Montant rendu au client",
+"المبلغ المسدَّد": "Montant remboursé",
+"المبلغ المطلوب أكبر من الرصيد المتوفر": "Le montant demandé dépasse le solde disponible",
+"المبلغ المعدود أقل من المتوقع بـ": "Le montant compté est inférieur à l'attendu de",
+"المبلغ المعدود أكثر من المتوقع بـ": "Le montant compté dépasse l'attendu de",
+"المبلغ المعدود أكثر من المتوقع. ابحث أولاً عن عملية منسية": "Le montant compté dépasse l'attendu. Cherchez d'abord une opération oubliée",
+"المبلغ المعدود غير صالح": "Montant compté non valide",
+"المبلغ غير صالح": "Montant non valide",
+"المبلغ لا يمكن أن يقل عن": "Le montant ne peut pas être inférieur à",
+"المبلغ محسوب من المصروف المحفوظ.": "Montant calculé à partir de la dépense enregistrée.",
+"المبيعات": "Ventes",
+"المبيعات — آخر 14 يوماً": "Ventes — 14 derniers jours",
+"المبيعات (بعد الاسترجاع": "Ventes (après remboursements",
+"المبيعات (DH": "Ventes (DH",
+"المبيعات ناقص المصروفات": "Ventes moins dépenses",
+"المتبقي": "Reste",
+"المتبقي على البائع": "Reste dû par le vendeur",
+"المتبقي على هذه الفاتورة": "Reste sur cette facture",
+"المتبقي مستحقاً لك بعد التحصيل": "Reste dû à vous après l'encaissement",
+"المتبقي من المبلغ (لم يُدفع من الصندوق": "Reste du montant (non payé depuis la caisse",
+"المتوقع في الصندوق حسب النظام": "Attendu en caisse selon le système",
+"المجموع": "Total",
+"المدفوع": "Payé",
+"المدفوع حتى الآن": "Payé jusqu'à présent",
+"المدفوع من الصندوق (مصاريف": "Payé depuis la caisse (dépenses",
+"المدير": "Gérant",
+"المدير متصل الآن عن بعد بلوحة الإدارة": "Le gérant est connecté à distance à l'administration",
+"المرجع": "Référence",
+"المزيد": "Plus",
+"المستلم": "Destinataire",
+"المصاريف": "Dépenses",
+"المصروف": "Dépense",
+"المصروف غير موجود": "Dépense introuvable",
+"المصروفات": "Dépenses",
+"المصروفات (DH": "Dépenses (DH",
+"المعالج": "Processeur",
+"الملاحظات": "Notes",
+"الملخص اليومي": "Résumé journalier",
+"الملخص اليومي للمبيعات": "Résumé journalier des ventes",
+"الملخصات اليومية": "Résumés journaliers",
+"الملف مفتوح في Excel. أغلقه، أو استعمل النسخة": "Le fichier est ouvert dans Excel. Fermez-le, ou utilisez la copie",
+"المورد": "Fournisseur",
+"المورد (اختياري": "Fournisseur (facultatif",
+"المورد / الجهة (اختياري": "Fournisseur / organisme (facultatif",
+"المورد غير موجود": "Fournisseur introuvable",
+"المورد والشحنة": "Fournisseur et livraison",
+"النسخ الاحتياطية: تعذّر مسحها": "Sauvegardes : impossible de les effacer",
+"النسخ الاحتياطية: تم مسحها": "Sauvegardes : effacées",
+"النسخة": "Version",
+"النقد الحالي في الصندوق": "Argent actuel en caisse",
+"النقد الحالي في الصندوق حسب النظام القديم": "Argent actuel en caisse selon l'ancien système",
+"النقد المتبقي بعد التحصيل": "Argent restant après l'encaissement",
+"النقد في الصندوق": "Argent en caisse",
+"النقد في الصندوق بعد التحصيل: 0": "Argent en caisse après l'encaissement : 0",
+"النقد في الصندوق بعد التسجيل": "Argent en caisse après l'enregistrement",
+"النقد في الصندوق بعد الدفع": "Argent en caisse après le paiement",
+"النوع": "Type",
+"الهاتف": "Téléphone",
+"الوزن": "Poids",
+"الوزن (كغ": "Poids (kg",
+"الوزن الإجمالي (كغ": "Poids total (kg",
+"الوزن الإجمالي للحمولة": "Poids total du chargement",
+"الوزن الإجمالي يجب أن يكون أكبر من وزن الشاحنة فارغة": "Le poids total doit être supérieur au poids du camion à vide",
+"الوزن الصافي غير صالح": "Poids net non valide",
+"الوزن مع الخشب": "Poids avec le bois",
+"الوصف": "Description",
+"الوقت": "Heure",
+"إلى": "au",
+"إلى تاريخ": "Jusqu'au",
+"اليوم": "Aujourd'hui",
+"انتظر": "Patientez",
+"انتهت الجلسة: افتحها من جديد": "Session expirée : ouvrez-la à nouveau",
+"انتهت الجلسة. أدخل كلمة مرور الإدارة من جديد.": "Session expirée. Saisissez à nouveau le mot de passe administrateur.",
+"انتهت صلاحية الأمر قبل أن يستلمه الجهاز": "La commande a expiré avant d'être reçue par l'ordinateur",
+"انتهت صلاحية الرابط. اطلب رابطاً جديداً": "Le lien a expiré. Demandez-en un nouveau",
+"انتهت صلاحية الرمز. اطلب رمزاً جديداً.": "Le code a expiré. Demandez-en un nouveau.",
+"انسخ النص يدوياً": "Copiez le texte à la main",
+"أنشئ أنواع المصاريف المتكررة لتظهر في قائمة \"من القائمة المحفوظة\" عند إضافة مصروف.": "Créez les types de dépenses fréquents pour qu'ils apparaissent dans « Depuis la liste enregistrée » lors de l'ajout d'une dépense.",
+"أنشئ موردي الخشب ليختارهم البائع عند تسجيل شراء الخشب. يمكن للمورد الواحد توفير عدة أنواع من الخشب. السعر الافتراضي للكيلو اختياري ويمكن تغييره في كل عملية.": "Créez les fournisseurs de bois que le vendeur choisira lors d'un achat de bois. Un fournisseur peut proposer plusieurs types de bois. Le prix par kilo par défaut est facultatif et modifiable à chaque achat.",
+"أنشئ واحداً الآن.": "Créez-en une maintenant.",
+"إنشاء": "Créer",
+"إنشاء رمز ربط جديد لـ«": "Créer un nouveau code de liaison pour «",
+"إنشاء مفتاح استرداد جديد": "Créer une nouvelle clé de récupération",
+"إنشاء مفتاح جديد يلغي المفتاح القديم. يُرسل رمز البريد إلى العنوان المحفوظ في تبويب «البريد».": "Créer une nouvelle clé annule l'ancienne. Le code par e-mail est envoyé à l'adresse enregistrée dans l'onglet « E-mail ».",
+"انقر عليه بالزر الأيمن واختر «استخراج الكل» إلى مجلد مثل C:\\HammamPOS.": "Faites un clic droit dessus et choisissez « Extraire tout » vers un dossier comme C:\\HammamPOS.",
+"انقطاع الماء الساخن": "Coupure d'eau chaude",
+"إنهاء الجلسة": "Terminer la session",
+"أنواع الخشب": "Types de bois",
+"أنواع الخشب (افصل بينها بفاصلة": "Types de bois (séparés par une virgule",
+"أنواع المصاريف": "Types de dépenses",
+"أو \"إلغاء\" ثم اختر الدفع من نقد الصندوق.": "ou « Annuler » puis choisissez le paiement avec l'argent de la caisse.",
+"أو الصق «رمز الربط» الذي أنشأته من لوحة المراقبة": "ou collez le « code de liaison » créé depuis le tableau de bord",
+"أوامر الجهاز": "Commandes de l'ordinateur",
+"أولاد": "Garçons",
+"أيام": "jours",
+"إيداع / تحويل من البائع": "Dépôt / virement du vendeur",
+"إيداع بنكي": "Dépôt bancaire",
+"إيداعات وتحويلات أرسلها البائع": "Dépôts et virements envoyés par le vendeur",
+"بالحمولة": "Au chargement",
+"بالكيلوغرام": "Au kilogramme",
+"بتاريخ": "du",
+"بدء الاستخدام": "Commencer",
+"بدون دخول خاص (رمز قديم": "Sans connexion propre (ancien code",
+"بدون وصف": "Sans description",
+"بعد الإلغاء يعود المبلغ إلى النقد في الصندوق.": "Après l'annulation, le montant revient dans la caisse.",
+"بنات": "Filles",
+"بيعت": "vendu à",
+"تاريخ البداية يجب أن يكون قبل تاريخ النهاية": "La date de début doit être avant la date de fin",
+"تاريخ التسليم": "Date de livraison",
+"تاريخ التسليم مطلوب": "La date de livraison est obligatoire",
+"تاريخ الدفع": "Date de paiement",
+"تاريخ المصروف": "Date de la dépense",
+"تأكد من عدم وجود عملية بيع جارية.": "Vérifiez qu'aucune vente n'est en cours.",
+"تأكيد الاسترجاع": "Confirmer le remboursement",
+"تأكيد الإلغاء": "Confirmer l'annulation",
+"تأكيد الحذف": "Confirmer la suppression",
+"تأكيد دفع": "Confirmer le paiement",
+"تأكيد كلمة المرور *": "Confirmer le mot de passe *",
+"تأكيد كلمة المرور الجديدة": "Confirmer le nouveau mot de passe",
+"تثبيت": "Installer",
+"تثبيت آخر تحديث": "Installer la dernière mise à jour",
+"تحديث": "Mettre à jour",
+"تحديث آخر قيد التنفيذ. انتظر حتى ينتهي.": "Une autre mise à jour est en cours. Attendez la fin.",
+"تحديث الآن": "Mettre à jour maintenant",
+"تحديث قائمة الطابعات": "Actualiser la liste des imprimantes",
+"تحديث قادم خلال ثوانٍ": "mise à jour dans quelques secondes",
+"تحديث متاح": "Mise à jour disponible",
+"تحديد الكل": "Tout sélectionner",
+"تحصيل": "Encaisser",
+"تحصيل / إيداع": "Encaissement / dépôt",
+"تحصيل المال": "Encaisser l'argent",
+"تحصيل حضوري": "Encaissement sur place",
+"تحصيل سجّله البائع": "Encaissement saisi par le vendeur",
+"تحصيل شخصي": "Encaissement sur place",
+"تُحفظ هنا الأحداث التي تخص الإدارة. سيتم إرسالها إلى لوحة المراقبة عند تفعيلها لاحقاً.": "Les événements destinés à l'administration sont enregistrés ici et envoyés au tableau de bord.",
+"تحميل التطبيق (Windows": "Télécharger l'application (Windows",
+"تحميل القائمة": "Charger la liste",
+"تحميل وتثبيت آخر نسخة على هذا الجهاز؟ يتوقف البيع حوالي دقيقة أثناء التثبيت.": "Télécharger et installer la dernière version sur cet ordinateur ? La vente s'arrête environ une minute pendant l'installation.",
+"تحميل وتثبيت التحديث": "Télécharger et installer la mise à jour",
+"تحميل HammamPOS": "Télécharger HammamPOS",
+"تحويل": "Virement",
+"تحويل مالي": "Transfert d'argent",
+"تحويل مالي (وكالة تحويل": "Transfert d'argent (agence de transfert",
+"تذاكر": "Tickets",
+"تذاكر اليوم": "Tickets du jour",
+"تذاكر اليوم (من السحابة": "Tickets du jour (depuis le cloud",
+"تذكرة": "ticket",
+"تسجيل": "Enregistrer",
+"تسجيل التسديد": "Enregistrer le remboursement",
+"تسجيل الدفع": "Enregistrer le paiement",
+"تسجيل النقص والتحصيل": "Enregistrer le manque et encaisser",
+"تسجيل تسديد": "Enregistrer un remboursement",
+"تسجيل شراء الخشب": "Enregistrer l'achat de bois",
+"تسديد البائع": "Remboursement du vendeur",
+"تسديد لك": "Remboursement pour vous",
+"تسديد للمدير": "Remboursement au gérant",
+"تسديد للمدير / ربح": "Remboursement au gérant / bénéfice",
+"تسديد لما يستحقه المدير": "Remboursement de ce qui est dû au gérant",
+"تسديد من البائع": "Remboursement du vendeur",
+"تشخيص": "Diagnostic",
+"تصدير البيانات": "Exporter les données",
+"تعديل": "Modifier",
+"تعديلات أخرى": "Autres modifications",
+"تعذر إرسال البريد. تحقق من الاتصال بالإنترنت وإعدادات البريد.": "Impossible d'envoyer l'e-mail. Vérifiez la connexion Internet et les paramètres e-mail.",
+"تعذّر إضافة المورد": "Impossible d'ajouter le fournisseur",
+"تعذّر إضافة النوع": "Impossible d'ajouter le type",
+"تعذر الاتصال بالإنترنت": "Impossible de se connecter à Internet",
+"تعذّر الاسترجاع": "Remboursement impossible",
+"تعذّر الإلغاء": "Annulation impossible",
+"تعذّر التحصيل": "Encaissement impossible",
+"تعذّر التسجيل": "Enregistrement impossible",
+"تعذّر الحفظ": "Enregistrement impossible",
+"تعذّر الدخول": "Connexion impossible",
+"تعذّر الربط، تحقق من الرمز والإنترنت": "Liaison impossible, vérifiez le code et Internet",
+"تعذر النسخ، انسخه يدوياً": "Copie impossible, copiez-le à la main",
+"تعذّر الوصول إلى الخادم: تحقق من الإنترنت ومن رابط المشروع": "Serveur injoignable : vérifiez Internet et le lien du projet",
+"تعذّر تحضير المصروف": "Impossible de préparer la dépense",
+"تعذّر تحميل الأجهزة": "Impossible de charger les appareils",
+"تعذر تحميل حالة الاسترداد.": "Impossible de charger l'état de la récupération.",
+"تعذّر تسجيل الدفع": "Impossible d'enregistrer le paiement",
+"تعذّر حذف المورد": "Impossible de supprimer le fournisseur",
+"تعذّر حفظ الإعداد": "Impossible d'enregistrer le réglage",
+"تعذّر فتح القناة الآمنة": "Impossible d'ouvrir le canal sécurisé",
+"تعذّر فتح المجلد": "Impossible d'ouvrir le dossier",
+"تعذّر فتح ملف Excel": "Impossible d'ouvrir le fichier Excel",
+"تعذّر قراءة رقم آخر نسخة. الزر يفتح صفحة التحميل على GitHub.": "Impossible de lire le numéro de la dernière version. Le bouton ouvre la page de téléchargement sur GitHub.",
+"تعطيل": "Désactiver",
+"تعليم الكل كمقروء": "Tout marquer comme lu",
+"تغيير كلمة المرور": "Changer le mot de passe",
+"تفاصيل التحصيل": "Détails de l'encaissement",
+"تفاصيل اليوم": "Détails du jour",
+"تفاصيل اليوم - وضع الإدارة": "Détails du jour - mode administration",
+"تفاصيل يوم": "Détails du",
+"تفعيل": "Activer",
+"تفعيل التقارير الإلكترونية": "Activer les rapports par e-mail",
+"تفعيل التقارير الإلكترونية اليومية": "Activer les rapports quotidiens par e-mail",
+"تقرير الجهاز": "Rapport de l'ordinateur",
+"تكلفة المصاريف": "Coût des dépenses",
+"تم": "Fait",
+"تم إرسال الأمر، في انتظار الجهاز...": "Commande envoyée, en attente de l'ordinateur...",
+"تم إرسال الرابط إلى": "Lien envoyé à",
+"تم إرسال الرمز إلى": "Code envoyé à",
+"تم استرجاع التذكرة. أعِد": "Ticket remboursé. Rendez",
+"تم استرجاع المال من صندوق الصرف": "Argent retiré du fonds de monnaie",
+"تم استرجاع هذه التذكرة مسبقاً": "Ce ticket a déjà été remboursé",
+"تم استعمال مفتاحك القديم، وهذا مفتاح الاسترداد الجديد. المفتاح القديم لم يعد صالحاً.": "Votre ancienne clé a été utilisée ; voici la nouvelle clé de récupération. L'ancienne n'est plus valable.",
+"تم إضافة فئة جديدة": "Nouvelle catégorie ajoutée",
+"تم إضافة مصروف": "Dépense ajoutée",
+"تم إعداد HammamPOS بنجاح. إليك ملخص الإعدادات": "HammamPOS est configuré. Voici le résumé",
+"تم إفراز زكاة هذا اليوم": "Zakat de ce jour mise de côté",
+"تم الإلغاء. عاد": "Annulé. Retour de",
+"تم الحفظ والاتصال بالسحابة": "Enregistré et connecté au cloud",
+"تم الحفظ، لكن الاتصال غير متاح الآن. سيُعاد تلقائياً.": "Enregistré, mais la connexion est indisponible pour le moment. Nouvel essai automatique.",
+"تم الحفظ. المزامنة غير مفعلة (تحقق من الرابط والمفتاح": "Enregistré. Synchronisation désactivée (vérifiez le lien et la clé",
+"تم الحفظ. تنبيه: المصروف يخص فترة مغلقة بتحصيل سابق": "Enregistré. Attention : la dépense concerne une période clôturée par un encaissement précédent",
+"تم الدفع": "Payé",
+"تم الرفض": "Refusé",
+"تم إلغاء الاسترجاع": "Remboursement annulé",
+"تم إلغاء العملية": "Opération annulée",
+"تم القبول. نقص ما على البائع": "Accepté. Ce que doit le vendeur a baissé de",
+"تم النسخ": "Copié",
+"تم النسخ ✓": "Copié ✓",
+"تم إنشاء مفتاح استرداد جديد. أي مفتاح قديم لم يعد صالحاً.": "Nouvelle clé de récupération créée. Toute ancienne clé n'est plus valable.",
+"تم إيقاف استرجاع التذاكر": "Remboursement des tickets désactivé",
+"تم بيع تذكرة": "Ticket vendu",
+"تم تجاوز عدد المحاولات المسموح بها. حاول بعد": "Nombre de tentatives dépassé. Réessayez dans",
+"تم تحديث الفئة": "Catégorie mise à jour",
+"تم تحصيل": "Encaissé",
+"تم تسجيل": "Enregistré",
+"تم تسجيل الدفع": "Paiement enregistré",
+"تم تسجيل تسديد": "Remboursement enregistré",
+"تم تسجيل دفع المصروف": "Paiement de la dépense enregistré",
+"تم تسجيل شراء الخشب": "Achat de bois enregistré",
+"تم تصدير البيانات بنجاح": "Données exportées",
+"تم تعطيل المورد": "Fournisseur désactivé",
+"تم تعطيل النوع": "Type désactivé",
+"تم تغيير حالة اليوم إلى": "État du jour changé en",
+"تم تغيير كلمة المرور": "Mot de passe changé",
+"تم تغيير كلمة مرور الإدارة. يمكنك الدخول الآن.": "Mot de passe administrateur changé. Vous pouvez vous connecter.",
+"تم تفعيل استرجاع التذاكر للبائع": "Remboursement des tickets activé pour le vendeur",
+"تم تفعيل المورد": "Fournisseur activé",
+"تم تفعيل النوع": "Type activé",
+"تم تفعيل نظام المال الجديد": "Nouveau système de caisse activé",
+"تم تفعيل نظام المال الجديد مسبقاً": "Le nouveau système de caisse est déjà activé",
+"تم حذف التذكرة": "Ticket supprimé",
+"تم حذف المصروف": "Dépense supprimée",
+"تم حذف المورد نهائياً": "Fournisseur supprimé définitivement",
+"تم حذف عملية التحصيل": "Encaissement supprimé",
+"تم حفظ إعدادات البريد": "Paramètres e-mail enregistrés",
+"تم حفظ الإعدادات العامة": "Paramètres généraux enregistrés",
+"تم حفظ التعديل": "Modification enregistrée",
+"تم دفع": "Payé",
+"تم دفع هذا الشراء مسبقاً": "Cet achat est déjà payé",
+"تم دفع هذا المصروف مسبقاً": "Cette dépense est déjà payée",
+"تم ربط الجهاز": "Ordinateur lié",
+"تم مسح البيانات والتحقق من الملف: فارغ ✔": "Données effacées et fichier vérifié : vide ✔",
+"تم نسخ المفتاح": "Clé copiée",
+"تم نقل": "Déplacé",
+"تمت إضافة المال لصندوق الصرف": "Argent ajouté au fonds de monnaie",
+"تمت إضافة المورد": "Fournisseur ajouté",
+"تمت إضافة نوع المصروف": "Type de dépense ajouté",
+"تمت المزامنة": "Synchronisé",
+"تمت مراجعة هذا الإدخال مسبقاً": "Cette saisie a déjà été vérifiée",
+"تنبيه غير مقروء": "alerte(s) non lue(s)",
+"ث": "s",
+"ث) · النسخة": "s) · version",
+"ث). النسخة": "s). Version",
+"ثانية قبل طلب رمز جديد.": "secondes avant de demander un nouveau code.",
+"ثانية. سيعود متصلاً بعد 2-3 دقائق.": "secondes. Il sera de nouveau connecté dans 2 à 3 minutes.",
+"ثم إعادة تشغيل التطبيق تلقائياً.": "puis l'application redémarrera automatiquement.",
+"جاري": "En cours",
+"جاري اختبار الاتصال...": "Test de la connexion...",
+"جاري اختبار الطباعة...": "Test de l'impression...",
+"جاري إرسال الرمز...": "Envoi du code...",
+"جاري الاتصال بالجهاز...": "Connexion à l'ordinateur...",
+"جاري الاتصال بالجهاز... (حتى 40 ثانية": "Connexion à l'ordinateur... (jusqu'à 40 secondes",
+"جاري الإعداد...": "Configuration...",
+"جاري الإنشاء...": "Création...",
+"جاري البحث عن آخر نسخة...": "Recherche de la dernière version...",
+"جاري البحث عن الطابعات...": "Recherche des imprimantes...",
+"جاري التثبيت...": "Installation...",
+"جاري التثبيت... سيتم إعادة تشغيل التطبيق تلقائياً": "Installation... l'application va redémarrer automatiquement",
+"جاري التحقق...": "Vérification...",
+"جاري التحميل": "Chargement",
+"جاري التحميل 0%": "Chargement 0 %",
+"جاري التحميل...": "Chargement...",
+"جاري الفحص...": "Vérification...",
+"جاري تثبيت النسخة": "Installation de la version",
+"جاري تحميل الإصدار...": "Téléchargement de la version...",
+"جاري تحميل الأيام المتاحة...": "Chargement des jours disponibles...",
+"جاري تحميل الطابعات...": "Chargement des imprimantes...",
+"جاري تصدير البيانات...": "Export des données...",
+"جاري مسح جميع البيانات...": "Effacement de toutes les données...",
+"جاري مقارنة بيانات هذا الجهاز مع السحابة...": "Comparaison des données de cet ordinateur avec le cloud...",
+"جلسة غير صالحة أو منتهية": "Session non valide ou expirée",
+"جميع التذاكر المباعة": "Tous les tickets vendus",
+"جميع المصروفات": "Toutes les dépenses",
+"جميع عمليات التحصيل": "Tous les encaissements",
+"جهازك لا يستوفي الحد الأدنى من المتطلبات": "Votre ordinateur ne remplit pas la configuration minimale",
+"جيجابايت": "Go",
+"جيجابايت (الحد الأدنى": "Go (minimum",
+"حالة الدفع": "État du paiement",
+"حجم الملف غير صحيح: متوقع": "Taille de fichier incorrecte : attendu",
+"حدث خطأ": "Une erreur s'est produite",
+"حدث خطأ غير متوقع.": "Une erreur inattendue s'est produite.",
+"حدد كيف دُفع الباقي: غير مدفوع أو دفعه المدير": "Indiquez comment le reste a été payé : impayé ou payé par le gérant",
+"حذف": "Supprimer",
+"حذف «": "Supprimer «",
+"حذف المورد \"": "Supprimer le fournisseur \"",
+"حذف المورد نهائياً": "Supprimer le fournisseur définitivement",
+"حذف فرع": "Supprimer un établissement",
+"حُذف من سجل تحصيل الأموال": "Supprimé de l'historique des encaissements",
+"حفظ": "Enregistrer",
+"حفظ التعديل": "Enregistrer la modification",
+"حفظ التغييرات": "Enregistrer les modifications",
+"حفظ كلمة المرور": "Enregistrer le mot de passe",
+"حفظته، بدء الاستخدام": "Je l'ai noté, commencer",
+"حفظته، متابعة": "Je l'ai noté, continuer",
+"حمام الأندلس - الفرع الرئيسي": "Hammam Al Andalous - établissement principal",
+"حمام الهدى - الفرع الرئيسي": "Hammam Al Houda - établissement principal",
+"حمام جديد": "Nouveau hammam",
+"حمّل الملف من الزر أعلاه (ملف zip).": "Téléchargez le fichier avec le bouton ci-dessus (fichier zip).",
+"خادم SMTP": "Serveur SMTP",
+"خروج": "Déconnexion",
+"خشب": "Bois",
+"خشب (دفعة": "Bois (paiement",
+"خطأ غير معروف": "Erreur inconnue",
+"خطأ في": "Erreur de",
+"خطأ في استرجاع المال": "Erreur lors du retrait d'argent",
+"خطأ في إضافة الفئة": "Erreur lors de l'ajout de la catégorie",
+"خطأ في إضافة المال": "Erreur lors de l'ajout d'argent",
+"خطأ في إضافة المورد": "Erreur lors de l'ajout du fournisseur",
+"خطأ في إضافة نوع المصروف": "Erreur lors de l'ajout du type de dépense",
+"خطأ في الاسترجاع": "Erreur de remboursement",
+"خطأ في الإلغاء": "Erreur d'annulation",
+"خطأ في البيع": "Erreur de vente",
+"خطأ في التحصيل": "Erreur d'encaissement",
+"خطأ في التحقق من كلمة المرور": "Erreur de vérification du mot de passe",
+"خطأ في التحميل": "Erreur de chargement",
+"خطأ في التسجيل": "Erreur d'enregistrement",
+"خطأ في التهيئة": "Erreur d'initialisation",
+"خطأ في الحفظ": "Erreur d'enregistrement",
+"خطأ في إلغاء الاسترجاع": "Erreur lors de l'annulation du remboursement",
+"خطأ في إنشاء المفتاح": "Erreur lors de la création de la clé",
+"خطأ في بدء التطبيق": "Erreur au démarrage de l'application",
+"خطأ في تحديث الفئة": "Erreur lors de la mise à jour de la catégorie",
+"خطأ في تحديث المورد": "Erreur lors de la mise à jour du fournisseur",
+"خطأ في تحديث النوع": "Erreur lors de la mise à jour du type",
+"خطأ في تحديث حالة الزكاة": "Erreur lors de la mise à jour de la zakat",
+"خطأ في تحصيل المال": "Erreur lors de l'encaissement",
+"خطأ في تحميل الإحصائيات": "Erreur de chargement des statistiques",
+"خطأ في تحميل الأنواع": "Erreur de chargement des types",
+"خطأ في تحميل البيانات": "Erreur de chargement des données",
+"خطأ في تحميل الرسم البياني": "Erreur de chargement du graphique",
+"خطأ في تحميل الطابعات": "Erreur de chargement des imprimantes",
+"خطأ في تحميل القوائم": "Erreur de chargement des listes",
+"خطأ في تحميل الموردين": "Erreur de chargement des fournisseurs",
+"خطأ في تحميل بيانات الإدارة": "Erreur de chargement des données d'administration",
+"خطأ في تحميل تفاصيل التحصيل": "Erreur de chargement des détails de l'encaissement",
+"خطأ في تحميل سجل الزكاة": "Erreur de chargement de l'historique de la zakat",
+"خطأ في تسجيل الدفع": "Erreur d'enregistrement du paiement",
+"خطأ في تصدير البيانات": "Erreur d'export des données",
+"خطأ في تغيير حالة اليوم": "Erreur lors du changement d'état du jour",
+"خطأ في تغيير كلمة المرور": "Erreur lors du changement de mot de passe",
+"خطأ في تفعيل نظام المال الجديد": "Erreur lors de l'activation du nouveau système de caisse",
+"خطأ في حذف التذكرة": "Erreur lors de la suppression du ticket",
+"خطأ في حذف المصروف": "Erreur lors de la suppression de la dépense",
+"خطأ في حذف المورد": "Erreur lors de la suppression du fournisseur",
+"خطأ في حذف عملية التحصيل": "Erreur lors de la suppression de l'encaissement",
+"خطأ في حفظ الإعدادات": "Erreur lors de l'enregistrement des paramètres",
+"خطأ في فتح إدارة الفئات": "Erreur à l'ouverture de la gestion des catégories",
+"خطأ في فتح الإعدادات": "Erreur à l'ouverture des paramètres",
+"خطأ في فتح التعديل": "Erreur à l'ouverture de la modification",
+"خطأ في فتح صندوق الصرف": "Erreur à l'ouverture du fonds de monnaie",
+"خطأ في فتح لوحة الإدارة": "Erreur à l'ouverture de l'administration",
+"خطأ في فتح نافذة المصروفات": "Erreur à l'ouverture de la fenêtre des dépenses",
+"خطأ في فتح نافذة تحصيل المال": "Erreur à l'ouverture de la fenêtre d'encaissement",
+"خطأ في فتح نافذة تصدير البيانات": "Erreur à l'ouverture de la fenêtre d'export",
+"خطأ: لم يتم العثور على نافذة إدارة الفئات": "Erreur : fenêtre de gestion des catégories introuvable",
+"د": "min",
+"دخول": "Connexion",
+"دخول الجهاز مرفوض: أنشئ رمز ربط جديد من لوحة المراقبة": "Connexion de l'ordinateur refusée : créez un nouveau code de liaison depuis le tableau de bord",
+"دخول خاص": "Connexion propre",
+"درهم": "DH",
+"درهم — ابحث عن عملية منسية قبل التحصيل": "DH — cherchez une opération oubliée avant d'encaisser",
+"درهم — يُسجَّل ديناً على البائع": "DH — enregistré comme dette du vendeur",
+"درهم (المتبقي عليه الآن": "DH (reste dû maintenant",
+"درهم (من أصل": "DH (sur",
+"درهم =": "DH =",
+"درهم إلى النقد في الصندوق": "DH dans la caisse",
+"درهم فقط": "DH seulement",
+"درهم للزبون": "DH au client",
+"درهم لهذا الشراء؟": "DH pour cet achat ?",
+"درهم من الصندوق": "DH depuis la caisse",
+"درهم من الصندوق، بتاريخ": "DH depuis la caisse, le",
+"درهم من النقد الآن.": "DH de la caisse maintenant.",
+"درهم، والباقي ربح": "DH, le reste est du bénéfice",
+"درهم.": "DH.",
+"درهم. المبلغ لا يتغير. إذا كان المبلغ خاطئاً ألغِ العملية وسجّل واحدة جديدة.": "DH. Le montant ne change pas. S'il est faux, annulez l'opération et enregistrez-en une nouvelle.",
+"درهم. المتبقي على البائع": "DH. Reste dû par le vendeur",
+"درهم. النقد المتاح في الصندوق": "DH. Argent disponible en caisse",
+"درهم. لا يمكن أن يقل المبلغ الإجمالي عنه. لتغيير طريقة الدفع احذف المصروف وسجّله من جديد.": "DH. Le montant total ne peut pas être inférieur. Pour changer le mode de paiement, supprimez la dépense et enregistrez-la à nouveau.",
+"درهم)؟": "DH) ?",
+"دفع": "Payer",
+"دفع الفواتير غير المدفوعة متوفر في الخطوة التالية من نظام المال الجديد": "Le paiement des factures impayées arrive avec la prochaine étape du nouveau système de caisse",
+"دُفع بعد زيارة المدير الأخيرة": "Payé après la dernière visite du gérant",
+"دُفع قبل زيارة المدير الأخيرة": "Payé avant la dernière visite du gérant",
+"دفع لشخص نيابة عن المدير": "Paiement à une personne pour le compte du gérant",
+"دفع مصروف بقيمة": "Paiement d'une dépense de",
+"دُفع من الصندوق": "Payé depuis la caisse",
+"دفع نيابة عنك": "Payé pour votre compte",
+"دفعة": "Paiement",
+"دفعه المدير": "Payé par le gérant",
+"دفعه المدير من جيبه": "Payé par le gérant de sa poche",
+"دقيقة.": "minute(s).",
+"ديون الموردين": "Dettes fournisseurs",
+"رابط إعادة التعيين غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً.": "Le lien de réinitialisation n'est pas valide ou a expiré. Demandez-en un nouveau.",
+"رابط المشروع أو المفتاح فارغ": "Le lien du projet ou la clé est vide",
+"رابط المشروع يجب أن يبدأ بـ https://": "Le lien du projet doit commencer par https://",
+"رابط Supabase": "Lien Supabase",
+"رابط Supabase (URL": "Lien Supabase (URL",
+"راجعها من لوحة الإدارة عن بعد.": "Vérifiez-les depuis l'administration à distance.",
+"ربح": "Bénéfice",
+"ربط": "Lier",
+"ربط هذا الفرع بالسحابة لمراقبة المبيعات عن بُعد": "Lier cet établissement au cloud pour suivre les ventes à distance",
+"رجوع": "Retour",
+"رفض": "Refuser",
+"رفض إدخال متأخر": "Refuser une saisie tardive",
+"رقم": "n°",
+"رقم الإيصال / المرجع (اختياري": "N° de reçu / référence (facultatif",
+"رقم التذكرة": "N° de ticket",
+"رقم الهاتف (00 00 00 00 00": "Numéro de téléphone (00 00 00 00 00",
+"رمز الربط": "Code de liaison",
+"رمز الربط (اختياري": "Code de liaison (facultatif",
+"رمز الربط غير صالح": "Code de liaison non valide",
+"رمز الربط للجهاز «": "Code de liaison de l'ordinateur «",
+"رمز الربط ناقص": "Code de liaison incomplet",
+"رمز ربط جديد": "Nouveau code de liaison",
+"رمز عبر البريد": "Code par e-mail",
+"زكاة": "Zakat",
+"زيادة": "Excédent",
+"سبب الاسترجاع": "Motif du remboursement",
+"سبب الاسترجاع مطلوب": "Le motif du remboursement est obligatoire",
+"سبب الاسترجاع...": "Motif du remboursement...",
+"سبب الإضافة...": "Motif de l'ajout...",
+"سبب الإلغاء": "Motif de l'annulation",
+"سبب الإلغاء مطلوب": "Le motif de l'annulation est obligatoire",
+"سبب التحصيل، ملاحظات إضافية...": "Motif de l'encaissement, notes...",
+"ستأخذ": "Vous prendrez",
+"ستحتاج هذه الكلمة للوصول إلى لوحة الإدارة": "Ce mot de passe sera demandé pour accéder à l'administration",
+"ستُحتسب مبيعاً من جديد ويرتفع النقد في الصندوق بنفس المبلغ.": "Il comptera à nouveau comme vendu et la caisse augmentera du même montant.",
+"سجل التنبيهات": "Historique des alertes",
+"سجل الخشب غير موجود": "Enregistrement de bois introuvable",
+"سجل الزكاة (حسب دخل كل يوم": "Historique de la zakat (selon le revenu de chaque jour",
+"سجل تعديلات المال": "Historique des modifications de la caisse",
+"سُجّل في": "Enregistré le",
+"سجّلها": "Saisi par",
+"سعر": "Prix",
+"سعر الحمولة الكاملة": "Prix du chargement complet",
+"سعر الكيلو (درهم": "Prix au kilo (DH",
+"سعر الكيلو الافتراضي (اختياري": "Prix au kilo par défaut (facultatif",
+"سعر الكيلو الافتراضي غير صالح": "Prix au kilo par défaut non valide",
+"سعر الكيلو الواحد": "Prix d'un kilo",
+"سعر الكيلو غير صالح": "Prix au kilo non valide",
+"سنوي": "Annuel",
+"سيبقى النقص على البائع، وتبقى الفاتورة غير مدفوعة.": "Le manque reste à la charge du vendeur, et la facture reste impayée.",
+"سيتم تثبيت الإصدار v": "La version suivante sera installée : v",
+"سيتم تحميل التحديث v": "La mise à jour suivante sera téléchargée : v",
+"سيتم تحميله من GitHub وإعادة تشغيل التطبيق.": "Elle sera téléchargée depuis GitHub et l'application redémarrera.",
+"سيُخصم المبلغ من النقد في الصندوق الآن.": "Le montant sera déduit de la caisse maintenant.",
+"سيُخفَّض ما على البائع بـ": "Ce que doit le vendeur baissera de",
+"سيُربط بـ": "Sera lié à",
+"سيُرسل رابط لإعادة تعيين كلمة المرور إلى": "Un lien de réinitialisation du mot de passe sera envoyé à",
+"سيُرسل رمز من 6 أرقام إلى": "Un code à 6 chiffres sera envoyé à",
+"سيُسجَّل هذا النقص ديناً على البائع.": "Ce manque sera enregistré comme dette du vendeur.",
+"سيظهر هذا الاسم على التذاكر المطبوعة": "Ce nom apparaîtra sur les tickets imprimés",
+"سيعاد تشغيل الجهاز بعد": "L'ordinateur redémarrera dans",
+"سيعود الجهاز متصلاً خلال دقيقة إلى دقيقتين.": "L'ordinateur sera de nouveau connecté dans une à deux minutes.",
+"سيُنشأ الملف عند أول فتح": "Le fichier sera créé à la première ouverture",
+"شراء خشب": "Achat de bois",
+"شهراً": "mois",
+"شهري": "Mensuel",
+"صافي الربح": "Bénéfice net",
+"صافي وزن الخشب": "Poids net du bois",
+"صالح لمدة 15 دقيقة.": "Valable 15 minutes.",
+"صندوق الصرف": "Fonds de monnaie",
+"صوت تنبيه قصير مع الرسائل والتحذيرات": "Petit bip avec les messages et les avertissements",
+"طريقة التثبيت على جهاز جديد": "Installation sur un nouvel ordinateur",
+"طريقة التسعير": "Mode de tarification",
+"طريقة تسعير غير صالحة": "Mode de tarification non valide",
+"عام": "Général",
+"عدد الأيام المحددة": "Nombre de jours sélectionnés",
+"عدد الفئات": "Nombre de catégories",
+"عطل في الحمام": "Panne au hammam",
+"عطلة": "Congé",
+"على البائع": "Dû par le vendeur",
+"عليها إدخال متأخر ينتظر مراجعة المدير": "contient une saisie tardive en attente du gérant",
+"عمليات التحصيل": "Encaissements",
+"عملية": "opération",
+"عند التفعيل يستطيع البائع استرجاع تذكرة بعها اليوم قبل أقل من ساعتين، مع كتابة السبب. يصلك إشعار بكل استرجاع. يمكنك دائماً إلغاء أي استرجاع من تفاصيل اليوم.": "Une fois activé, le vendeur peut rembourser un ticket vendu aujourd'hui il y a moins de deux heures, en indiquant le motif. Vous recevez une notification pour chaque remboursement. Vous pouvez toujours annuler un remboursement depuis les détails du jour.",
+"عند أول تشغيل: أدخل اسم الحمام، الفئات والأسعار، ثم كلمة مرور الإدارة.": "Au premier démarrage : saisissez le nom du hammam, les catégories et les prix, puis le mot de passe administrateur.",
+"عنوان البريد الإلكتروني": "Adresse e-mail",
+"غير المدفوع لا يخصم من النقد في الصندوق حتى يتم الدفع لاحقاً.": "L'impayé n'est pas déduit de la caisse avant le paiement.",
+"غير المقروءة": "Non lues",
+"غير متاح": "Indisponible",
+"غير متاح عن بعد": "Indisponible à distance",
+"غير متصل": "Non connecté",
+"غير مدفوع": "Impayé",
+"غير مدفوع (آجل": "Impayé (à crédit",
+"غير مدفوع (دين للمورد": "Impayé (dette envers le fournisseur",
+"غير مربوط": "Non lié",
+"غير مفعل": "désactivé",
+"غير موجود": "Introuvable",
+"فائض غير مفسَّر": "Excédent inexpliqué",
+"فئة": "catégorie",
+"فاتورة الماء والكهرباء": "Facture d'eau et d'électricité",
+"فاتورة الماء والكهرباء الشهرية": "Facture mensuelle d'eau et d'électricité",
+"فاتورة غير مدفوعة": "facture(s) impayée(s)",
+"فتح": "Ouvrir",
+"فترة مغلقة": "Période clôturée",
+"فشل إطلاق محدث التطبيق": "Impossible de lancer la mise à jour",
+"فشل التحديث": "Échec de la mise à jour",
+"فشل التحقق من التحديثات": "Échec de la vérification des mises à jour",
+"فشل التنفيذ": "Échec de l'exécution",
+"فشل الطباعة": "Échec de l'impression",
+"فشل تحميل الإصدارات": "Échec du chargement des versions",
+"فشل تغيير الإصدار": "Échec du changement de version",
+"فشل في إضافة المصروف": "Échec de l'ajout de la dépense",
+"فشل في إكمال الإعداد": "Échec de la configuration",
+"فشل في بيع التذكرة": "Échec de la vente du ticket",
+"فشل في تسجيل شراء الخشب": "Échec de l'enregistrement de l'achat de bois",
+"فشل في مسح البيانات": "Échec de l'effacement des données",
+"فشلت العملية": "L'opération a échoué",
+"فشلت المزامنة": "Échec de la synchronisation",
+"فواتير غير مدفوعة": "Factures impayées",
+"في الانتظار": "En attente",
+"في الانتظار (غير مفعّل بعد": "En attente (pas encore activé",
+"قبل": "il y a",
+"قبل آخر تحصيل حضوري": "avant le dernier encaissement sur place",
+"قبول": "Accepter",
+"قبول إدخال متأخر": "Accepter une saisie tardive",
+"قد يعمل البرنامج ببطء أو يتوقف عن العمل. يُنصح بترقية الجهاز.": "Le logiciel risque d'être lent ou de s'arrêter. Une mise à niveau de l'ordinateur est conseillée.",
+"قم أولاً بتحصيل كل المال الموجود في الصندوق بالشاشة الحالية، ثم اضغط «تفعيل». بعد التفعيل يبدأ النقد في الصندوق من 0، ولا يمكن التراجع.": "Encaissez d'abord tout l'argent de la caisse avec l'écran actuel, puis appuyez sur « Activer ». Après l'activation, la caisse repart de 0, sans retour possible.",
+"قم بإعداد البريد الإلكتروني لاستلام التقارير اليومية تلقائياً": "Configurez l'e-mail pour recevoir automatiquement les rapports quotidiens",
+"قم بإعداد فئات التذاكر وأسعارها. يمكنك تعديل هذه المعلومات لاحقاً من الإعدادات.": "Configurez les catégories de tickets et leurs prix. Vous pourrez les modifier plus tard dans les paramètres.",
+"قيد المراجعة": "En attente de vérification",
+"قيد مراجعة المدير": "En attente du gérant",
+"كانت": "avant",
+"كغ": "kg",
+"كغ ×": "kg ×",
+"كل إضافة أو تعديل أو حذف أو إلغاء لمصروف أو تحصيل، مع القيم قبل وبعد.": "Chaque ajout, modification, suppression ou annulation d'une dépense ou d'un encaissement, avec les valeurs avant et après.",
+"كل الحمامات": "Tous les hammams",
+"كل ما خرج من الصندوق إليك: تحصيلك الشخصي، وما أرسله البائع (إيداع، تحويل، أو دفع نيابة عنك). «تسديد للمدير / ربح» يبيّن كم سدّد من دَينك وكم صار ربحاً. ألغِ أي عملية لم يصلك مبلغها، فيعود المبلغ إلى الصندوق.": "Tout ce qui est sorti de la caisse vers vous : votre encaissement sur place et ce que le vendeur a envoyé (dépôt, virement ou paiement pour votre compte). « Remboursement au gérant / bénéfice » montre la part qui rembourse votre dette et la part qui devient du bénéfice. Annulez toute opération dont vous n'avez pas reçu le montant : il revient dans la caisse.",
+"كل مشتريات الخشب. الخشب غير المدفوع (آجل) لا يُخصم من النقد حتى تضغط \"تم الدفع\".": "Tous les achats de bois. Le bois impayé (à crédit) n'est pas déduit de la caisse tant que vous n'appuyez pas sur « Payé ».",
+"كلمات المرور الجديدة غير متطابقة": "Les nouveaux mots de passe ne correspondent pas",
+"كلمات المرور الجديدة غير متطابقة.": "Les nouveaux mots de passe ne correspondent pas.",
+"كلمات المرور غير متطابقة": "Les mots de passe ne correspondent pas",
+"كلمة المرور": "Mot de passe",
+"كلمة المرور الجديدة": "Nouveau mot de passe",
+"كلمة المرور الجديدة (6 أحرف على الأقل": "Nouveau mot de passe (6 caractères minimum",
+"كلمة المرور الجديدة مطابقة للحالية": "Le nouveau mot de passe est identique à l'actuel",
+"كلمة المرور الجديدة يجب أن تكون 4 أحرف على الأقل": "Le nouveau mot de passe doit contenir au moins 4 caractères",
+"كلمة المرور الجديدة يجب أن تكون 4 أحرف على الأقل.": "Le nouveau mot de passe doit contenir au moins 4 caractères.",
+"كلمة المرور الحالية": "Mot de passe actuel",
+"كلمة المرور الحالية غير صحيحة": "Mot de passe actuel incorrect",
+"كلمة المرور الحالية غير صحيحة.": "Mot de passe actuel incorrect.",
+"كلمة المرور ضعيفة: 6 أحرف على الأقل": "Mot de passe trop faible : 6 caractères minimum",
+"كلمة المرور غير صحيحة": "Mot de passe incorrect",
+"كلمة مرور الإدارة *": "Mot de passe administrateur *",
+"كلمة مرور الإدارة الجديدة": "Nouveau mot de passe administrateur",
+"كلمة مرور الإدارة الحالية": "Mot de passe administrateur actuel",
+"كلمة مرور الإدارة الحالية (لإنشاء مفتاح جديد": "Mot de passe administrateur actuel (pour créer une nouvelle clé",
+"كلمة مرور الإدارة غير صحيحة": "Mot de passe administrateur incorrect",
+"كلمة مرور التطبيق": "Mot de passe d'application",
+"كلمة مرور جديدة": "Nouveau mot de passe",
+"كلمة مرور خاطئة": "Mot de passe incorrect",
+"لا إشارة": "Aucun signal",
+"لا إشارة (لم يرتبط أو نسخة قديمة": "Aucun signal (non lié ou ancienne version",
+"لا بيانات بعد. الأجهزة ترسل الأرقام بعد التحديث إلى 2.8.34.": "Pas encore de données. Les ordinateurs envoient leurs chiffres après la mise à jour 2.8.34.",
+"لا تنبيهات": "Aucune alerte",
+"لا تنبيهات جديدة": "Aucune nouvelle alerte",
+"لا توجد أجهزة": "Aucun appareil",
+"لا توجد إدخالات متأخرة": "Aucune saisie tardive",
+"لا توجد إشعارات": "Aucune notification",
+"لا توجد إصدارات سابقة": "Aucune version précédente",
+"لا توجد أنواع": "Aucun type",
+"لا توجد أنواع مصاريف": "Aucun type de dépense",
+"لا توجد أيام متاحة للتحصيل": "Aucun jour disponible à l'encaissement",
+"لا توجد أيام مسجّلة لهذه العملية (عملية قديمة قبل تفعيل تتبّع الأيام).": "Aucun jour enregistré pour cette opération (ancienne opération, avant le suivi des jours).",
+"لا توجد تذاكر اليوم": "Aucun ticket aujourd'hui",
+"لا توجد ديون على البائع": "Aucune dette du vendeur",
+"لا توجد طابعات متاحة": "Aucune imprimante disponible",
+"لا توجد عمليات": "Aucune opération",
+"لا توجد عمليات تحصيل": "Aucun encaissement",
+"لا توجد فروع. أضف جهازاً من صفحة «الأجهزة».": "Aucun établissement. Ajoutez un ordinateur depuis la page « Appareils ».",
+"لا توجد فواتير غير مدفوعة": "Aucune facture impayée",
+"لا توجد مبيعات": "Aucune vente",
+"لا توجد مبيعات مسجّلة بعد.": "Aucune vente enregistrée pour l'instant.",
+"لا توجد مشتريات بعد": "Aucun achat pour l'instant",
+"لا توجد مشتريات خشب": "Aucun achat de bois",
+"لا توجد مصروفات": "Aucune dépense",
+"لا توجد نسخة سابقة للرجوع إليها": "Aucune version précédente vers laquelle revenir",
+"لا رد خلال 40 ثانية. الجهاز مغلق أو بلا إنترنت، أو يعمل بنسخة أقدم من 2.8.29، أو لم يرتبط بهذه اللوحة.": "Pas de réponse en 40 secondes. L'ordinateur est éteint ou sans Internet, a une version antérieure à 2.8.29, ou n'est pas lié à ce tableau de bord.",
+"لا رد من الجهاز: تحقق أنه يعمل ومتصل": "Pas de réponse de l'ordinateur : vérifiez qu'il est allumé et connecté",
+"لا شيء يحتاج انتباهك": "Rien à signaler",
+"لا شيء يحتاج انتباهك الآن": "Rien à signaler pour le moment",
+"لا صلاحية: هذا الجهاز يحتاج رمز ربط جديد من لوحة المراقبة": "Accès refusé : cet ordinateur a besoin d'un nouveau code de liaison du tableau de bord",
+"لا مبيعات اليوم": "Aucune vente aujourd'hui",
+"لا ملخص بعد: حدّث الجهاز إلى 2.8.34": "Pas encore de résumé : mettez l'ordinateur à jour en 2.8.34",
+"لا ملخص من هذا الجهاز بعد.": "Pas encore de résumé de cet ordinateur.",
+"لا يضيع شيء: التغييرات محفوظة وتُرسل عند عودة الاتصال.": "Rien n'est perdu : les modifications sont enregistrées et envoyées au retour de la connexion.",
+"لا يمكن استرجاع تذكرة من يوم آخر": "Impossible de rembourser un ticket d'un autre jour",
+"لا يمكن تحصيل": "Impossible d'encaisser",
+"لا يمكن تسجيل مصروف بتاريخ مستقبلي": "Impossible d'enregistrer une dépense à une date future",
+"لا يمكن وضع تاريخ مستقبلي": "Une date future n'est pas possible",
+"لا يوجد برنامج لفتح ملفات Excel على هذا الجهاز": "Aucun programme pour ouvrir les fichiers Excel sur cet ordinateur",
+"لا يوجد تحديث": "Aucune mise à jour",
+"لا يوجد دين على البائع": "Le vendeur ne doit rien",
+"لا يوجد رمز نشط. اطلب رمزاً جديداً.": "Aucun code actif. Demandez-en un nouveau.",
+"لا يوجد في الصندوق إلا": "La caisse ne contient que",
+"لا يوجد مفتاح استرداد على هذا الجهاز. استخدم «رمز عبر البريد».": "Aucune clé de récupération sur cet ordinateur. Utilisez « Code par e-mail ».",
+"لا يوجد مفتاح استرداد على هذا الجهاز. استخدم الرمز عبر البريد.": "Aucune clé de récupération sur cet ordinateur. Utilisez le code par e-mail.",
+"لا يوجد ملف ZIP للإصدار v": "Aucun fichier ZIP pour la version v",
+"لا يوجد موردون": "Aucun fournisseur",
+"لا يوجد موردون. أضف موردًا من الإعدادات → موردو الخشب.": "Aucun fournisseur. Ajoutez-en un dans Paramètres → Fournisseurs de bois.",
+"لا يوجد نقد للتحصيل": "Aucun argent à encaisser",
+"لحذف فرع وكل بياناته من السحابة: صفحة «الأجهزة» ← زر «حذف» بجانب الفرع.": "Pour supprimer un établissement et toutes ses données du cloud : page « Appareils » → bouton « Supprimer » à côté de l'établissement.",
+"لديك تغييرات غير محفوظة. هل تريد الإغلاق بدون حفظ؟": "Vous avez des modifications non enregistrées. Fermer sans enregistrer ?",
+"لربط الجهاز بهذه اللوحة: صفحة «الأجهزة» هنا ← إنشاء، ثم الصق الرمز في التطبيق: الإعدادات ← السحابة.": "Pour lier l'ordinateur à ce tableau de bord : page « Appareils » ici → Créer, puis collez le code dans l'application : Paramètres → Cloud.",
+"لغة البرنامج": "Langue du logiciel",
+"للتأكيد، اكتب هذا الرقم": "Pour confirmer, saisissez ce numéro",
+"لم يتم إعداد البريد الإلكتروني على هذا الجهاز، لذلك لا يمكن إرسال الرمز.": "L'e-mail n'est pas configuré sur cet ordinateur, le code ne peut donc pas être envoyé.",
+"لم يتم إعداد البريد الإلكتروني. أضفه من الإعدادات ← البريد.": "L'e-mail n'est pas configuré. Ajoutez-le dans Paramètres → E-mail.",
+"لم يتم العثور على طابعات": "Aucune imprimante trouvée",
+"لم يتم العثور على طابعة حرارية. قم بتوصيل طابعة 80mm عبر USB.": "Aucune imprimante thermique trouvée. Branchez une imprimante 80 mm en USB.",
+"لم يرسل الجهاز ملخصاً بعد": "L'ordinateur n'a pas encore envoyé de résumé",
+"لم يستلم الجهاز الأمر. الجهاز مغلق أو بلا إنترنت، أو يعمل بنسخة أقدم من 2.8.32.": "L'ordinateur n'a pas reçu la commande. Il est éteint ou sans Internet, ou a une version antérieure à 2.8.32.",
+"لم يُفرز بعد": "Pas encore trié",
+"لمن دُفع المبلغ؟": "À qui le montant a-t-il été payé ?",
+"لن تتأثر مشتريات الخشب السابقة (تحتفظ ببياناتها).": "Les achats de bois précédents ne sont pas affectés (leurs données sont conservées).",
+"لوحة الإدارة عن بعد": "Administration à distance",
+"لوحة المراقبة": "Tableau de bord",
+"لوحة المفاتيح العربية": "Clavier arabe",
+"ما بقي دَيناً للموردين. ادفع أي جزء من الصندوق عندما يتوفر النقد.": "Ce qui reste dû aux fournisseurs. Payez une partie depuis la caisse quand l'argent est disponible.",
+"مباشر": "En direct",
+"مبلغ ثابت": "Montant fixe",
+"مبلغ متغير - أدخل المبلغ": "Montant variable - saisissez le montant",
+"مبلغ متفق عليه": "Montant convenu",
+"مبيعات اليوم": "Ventes du jour",
+"مبيعات اليوم حسب الفئة": "Ventes du jour par catégorie",
+"متابعة": "Continuer",
+"متبقٍّ": "reste",
+"متصل": "Connecté",
+"متوسط": "Moyenne",
+"متوقع": "attendu",
+"مثال للأنواع: أوكاليبتوس، ليج — افصل بين الأنواع بفاصلة.": "Exemple de types : eucalyptus, liège — séparez les types par une virgule.",
+"مثال: 1000": "Exemple : 1000",
+"مثال: 500": "Exemple : 500",
+"مثال: السباك، الكهربائي...": "Exemple : plombier, électricien...",
+"مثال: انقطاع الماء الساخن": "Exemple : coupure d'eau chaude",
+"مثال: تحصيل الأسبوع": "Exemple : encaissement de la semaine",
+"مثال: حمام الأندلس": "Exemple : Hammam Al Andalous",
+"مثال: لم يصل المبلغ إلى الحساب": "Exemple : le montant n'est pas arrivé sur le compte",
+"مثل إلغاء استرجاع أو تعديل سجل": "comme l'annulation d'un remboursement ou la modification d'un enregistrement",
+"محاولات كثيرة خاطئة: انتظر 10 دقائق": "Trop de tentatives incorrectes : patientez 10 minutes",
+"محاولات كثيرة. انتظر قليلاً ثم حاول مجدداً": "Trop de tentatives. Patientez puis réessayez",
+"مدفوع": "Payé",
+"مدفوع - من الجيب": "Payé - de la poche",
+"مدفوع - نقد الصندوق": "Payé - argent de la caisse",
+"مدفوع الآن": "Payé maintenant",
+"مدفوع جزئياً": "Payé en partie",
+"مدفوع من الصندوق": "Payé depuis la caisse",
+"مدفوع من طرف المدير": "Payé par le gérant",
+"مدفوع،": "payé,",
+"مدفوعات من الصندوق سجّلها البائع عن فترة أغلقتها بتحصيلك. لم تُخصم من الصندوق الآن. إذا قبلتها نقص ما على البائع بنفس المبلغ، وإذا رفضتها بقي النقص عليه.": "Paiements depuis la caisse saisis par le vendeur pour une période que vous avez clôturée par votre encaissement. Ils ne sont pas déduits de la caisse maintenant. Si vous les acceptez, ce que doit le vendeur baisse du même montant ; si vous les refusez, le manque reste à sa charge.",
+"مدير التحديث غير جاهز": "Le module de mise à jour n'est pas prêt",
+"مربوط بالسحابة": "Lié au cloud",
+"مرت أكثر من ساعتين على بيع هذه التذكرة": "Plus de deux heures se sont écoulées depuis la vente de ce ticket",
+"مرجع": "Réf.",
+"مرر الماوس فوق الأعمدة لرؤية التفاصيل • النجوم ⭐ تشير لأفضل الأيام": "Survolez les colonnes pour voir les détails • les étoiles ⭐ indiquent les meilleurs jours",
+"مرفوض": "Refusé",
+"مزامنة الآن": "Synchroniser maintenant",
+"مزامنة المبيعات تلقائياً مع السحابة لمراقبة جميع الفروع من أي مكان": "Synchroniser automatiquement les ventes avec le cloud pour suivre tous les établissements de partout",
+"مسافة": "Espace",
+"مستحق للمدير": "Dû au gérant",
+"مستحق للموردين": "Dû aux fournisseurs",
+"مسترجع": "Remboursé",
+"مسترجعة": "Remboursé",
+"مسح البيانات": "Effacer les données",
+"مشتريات الخشب الأخيرة": "Derniers achats de bois",
+"مصدر الدفع": "Source du paiement",
+"مصدر الدفع غير صالح": "Source de paiement non valide",
+"مصروف": "Dépense",
+"مصروف على حساب المدير": "Dépense à la charge du gérant",
+"مصروف مخصص": "Dépense personnalisée",
+"مصروفات": "Dépenses",
+"مصروفات اليوم": "Dépenses du jour",
+"مطابق": "Conforme",
+"معالج الإعداد الأولي": "Assistant de configuration",
+"معدل": "Moyenne par",
+"معرف الفرع غير موجود في اللوحة (سيُسجَّل من جديد عند إعادة الاتصال": "Identifiant de l'établissement absent du tableau de bord (il sera réenregistré à la reconnexion",
+"مُعطّل": "Désactivé",
+"مفتاح الاتصال غير صحيح": "Clé de connexion incorrecte",
+"مفتاح الاسترداد": "Clé de récupération",
+"مفتاح الاسترداد غير صحيح. المحاولات المتبقية": "Clé de récupération incorrecte. Tentatives restantes",
+"مفتاح API": "Clé API",
+"مفتاح API (Anon Key": "Clé API (Anon Key",
+"مفعل": "activé",
+"مُفعّل": "Activé",
+"مقبول": "Accepté",
+"ملاحظات (اختياري": "Notes (facultatif",
+"ملاحظات إضافية (اختياري": "Notes supplémentaires (facultatif",
+"ملاحظات حول الشحنة...": "Notes sur la livraison...",
+"ملاحظات...": "Notes...",
+"ملاحظة": "Note",
+"ملاحظة (اختياري": "Note (facultatif",
+"ملاحظة: ستبقى التذكرة في ملف Excel للمحاسبة.": "Remarque : le ticket restera dans le fichier Excel pour la comptabilité.",
+"ملاحظة: ستبقى العملية في ملف Excel للمحاسبة.": "Remarque : l'opération restera dans le fichier Excel pour la comptabilité.",
+"ملاحظة: سيبقى المصروف في ملف Excel للمحاسبة.": "Remarque : la dépense restera dans le fichier Excel pour la comptabilité.",
+"ملغاة": "Annulée",
+"ملف التحديث غير موجود. أعد التحميل.": "Fichier de mise à jour introuvable. Téléchargez-le à nouveau.",
+"ملف Excel": "Fichier Excel",
+"ملف Excel غير متاح": "Fichier Excel indisponible",
+"ملف Excel: تعذّر مسحه": "Fichier Excel : impossible de l'effacer",
+"ملف Excel: تم مسحه": "Fichier Excel : effacé",
+"ملف ZIP تالف — أعد التحميل": "Fichier ZIP endommagé — téléchargez-le à nouveau",
+"ملف ZIP صغير جداً": "Fichier ZIP trop petit",
+"من": "du",
+"من أصل": "sur",
+"من الجيب الخاص (لا يُخصم من النقد": "De la poche (non déduit de la caisse",
+"من الصندوق": "Depuis la caisse",
+"من القائمة المحفوظة": "Depuis la liste enregistrée",
+"من المدير": "du gérant",
+"من تاريخ": "Du",
+"من جيب المدير": "De la poche du gérant",
+"من جيبي (المدير": "De ma poche (gérant",
+"منذ آخر تحصيل حضوري": "depuis le dernier encaissement sur place",
+"منذ تفعيل نظام المال الجديد": "depuis l'activation du nouveau système de caisse",
+"منفذ SMTP": "Port SMTP",
+"منها": "dont",
+"منها تسديد لما يستحقه المدير": "dont remboursement de ce qui est dû au gérant",
+"مواصفات جهازك": "Caractéristiques de votre ordinateur",
+"موردو الخشب": "Fournisseurs de bois",
+"ميجاهرتز": "MHz",
+"ميجاهرتز (الحد الأدنى": "MHz (minimum",
+"ميغابايت": "Mo",
+"نتيجة الحذف": "Résultat de l'effacement",
+"نسخ": "Copier",
+"نسخة من كل البيانات (التذاكر، المصروفات، التحصيل، الملخص اليومي) تُحدَّث تلقائياً. للقراءة فقط: التعديل فيها لا يغيّر البرنامج.": "Copie de toutes les données (tickets, dépenses, encaissements, résumé journalier), mise à jour automatiquement. En lecture seule : la modifier ne change rien dans le logiciel.",
+"نسي البائع تسجيل إيصال إيداع أو تحويل؟ أضفه قبل العدّ": "Le vendeur a oublié de saisir un reçu de dépôt ou de virement ? Ajoutez-le avant de compter",
+"نسيت كلمة المرور؟": "Mot de passe oublié ?",
+"نصيحة": "Conseil",
+"نعم": "Oui",
+"نقد الصندوق (يُخصم من النقد": "Argent de la caisse (déduit de la caisse",
+"نقص": "Manque",
+"نقص عند العدّ": "Manque au comptage",
+"نوع التصدير": "Type d'export",
+"نوع الخشب": "Type de bois",
+"نوع العملية غير صالح": "Type d'opération non valide",
+"هامش الربح": "Marge bénéficiaire",
+"هذا الإجراء سيحذف": "Cette action supprimera",
+"هذا الإجراء لا يمكن التراجع عنه.": "Cette action est irréversible.",
+"هذا الإجراء متاح من الجهاز نفسه فقط": "Cette action n'est possible que sur l'ordinateur lui-même",
+"هذا الجهاز غير مرتبط بفرع: أنشئ رمز ربط من لوحة المراقبة": "Cet ordinateur n'est lié à aucun établissement : créez un code de liaison depuis le tableau de bord",
+"هذا الجهاز لم يعد مسجلاً في اللوحة: أنشئ رمز ربط جديد": "Cet ordinateur n'est plus enregistré dans le tableau de bord : créez un nouveau code de liaison",
+"هذا الحساب ليس حساب المدير": "Ce compte n'est pas celui du gérant",
+"هذا الرمز يحتوي على دخول خاص بهذا الجهاز فقط ويظهر مرة واحدة. لا تشاركه.": "Ce code contient une connexion propre à cet ordinateur et ne s'affiche qu'une fois. Ne le partagez pas.",
+"هذا الشراء مسجل قبل تفعيل نظام المال الجديد": "Cet achat a été enregistré avant l'activation du nouveau système de caisse",
+"هذا المبلغ منفصل تماماً عن المبيعات والمصاريف والتحصيل. يُستعمل فقط لإعطاء الصرف للزبناء.": "Ce montant est totalement séparé des ventes, des dépenses et des encaissements. Il sert uniquement à rendre la monnaie aux clients.",
+"هذا المصروف قديم ولا يمكن تعديله هنا": "Cette dépense est ancienne et ne peut pas être modifiée ici",
+"هذا المورد ليس له أنواع خشب مسجلة. أضف الأنواع من الإعدادات → موردو الخشب.": "Ce fournisseur n'a aucun type de bois enregistré. Ajoutez des types dans Paramètres → Fournisseurs de bois.",
+"هذا مصروف قديم قبل تفعيل النظام الجديد ولا يمكن تعديله هنا": "C'est une ancienne dépense, antérieure au nouveau système, qui ne peut pas être modifiée ici",
+"هذه التذكرة غير مسترجعة": "Ce ticket n'est pas remboursé",
+"هذه العملية ملغاة مسبقاً": "Cette opération est déjà annulée",
+"هذه الفئة؟": "cette catégorie ?",
+"هذه الفاتورة مدفوعة بالكامل": "Cette facture est entièrement payée",
+"هل أنت متأكد من": "Êtes-vous sûr de",
+"هل أنت متأكد من حذف عملية التحصيل هذه؟": "Voulez-vous vraiment supprimer cet encaissement ?",
+"هل أنت متأكد من حذف هذا المصروف؟": "Voulez-vous vraiment supprimer cette dépense ?",
+"هل أنت متأكد من حذف هذه التذكرة؟": "Voulez-vous vraiment supprimer ce ticket ?",
+"هل دُفع هذا المبلغ قبل زيارة المدير الأخيرة؟ إن كان كذلك يُرسل إليه للمراجعة ولا يُخصم من الصندوق الآن.": "Ce montant a-t-il été payé avant la dernière visite du gérant ? Si oui, il lui est envoyé pour vérification et n'est pas déduit de la caisse maintenant.",
+"هل راجعت المصاريف والإيداعات والاسترجاعات ولم تجد عملية منسية؟": "Avez-vous vérifié les dépenses, dépôts et remboursements sans trouver d'opération oubliée ?",
+"هل قمت بتحصيله؟ بعد التفعيل يبدأ النقد في الصندوق من 0، ولا يمكن التراجع.": "L'avez-vous encaissé ? Après l'activation, la caisse repart de 0, sans retour possible.",
+"وزن الشاحنة فارغة (كغ": "Poids du camion à vide (kg",
+"وزن الشاحنة فقط": "Poids du camion seul",
+"وصف المصروف": "Description de la dépense",
+"وصف المصروف مطلوب": "La description de la dépense est obligatoire",
+"وضع الإدارة": "Mode administration",
+"يتحدث تلقائياً": "Mise à jour automatique",
+"يجب تفعيل نظام المال الجديد أولاً": "Le nouveau système de caisse doit d'abord être activé",
+"يحتاج انتباهك الآن": "À traiter maintenant",
+"يُحفظ في سجل التعديلات (المال) ما كان قبل الحذف.": "L'état avant suppression est conservé dans l'historique des modifications (caisse).",
+"يُحفظ في سجل التعديلات (المال) نسخة منه قبل الحذف.": "Une copie avant suppression est conservée dans l'historique des modifications (caisse).",
+"يرجى اختيار المورد": "Veuillez choisir le fournisseur",
+"يرجى اختيار طابعة": "Veuillez choisir une imprimante",
+"يرجى اختيار طابعة أولاً": "Veuillez d'abord choisir une imprimante",
+"يرجى اختيار مصروف": "Veuillez choisir une dépense",
+"يرجى اختيار نوع الخشب": "Veuillez choisir le type de bois",
+"يرجى اختيار نوع واحد على الأقل من البيانات للتصدير": "Veuillez choisir au moins un type de données à exporter",
+"يرجى اختيار يوم واحد على الأقل للتحصيل": "Veuillez choisir au moins un jour à encaisser",
+"يرجى إدخال اسم الحمام": "Veuillez saisir le nom du hammam",
+"يرجى إدخال اسم المورد": "Veuillez saisir le nom du fournisseur",
+"يرجى إدخال اسم نوع المصروف": "Veuillez saisir le nom du type de dépense",
+"يرجى إدخال اسم وسعر صحيح للفئة": "Veuillez saisir un nom et un prix valides pour la catégorie",
+"يرجى إدخال السعر الإجمالي": "Veuillez saisir le prix total",
+"يرجى إدخال المبلغ": "Veuillez saisir le montant",
+"يرجى إدخال الوزن الإجمالي للحمولة": "Veuillez saisir le poids total du chargement",
+"يرجى إدخال كلمة المرور": "Veuillez saisir le mot de passe",
+"يرجى إدخال كلمة المرور الجديدة": "Veuillez saisir le nouveau mot de passe",
+"يرجى إدخال كلمة المرور الحالية": "Veuillez saisir le mot de passe actuel",
+"يرجى إدخال كلمة مرور لا تقل عن 4 أحرف": "Veuillez saisir un mot de passe d'au moins 4 caractères",
+"يرجى إدخال مبلغ صحيح": "Veuillez saisir un montant valide",
+"يرجى إدخال وصف المصروف": "Veuillez saisir la description de la dépense",
+"يرجى إضافة فئة واحدة على الأقل": "Veuillez ajouter au moins une catégorie",
+"يرجى الانتظار": "Veuillez patienter",
+"يرجى تحديد تاريخ التسليم": "Veuillez indiquer la date de livraison",
+"يرجى تحديد نطاق التاريخ": "Veuillez indiquer la période",
+"يرجى كتابة سبب الاسترجاع": "Veuillez indiquer le motif du remboursement",
+"يرجى ملء الأوزان وسعر الكيلو": "Veuillez remplir les poids et le prix au kilo",
+"يرجى ملء جميع حقول البريد الإلكتروني": "Veuillez remplir tous les champs e-mail",
+"يرجى ملء عنوان البريد وكلمة المرور": "Veuillez saisir l'adresse e-mail et le mot de passe",
+"يسلّمك البائع المبلغ مباشرة، فلا يتغيّر النقد في الصندوق. المتبقي عليه": "Le vendeur vous remet le montant directement ; la caisse ne change pas. Reste dû",
+"يُسمح بالاسترجاع في نفس اليوم وخلال ساعتين من البيع. تبقى التذكرة مسجلة بعلامة «مسترجع» ويُخصم مبلغها من النقد.": "Remboursement autorisé le jour même, dans les deux heures suivant la vente. Le ticket reste enregistré avec la mention « Remboursé » et son montant est déduit de la caisse.",
+"يعاد تشغيل البرنامج الآن. سيعود الجهاز متصلاً خلال 20-40 ثانية.": "Le logiciel redémarre. L'ordinateur sera de nouveau connecté dans 20 à 40 secondes.",
+"يعمل منذ": "en marche depuis",
+"يمكن تغيير هذا الخيار من الجهاز نفسه فقط": "Ce réglage ne peut être changé que sur l'ordinateur lui-même",
+"يمكن تغييرها لاحقاً من الإعدادات أو من زر اللغة أعلى الشاشة.": "Modifiable plus tard dans les paramètres ou avec le bouton de langue en haut de l'écran.",
+"يُملأ تلقائياً من سعر المورد الافتراضي، ويمكن تغييره لهذه العملية.": "Rempli automatiquement avec le prix par défaut du fournisseur, modifiable pour cet achat.",
+"يوجد تحديث جديد v": "Nouvelle mise à jour v",
+"يوم": "jour",
+"يوم الدفع": "Jour du paiement",
+"يوم المصروف": "Jour de la dépense",
+"يوم عمل": "Jour ouvré",
+"يوماً": "jours",
+"يومي": "Quotidien",
+"HammamPOS - معالج الإعداد": "HammamPOS - assistant de configuration",
+"HammamPOS - نظام نقاط البيع للحمامات": "HammamPOS - caisse pour hammams",
+"HammamPOS — لوحة المراقبة": "HammamPOS — tableau de bord"
+}/*END*/;
+
+</script>
+    <script>
+/**
+ * HammamPOS - Arabic / French switch for the screens.
+ *
+ * The screens are written in Arabic. In French, every Arabic text on the page
+ * (text, placeholders, tooltips, button values) is replaced from the dictionary
+ * window.HPOS_FR (i18n-fr.js): whole sentences first, then known pieces inside
+ * longer texts (numbers and names stay as they are). New content is translated
+ * as it appears. Switching back restores the original Arabic.
+ *
+ * Not translated: anything inside [data-no-i18n] (names typed by the owner,
+ * like the hammam name and the categories), inputs' typed values, and printing.
+ *
+ * window.i18n = { setLang('ar'|'fr'), getLang(), t(text) }
+ */
+(function () {
+  'use strict';
+  var AR = /[\u0600-\u06FF]/;
+  var dict = window.HPOS_FR || {};
+  var norm = function (s) { return s.replace(/\s+/g, ' ').trim(); };
+  var exact = Object.create(null);
+  Object.keys(dict).forEach(function (k) { exact[norm(k)] = dict[k]; });
+  // Pieces, longest first, matched only as whole words.
+  var keys = Object.keys(exact).filter(function (k) { return k.length > 1; }).sort(function (a, b) { return b.length - a.length; });
+  var esc = function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+  var pieceRe = keys.length ? new RegExp('(?<![\\u0600-\\u06FF])(' + keys.map(esc).join('|') + ')(?![\\u0600-\\u06FF])', 'g') : null;
+  // Sentences with numbers in them.
+  var PATTERNS = [
+    [/^الخطوة (\d+) من (\d+)$/, 'Étape $1 sur $2'],
+    [/^قبل (\d+) ث$/, 'il y a $1 s'],
+    [/^قبل (\d+) د$/, 'il y a $1 min'],
+    [/^قبل (\d+) س$/, 'il y a $1 h'],
+    [/^قبل (\d+) يوم$/, 'il y a $1 j'],
+    [/^([\d.,]+) د$/, '$1 min'],
+    [/^([\d.,]+) ث$/, '$1 s']
+  ];
+
+  function translate(text) {
+    if (!text || !AR.test(text)) return null;
+    var lead = text.match(/^\s*/)[0], tail = text.match(/\s*$/)[0];
+    var core = norm(text);
+    if (exact[core] != null) return lead + exact[core] + tail;
+    // "Text:" or "(Text)" around a known text
+    var m = core.match(/^([\s:·—\-–,.()*•|]*)(.*?)([\s:·—\-–,.()*•|؟?]*)$/);
+    if (m && m[2] && exact[m[2]] != null) return lead + m[1] + exact[m[2]] + m[3].replace('؟', ' ?') + tail;
+    for (var i = 0; i < PATTERNS.length; i++) {
+      if (PATTERNS[i][0].test(core)) return lead + core.replace(PATTERNS[i][0], PATTERNS[i][1]) + tail;
+    }
+    if (!pieceRe) return null;
+    var out = core.replace(pieceRe, function (p) { return exact[p]; }).replace(/؟/g, ' ?').replace(/،/g, ',');
+    return out === core ? null : lead + out + tail;
+  }
+
+  var lang = 'ar';
+  // Dates and times written with the Arabic locale follow the language.
+  ['toLocaleDateString', 'toLocaleTimeString', 'toLocaleString'].forEach(function (fn) {
+    var orig = Date.prototype[fn];
+    Date.prototype[fn] = function (loc, opts) {
+      if (lang === 'fr' && (loc == null || /^ar/i.test(String(loc)))) loc = 'fr-FR';
+      return orig.call(this, loc, opts);
+    };
+  });
+  var ATTRS = ['placeholder', 'title', 'aria-label'];
+  var origText = new WeakMap();   // text node -> Arabic
+  var origAttr = new WeakMap();   // element -> { attr: Arabic }
+  var applying = false;
+
+  function skip(el) {
+    return !el || (el.closest && el.closest('[data-no-i18n], script, style, textarea, [contenteditable="true"]'));
+  }
+  function doText(node) {
+    if (skip(node.parentElement)) return;
+    var cur = node.nodeValue;
+    var saved = origText.get(node);
+    if (lang === 'ar') { if (saved != null && saved.fr === cur) node.nodeValue = saved.ar; return; }
+    if (saved && saved.fr === cur) return;          // already ours
+    var fr = translate(cur);
+    if (fr == null) return;
+    origText.set(node, { ar: cur, fr: fr });
+    node.nodeValue = fr;
+  }
+  function doAttrs(el) {
+    if (skip(el)) return;
+    var saved = origAttr.get(el) || {};
+    var list = ATTRS.slice();
+    if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit')) list.push('value');
+    list.forEach(function (a) {
+      var cur = el.getAttribute(a);
+      if (cur == null) return;
+      var s = saved[a];
+      if (lang === 'ar') { if (s && s.fr === cur) el.setAttribute(a, s.ar); return; }
+      if (s && s.fr === cur) return;
+      var fr = translate(cur);
+      if (fr == null) return;
+      saved[a] = { ar: cur, fr: fr };
+      el.setAttribute(a, fr);
+    });
+    origAttr.set(el, saved);
+  }
+  function walk(root) {
+    if (!root) return;
+    if (root.nodeType === 3) { doText(root); return; }
+    if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
+    if (root.nodeType === 1) doAttrs(root);
+    var tw = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    var n;
+    while ((n = tw.nextNode())) { if (n.nodeType === 3) doText(n); else doAttrs(n); }
+  }
+
+  var observer = new MutationObserver(function (records) {
+    if (lang === 'ar' || applying) return;
+    applying = true;
+    try {
+      records.forEach(function (r) {
+        if (r.type === 'characterData') doText(r.target);
+        else if (r.type === 'attributes') doAttrs(r.target);
+        else r.addedNodes.forEach(walk);
+      });
+    } finally { applying = false; }
+  });
+
+  function applyDir() {
+    var html = document.documentElement;
+    html.lang = lang;
+    html.dir = lang === 'fr' ? 'ltr' : 'rtl';
+    if (document.body) document.body.classList.toggle('lang-fr', lang === 'fr');
+    if (document.title) {
+      var t = lang === 'fr' ? translate(document.title) : (document.__arTitle || null);
+      if (lang === 'fr' && t) { document.__arTitle = document.title; document.title = t; }
+      else if (lang === 'ar' && t) document.title = t;
+    }
+  }
+  function setLang(l) {
+    l = l === 'fr' ? 'fr' : 'ar';
+    if (l === lang && document.body && document.body.__i18nDone) return;
+    lang = l;
+    applying = true;
+    try { walk(document.body || document.documentElement); } finally { applying = false; }
+    applyDir();
+    if (document.body) document.body.__i18nDone = true;
+    observer.disconnect();
+    if (lang === 'fr') observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS.concat(['value']) });
+    try { document.dispatchEvent(new CustomEvent('hpos:lang', { detail: lang })); } catch (_) {}
+  }
+
+  ['confirm', 'alert', 'prompt'].forEach(function (fn) {
+    var orig = window[fn];
+    if (typeof orig !== 'function') return;
+    window[fn] = function (msg) {
+      var args = Array.prototype.slice.call(arguments);
+      if (lang === 'fr' && typeof msg === 'string') { var t = translate(msg); if (t != null) args[0] = t; }
+      return orig.apply(window, args);
+    };
+  });
+  window.i18n = {
+    setLang: setLang,
+    getLang: function () { return lang; },
+    t: function (s) { if (lang !== 'fr') return s; var r = translate(String(s)); return r == null ? s : r; }
+  };
+})();
+
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HammamPOS - نظام نقاط البيع للحمامات</title>
@@ -318,6 +1748,18 @@ return module.exports; })();</script>
             font-size: 1.1rem;
         }
         
+/* French: left-to-right */
+        html[dir="ltr"] body { direction: ltr; }
+        html[dir="ltr"] .modal-content, html[dir="ltr"] .settings-section, html[dir="ltr"] .category-section { text-align: left; }
+        .lang-btn { min-width: 3rem; font-weight: 700; }
+        #remote-admin-notice {
+            position: fixed; bottom: 14px; left: 14px; z-index: 50000; pointer-events: none;
+            background: #4c1d95; color: #fff; border-radius: 999px; padding: 0.45rem 1rem;
+            font-size: 0.9rem; font-weight: 600; box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        #remote-admin-notice .dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: remote-pulse 1.6s infinite; }
+        @keyframes remote-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
         .toast {
             position: fixed;
             top: 80px;
@@ -1631,11 +3073,12 @@ return module.exports; })();</script>
     <div class="main-content">
         <!-- Header -->
         <div class="header">
-            <h1 id="hammam-name">حمام جديد</h1>
+            <h1 id="hammam-name" data-no-i18n>حمام جديد</h1>
             <div class="header-actions">
                 <button id="add-expense-btn" class="btn btn-warning">إضافة مصروف</button>
                 <button id="remote-collection-btn" class="btn btn-info" style="display:none;">💸 إيداع / تحويل</button>
                 <button id="header-update-btn" class="btn btn-secondary" data-state="idle" title="التحقق من التحديثات">🔄 تحديث</button>
+                <button id="lang-btn" class="btn btn-secondary lang-btn" title="Français / العربية" data-no-i18n>FR</button>
                 <button id="admin-btn" class="btn btn-success">إدارة</button>
             </div>
         </div>
@@ -2934,6 +4377,37 @@ return module.exports; })();</script>
                     <input type="text" id="settings-hammam-name" placeholder="اسم الحمام">
                 </div>
             </div>
+            <div class="category-section">
+                <h4>🌐 اللغة</h4>
+                <div class="form-group">
+                    <label for="settings-language">لغة البرنامج</label>
+                    <select id="settings-language" data-no-i18n onchange="switchLanguage(this.value)">
+                        <option value="ar">العربية</option>
+                        <option value="fr">Français</option>
+                    </select>
+                </div>
+            </div>
+            <!-- Alerts: both switches save immediately -->
+            <div class="category-section">
+                <h4>التنبيهات</h4>
+                <div class="dashboard-toggle-row">
+                    <div class="dashboard-toggle-label"><span>صوت تنبيه قصير مع الرسائل والتحذيرات</span></div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sound-alerts-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="dashboard-toggle-row" style="margin-top: 0.5rem;">
+                    <div class="dashboard-toggle-label">
+                        <span>إظهار إشعار على الشاشة عندما يكون المدير متصلاً عن بعد</span>
+                        <small id="remote-notice-local-only" style="display:none;color:#6b7280;">يمكن تغيير هذا الخيار من الجهاز نفسه فقط</small>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="remote-notice-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
 
             <!-- Printer Settings Section -->
             <div class="category-section">
@@ -3254,6 +4728,15 @@ return module.exports; })();</script>
                     <button type="button" id="admin-clear-all-data" class="btn" style="background: #dc2626; color: white;">🗑️ مسح جميع البيانات</button>
                     <button type="button" id="admin-diagnostics-btn" class="btn btn-secondary">🩺 تشخيص هذا الجهاز</button>
                 </div>
+                <div id="excel-file-section" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e5e7eb;">
+                    <h4 style="margin-bottom: 0.4rem;">ملف Excel</h4>
+                    <p style="color: #6b7280; font-size: 0.85rem; margin: 0 0 0.6rem 0;">نسخة من كل البيانات (التذاكر، المصروفات، التحصيل، الملخص اليومي) تُحدَّث تلقائياً. للقراءة فقط: التعديل فيها لا يغيّر البرنامج.</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                        <button type="button" id="excel-open-btn" class="btn btn-primary">📊 فتح ملف Excel</button>
+                        <button type="button" id="excel-folder-btn" class="btn btn-secondary">📁 فتح المجلد</button>
+                    </div>
+                    <div id="excel-file-status" style="color: #6b7280; font-size: 0.8rem; margin-top: 0.5rem;"></div>
+                </div>
                 <pre id="diagnostics-output" style="display:none; direction:ltr; text-align:left; background:#0f172a; color:#e2e8f0; padding:0.75rem; border-radius:6px; margin-top:0.75rem; max-height:280px; overflow:auto; font-size:0.78rem; white-space:pre-wrap;"></pre>
             </div>
 
@@ -3262,68 +4745,6 @@ return module.exports; })();</script>
             </div>
     </div>
 
-    <!-- Data Export Modal -->
-    <div id="data-export-modal" class="modal hidden">
-        <div class="modal-content category-modal-content">
-            <h3>📊 تصدير البيانات</h3>
-            
-            <div class="form-group">
-                <label>نوع التصدير:</label>
-                <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="radio" name="export-type" value="excel" checked style="margin-left: 0.5rem;">
-                        Excel (.xlsx)
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="radio" name="export-type" value="csv" style="margin-left: 0.5rem;">
-                        CSV (.csv)
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>البيانات المطلوب تصديرها:</label>
-                <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="export-tickets" checked style="margin-left: 0.5rem;">
-                        التذاكر المباعة
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="export-expenses" checked style="margin-left: 0.5rem;">
-                        المصروفات
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="export-collections" checked style="margin-left: 0.5rem;">
-                        عمليات التحصيل
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="export-daily-summary" checked style="margin-left: 0.5rem;">
-                        الملخص اليومي
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="export-date-from">من تاريخ:</label>
-                <input type="date" id="export-date-from" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="export-date-to">إلى تاريخ:</label>
-                <input type="date" id="export-date-to" required>
-            </div>
-            
-            <div id="export-progress" style="display: none; text-align: center; padding: 1rem;">
-                <div style="color: #2563eb; font-weight: 600;">جاري تصدير البيانات...</div>
-                <div style="margin-top: 0.5rem; color: #6b7280;">يرجى الانتظار</div>
-            </div>
-            
-            <div class="modal-actions">
-                <button type="button" id="cancel-export" class="btn btn-secondary">إلغاء</button>
-                <button type="button" id="start-export" class="btn btn-primary">تصدير البيانات</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Clear All Data Confirmation Modal -->
     <div id="clear-data-modal" class="modal hidden">
@@ -3466,6 +4887,11 @@ return module.exports; })();</script>
                 listPrinters: () => ipcRenderer.invoke('printer:listPrinters'),
                 testPrint: (printerName) => ipcRenderer.invoke('printer:testPrint', printerName)
             },
+            excel: {
+                getStatus: () => ipcRenderer.invoke('excel:getStatus'),
+                open: () => ipcRenderer.invoke('excel:open'),
+                showInFolder: () => ipcRenderer.invoke('excel:showInFolder')
+            },
             backup: {
                 getStatus: () => ipcRenderer.invoke('backup:getStatus'),
                 rebuild: () => ipcRenderer.invoke('backup:rebuild'),
@@ -3590,11 +5016,8 @@ return module.exports; })();</script>
         // Returns HTML: currency label + an LTR-isolated numeric token.
         function formatMoney(n) {
             const numStr = moneyNumber(n);
-            return `درهم <span dir="ltr" style="unicode-bidi:isolate; direction:ltr;">${numStr}</span>`;
-        }
-        // Plain-text variant (for places that must stay textContent, e.g. canvas).
-        function formatMoneyText(n) {
-            return `درهم ${moneyNumber(n)}`;
+            const num = `<span dir="ltr" style="unicode-bidi:isolate; direction:ltr;">${numStr}</span>`;
+            return window.i18n && window.i18n.getLang() === 'fr' ? `${num} درهم` : `درهم ${num}`;
         }
         // LTR-isolated numeric token WITHOUT the currency label — for dense table
         // cells whose column header already denotes currency. Ensures a negative
@@ -3669,6 +5092,8 @@ return module.exports; })();</script>
                 const settings = await api.settings.getAll();
                 console.log('Settings loaded:', settings);
                 hammamData.name = settings.hammam_name || 'حمام جديد';
+                applyAlertSettings(settings);
+                applyLanguage(settings.ui_language);
                 console.log('Hammam name set to:', hammamData.name);
                 
                 // Update UI
@@ -3728,7 +5153,7 @@ return module.exports; })();</script>
                     const categoryBtn = document.createElement('button');
                     categoryBtn.className = 'category-btn';
                     categoryBtn.innerHTML = `
-                        <div class="category-name">${category.name}</div>
+                        <div class="category-name" data-no-i18n>${category.name}</div>
                         <div class="category-price">${category.price} درهم</div>
                     `;
                     categoryBtn.onclick = () => sellTicket(category);
@@ -3997,21 +5422,6 @@ return module.exports; })();</script>
                 addWoodSellerBtn.onclick = () => { addWoodSellerFromSettings(); };
             }
 
-            // Data Export Modal handlers
-            const cancelExport = document.getElementById('cancel-export');
-            const startExport = document.getElementById('start-export');
-            
-            if (cancelExport) {
-                cancelExport.onclick = () => {
-                    document.getElementById('data-export-modal').classList.add('hidden');
-                };
-            }
-            
-            if (startExport) {
-                startExport.onclick = () => {
-                    performDataExport();
-                };
-            }
 
             console.log('Event listeners set up');
         }
@@ -5333,7 +6743,35 @@ return module.exports; })();</script>
             'forgot-password-modal', 'recovery-key-modal', 'pay-bill-modal', 'refund-modal', 'collect-modal', 'seller-repay-modal', 'remote-collection-modal', 'cancel-collection-modal', 'expense-edit-modal', 'collection-edit-modal'
         ]);
 
-        function closeModalViaDismiss(modal) {
+        // ── Unsaved-changes warning ──
+        // A modal is "dirty" once the user types or picks something in it. It is clean
+        // again when it opens, or after a save inside it (a success message).
+        // Switches that save by themselves (.toggle-switch) and password prompts don't count.
+        const UNSAVED_IGNORE_IDS = new Set(['admin-password-modal', 'forgot-password-modal', 'recovery-key-modal']);
+        const dirtyModals = new Set();
+        function markModalsClean() { dirtyModals.clear(); }
+        document.addEventListener('input', onModalEdit, true);
+        document.addEventListener('change', onModalEdit, true);
+        function onModalEdit(e) {
+            if (!e.isTrusted) return;
+            const el = e.target;
+            if (!el || !el.closest || el.closest('.toggle-switch') || el.type === 'file') return;
+            const modal = el.closest('.modal');
+            if (modal && MODAL_X_ONLY_IDS.has(modal.id) && !UNSAVED_IGNORE_IDS.has(modal.id)) dirtyModals.add(modal.id);
+        }
+        new MutationObserver((records) => {
+            for (const r of records) {
+                const m = r.target;
+                if (m.classList && m.classList.contains('modal') && !m.classList.contains('hidden')
+                    && (r.oldValue || '').split(/\s+/).includes('hidden')) dirtyModals.delete(m.id);
+            }
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'], attributeOldValue: true, subtree: true });
+        async function closeModalViaDismiss(modal) {
+            if (dirtyModals.has(modal.id)) {
+                const leave = await showConfirm('لديك تغييرات غير محفوظة. هل تريد الإغلاق بدون حفظ؟', '⚠ تغييرات غير محفوظة', 'إغلاق بدون حفظ');
+                if (!leave) return;
+            }
+            dirtyModals.delete(modal.id);
             const btn = getModalDismissButton(modal);
             if (btn) btn.click();
             else modal.classList.add('hidden');
@@ -7442,59 +8880,6 @@ return module.exports; })();</script>
             }
         }
 
-        // Load lifetime statistics
-        async function loadLifetimeStats(ctx, canvas) {
-            try {
-                // Get lifetime data
-                const [lifetimeRevenue, allTickets, allExpenses, categories] = await Promise.all([
-                    api.storage.getLifetimeRevenue(),
-                    api.storage.getTodayTickets(), // We'll need a getAllTickets function
-                    api.storage.getExpenses(), // All expenses
-                    api.storage.getCategories(false) // All categories
-                ]);
-
-                const totalExpenses = allExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-                const netProfit = lifetimeRevenue - totalExpenses;
-
-                // Display lifetime stats as text
-                ctx.fillStyle = '#1f2937';
-                ctx.font = 'bold 18px Arial';
-                ctx.textAlign = 'right';
-                
-                let y = 50;
-                const lineHeight = 30;
-                
-                ctx.fillText(`إجمالي الإيرادات: ${lifetimeRevenue} درهم`, canvas.width - 50, y);
-                y += lineHeight;
-                
-                ctx.fillText(`إجمالي المصروفات: ${totalExpenses} درهم`, canvas.width - 50, y);
-                y += lineHeight;
-                
-                ctx.fillStyle = netProfit >= 0 ? '#059669' : '#dc2626';
-                ctx.fillText(`صافي الربح: ${netProfit} درهم`, canvas.width - 50, y);
-                y += lineHeight * 1.5;
-                
-                // Category breakdown
-                ctx.fillStyle = '#1f2937';
-                ctx.font = 'bold 16px Arial';
-                ctx.fillText('إحصائيات الفئات:', canvas.width - 50, y);
-                y += lineHeight;
-                
-                ctx.font = '14px Arial';
-                categories.forEach(category => {
-                    // Count tickets for this category (simplified - would need proper query)
-                    ctx.fillText(`${category.name}: ${category.today_count || 0} تذكرة`, canvas.width - 50, y);
-                    y += lineHeight * 0.8;
-                });
-                
-            } catch (error) {
-                console.error('Failed to load lifetime stats:', error);
-                ctx.fillStyle = '#dc2626';
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('خطأ في تحميل الإحصائيات', canvas.width / 2, canvas.height / 2);
-            }
-        }
 
         // Settings Management Functions
         async function showSettingsModal() {
@@ -7563,7 +8948,7 @@ return module.exports; })();</script>
                 await loadWoodSellersList();
 
                 // Load Zakat settings + history
-                await loadZakatSettings();
+                await loadZakatSettings(); loadAlertSettings(settings); applyLanguage(settings.ui_language);
                 
                 switchSettingsTab('general');
                 await refreshRecoveryStatus();
@@ -7577,6 +8962,30 @@ return module.exports; })();</script>
             }
         }
 
+        function loadAlertSettings(settings) {
+            const sound = document.getElementById('sound-alerts-toggle');
+            const notice = document.getElementById('remote-notice-toggle');
+            if (sound) {
+                sound.checked = settings.sound_alerts !== '0';
+                sound.onchange = async () => {
+                    await api.settings.updateSettings({ sound_alerts: sound.checked ? '1' : '0' });
+                    soundAlertsOn = sound.checked;
+                    if (sound.checked) playBeep('note');
+                };
+            }
+            if (notice) {
+                notice.checked = settings.remote_notice !== '0';
+                // The person connected remotely must not be able to hide this notice.
+                const remote = document.body.classList.contains('remote-mode');
+                notice.disabled = remote;
+                document.getElementById('remote-notice-local-only').style.display = remote ? 'block' : 'none';
+                notice.onchange = async () => {
+                    await api.settings.updateSettings({ remote_notice: notice.checked ? '1' : '0' });
+                    remoteNoticeOn = notice.checked;
+                    renderRemoteNotice();
+                };
+            }
+        }
         async function loadZakatSettings() {
             try {
                 const vis = await api.storage.getZakatVisibility();
@@ -8145,6 +9554,20 @@ return module.exports; })();</script>
         }
 
         // ── Settings tabs: each tab saves only its own fields ────────────────
+        async function refreshExcelStatus() {
+            const el = document.getElementById('excel-file-status');
+            const section = document.getElementById('excel-file-section');
+            if (!el || !section) return;
+            // Opening a file only makes sense on the PC itself.
+            if (document.body.classList.contains('remote-mode')) { section.style.display = 'none'; return; }
+            try {
+                const st = await api.excel.getStatus();
+                if (!st || st.error) { el.textContent = ''; return; }
+                const when = st.lastModified ? new Date(st.lastModified).toLocaleString('ar-MA') : '';
+                el.textContent = st.exists ? ('آخر تحديث: ' + when + (st.pending ? ' · تحديث قادم خلال ثوانٍ' : '')) : 'سيُنشأ الملف عند أول فتح';
+                if (st.lastError) el.textContent += ' · آخر خطأ: ' + st.lastError;
+            } catch (_) { el.textContent = ''; }
+        }
         function switchSettingsTab(name) {
             document.querySelectorAll('#settings-tabs .settings-tab-btn').forEach(b => {
                 b.classList.toggle('active', b.dataset.tab === name);
@@ -8154,6 +9577,7 @@ return module.exports; })();</script>
             });
             if (name === 'money') loadMoneyTab();
             if (name === 'cloud') refreshCloudStatus();
+            if (name === 'data') refreshExcelStatus();
         }
 
         async function saveGeneralSettings() {
@@ -8374,203 +9798,29 @@ return module.exports; })();</script>
                 on('cloud-fullsync-btn', cloudFullSync);
                 on('cloud-apply-code', cloudApplyCode);
                 on('admin-diagnostics-btn', showDiagnostics);
+        on('excel-open-btn', async () => {
+            const btn = document.getElementById('excel-open-btn');
+            btn.disabled = true;
+            try {
+                const r = await api.excel.open();
+                if (r && r.error) showToast(r.error, 'error');
+                refreshExcelStatus();
+            } catch (e) { showToast('تعذّر فتح ملف Excel: ' + e.message, 'error'); }
+            finally { btn.disabled = false; }
+        });
+        on('excel-folder-btn', async () => {
+            try { const r = await api.excel.showInFolder(); if (r && r.error) showToast(r.error, 'error'); }
+            catch (e) { showToast('تعذّر فتح المجلد: ' + e.message, 'error'); }
+        });
             };
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
             else bind();
         })();
 
-        // Data Export Functions
-        async function showDataExportModal() {
-            try {
-                // Set default date range (last 30 days)
-                const today = new Date();
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(today.getDate() - 30);
-                
-                document.getElementById('export-date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
-                document.getElementById('export-date-to').value = today.toISOString().split('T')[0];
-                
-                // Show modal
-                const modal = document.getElementById('data-export-modal');
-                modal.classList.remove('hidden');
-                
-            } catch (error) {
-                console.error('Failed to show data export modal:', error);
-                showToast('خطأ في فتح نافذة تصدير البيانات', 'error');
-            }
-        }
 
-        async function performDataExport() {
-            try {
-                // Get form values
-                const exportType = document.querySelector('input[name="export-type"]:checked').value;
-                const dateFrom = document.getElementById('export-date-from').value;
-                const dateTo = document.getElementById('export-date-to').value;
-                
-                const includeTickets = document.getElementById('export-tickets').checked;
-                const includeExpenses = document.getElementById('export-expenses').checked;
-                const includeCollections = document.getElementById('export-collections').checked;
-                const includeDailySummary = document.getElementById('export-daily-summary').checked;
-                
-                // Validate inputs
-                if (!dateFrom || !dateTo) {
-                    showToast('يرجى تحديد نطاق التاريخ', 'error');
-                    return;
-                }
-                
-                if (new Date(dateFrom) > new Date(dateTo)) {
-                    showToast('تاريخ البداية يجب أن يكون قبل تاريخ النهاية', 'error');
-                    return;
-                }
-                
-                if (!includeTickets && !includeExpenses && !includeCollections && !includeDailySummary) {
-                    showToast('يرجى اختيار نوع واحد على الأقل من البيانات للتصدير', 'error');
-                    return;
-                }
-                
-                // Show progress
-                document.getElementById('export-progress').style.display = 'block';
-                document.getElementById('start-export').disabled = true;
-                
-                // Collect data
-                const exportData = {};
-                
-                if (includeTickets) {
-                    exportData.tickets = await api.storage.getTickets(dateFrom, dateTo);
-                }
-                
-                if (includeExpenses) {
-                    exportData.expenses = await api.storage.getExpenses(dateFrom, dateTo);
-                }
-                
-                if (includeCollections) {
-                    exportData.collections = await api.storage.getCollections(dateFrom, dateTo);
-                }
-                
-                if (includeDailySummary) {
-                    exportData.dailySummary = await api.storage.getDailySummariesWithDetails(365);
-                    // Filter by date range
-                    exportData.dailySummary = exportData.dailySummary.filter(day => {
-                        return day.date >= dateFrom && day.date <= dateTo;
-                    });
-                }
-                
-                // Generate export content
-                let exportContent = '';
-                let filename = '';
-                
-                if (exportType === 'csv') {
-                    exportContent = generateCSVExport(exportData);
-                    filename = `hammampos-export-${dateFrom}-to-${dateTo}.csv`;
-                } else {
-                    exportContent = generateExcelExport(exportData);
-                    filename = `hammampos-export-${dateFrom}-to-${dateTo}.xlsx`;
-                }
-                
-                // Download file
-                downloadExportFile(exportContent, filename, exportType);
-                
-                // Hide progress and close modal
-                document.getElementById('export-progress').style.display = 'none';
-                document.getElementById('start-export').disabled = false;
-                document.getElementById('data-export-modal').classList.add('hidden');
-                
-                showToast(`تم تصدير البيانات بنجاح: ${filename}`, 'success');
-                
-                console.log('Data export completed:', filename);
-                
-            } catch (error) {
-                console.error('Failed to export data:', error);
-                showToast('خطأ في تصدير البيانات', 'error');
-                
-                // Hide progress and re-enable button
-                document.getElementById('export-progress').style.display = 'none';
-                document.getElementById('start-export').disabled = false;
-            }
-        }
 
-        function generateCSVExport(data) {
-            let csv = '';
-            
-            // Add tickets
-            if (data.tickets && data.tickets.length > 0) {
-                csv += '=== التذاكر المباعة ===\n';
-                csv += 'التاريخ,الوقت,الفئة,السعر,رقم التذكرة\n';
-                data.tickets.forEach(ticket => {
-                    const date = ticket.date || ticket.timestamp?.split('T')[0] || '';
-                    const time = ticket.time || ticket.timestamp?.split('T')[1]?.split('.')[0] || '';
-                    csv += `${date},${time},${ticket.category_name},${ticket.price},${ticket.serial_number}\n`;
-                });
-                csv += '\n';
-            }
-            
-            // Add expenses
-            if (data.expenses && data.expenses.length > 0) {
-                csv += '=== المصروفات ===\n';
-                csv += 'التاريخ,الوقت,الوصف,المبلغ\n';
-                data.expenses.forEach(expense => {
-                    const date = expense.date || expense.timestamp?.split('T')[0] || '';
-                    const time = expense.time || expense.timestamp?.split('T')[1]?.split('.')[0] || '';
-                    csv += `${date},${time},"${expense.description}",${expense.amount}\n`;
-                });
-                csv += '\n';
-            }
-            
-            // Add collections
-            if (data.collections && data.collections.length > 0) {
-                csv += '=== عمليات التحصيل ===\n';
-                csv += 'التاريخ,الوقت,المبلغ,الملاحظات\n';
-                data.collections.forEach(collection => {
-                    const date = collection.date || collection.timestamp?.split('T')[0] || '';
-                    const time = collection.time || collection.timestamp?.split('T')[1]?.split('.')[0] || '';
-                    const notes = collection.notes ? `"${collection.notes}"` : '';
-                    csv += `${date},${time},${collection.amount},${notes}\n`;
-                });
-                csv += '\n';
-            }
-            
-            // Add daily summary
-            if (data.dailySummary && data.dailySummary.length > 0) {
-                csv += '=== الملخص اليومي ===\n';
-                csv += 'التاريخ,إجمالي التذاكر,الإيرادات,المصروفات,صافي الربح\n';
-                data.dailySummary.forEach(day => {
-                    const netProfit = (day.revenue || 0) - (day.expenses || 0);
-                    csv += `${day.date},${day.total_tickets || 0},${day.revenue || 0},${day.expenses || 0},${netProfit}\n`;
-                });
-            }
-            
-            return csv;
-        }
 
-        function generateExcelExport(data) {
-            // For now, return CSV format - full Excel generation would require a library
-            // This is a simplified version that creates a tab-separated format
-            return generateCSVExport(data).replace(/,/g, '\t');
-        }
 
-        function downloadExportFile(content, filename, type) {
-            // Add UTF-8 BOM for proper Arabic text display
-            const BOM = '\uFEFF';
-            const contentWithBOM = BOM + content;
-            
-            const blob = new Blob([contentWithBOM], { 
-                type: type === 'csv' ? 'text/csv;charset=utf-8;' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-            });
-            
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', filename);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            // Clean up
-            setTimeout(() => {
-                URL.revokeObjectURL(url);
-            }, 100);
-        }
 
         // Delete transaction functions
         async function deleteTicket(ticketId) {
@@ -9006,10 +10256,6 @@ return module.exports; })();</script>
             }
         };
         
-        function showClearAllDataConfirmation() {
-            // Old function - now redirects to modal
-            showClearDataModal();
-        }
 
         async function clearAllData() {
             try {
@@ -9607,7 +10853,85 @@ return module.exports; })();</script>
             }
         }
         
+        // ── Short beep on warnings and notices (Settings → عام → التنبيهات) ──
+        let soundAlertsOn = true;
+        let beepCtx = null;
+        let lastBeepAt = 0;
+        function playBeep(kind = 'note') {
+            if (!soundAlertsOn) return;
+            const now = Date.now();
+            if (now - lastBeepAt < 250) return; // one beep for a burst of messages
+            lastBeepAt = now;
+            try {
+                beepCtx = beepCtx || new (window.AudioContext || window.webkitAudioContext)();
+                if (beepCtx.state === 'suspended') beepCtx.resume();
+                const t = beepCtx.currentTime;
+                const osc = beepCtx.createOscillator();
+                const gain = beepCtx.createGain();
+                const warn = kind === 'warn';
+                osc.type = 'sine';
+                osc.frequency.value = warn ? 880 : 660;
+                gain.gain.setValueAtTime(0.0001, t);
+                gain.gain.exponentialRampToValueAtTime(warn ? 0.25 : 0.15, t + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t + (warn ? 0.18 : 0.12));
+                osc.connect(gain);
+                gain.connect(beepCtx.destination);
+                osc.start(t);
+                osc.stop(t + 0.2);
+            } catch (_) { /* no sound device: stay silent */ }
+        }
+        // ── Notice while the manager is connected to the admin panel remotely ──
+        let remoteNoticeOn = true;
+        let remoteSessions = 0;
+        function renderRemoteNotice() {
+            let bar = document.getElementById('remote-admin-notice');
+            const show = remoteNoticeOn && remoteSessions > 0 && !document.body.classList.contains('remote-mode');
+            if (!show) { if (bar) bar.remove(); return; }
+            if (bar) return;
+            bar = document.createElement('div');
+            bar.id = 'remote-admin-notice';
+            bar.innerHTML = '<span class="dot"></span><span>المدير متصل الآن عن بعد بلوحة الإدارة</span>';
+            document.body.appendChild(bar);
+            playBeep('note');
+        }
+        // ── Language (Arabic / French) ──
+        function isRemotePanel() { return document.body.classList.contains('remote-mode'); }
+        function applyLanguage(fromSettings) {
+            let l = fromSettings === 'fr' ? 'fr' : 'ar';
+            if (isRemotePanel()) { try { l = localStorage.getItem('hpos_lang') === 'fr' ? 'fr' : 'ar'; } catch (_) {} }
+            if (window.i18n) window.i18n.setLang(l);
+            const btn = document.getElementById('lang-btn');
+            if (btn) btn.textContent = l === 'fr' ? 'ع' : 'FR';
+            const sel = document.getElementById('settings-language');
+            if (sel) sel.value = l;
+        }
+        async function switchLanguage(l) {
+            l = l === 'fr' ? 'fr' : 'ar';
+            if (isRemotePanel()) { try { localStorage.setItem('hpos_lang', l); } catch (_) {} }
+            else {
+                // On the PC: save, then reload the screen so dates and amounts are rewritten in the new language.
+                try { await api.settings.updateSettings({ ui_language: l }); } catch (_) {}
+                if (!window.__noLangReload) { location.reload(); return; }
+            }
+            applyLanguage(l);
+        }
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'lang-btn') switchLanguage(window.i18n && window.i18n.getLang() === 'fr' ? 'ar' : 'fr');
+        });
+        function applyAlertSettings(settings) {
+            soundAlertsOn = settings.sound_alerts !== '0';
+            remoteNoticeOn = settings.remote_notice !== '0';
+            renderRemoteNotice();
+        }
+        try {
+            ipcRenderer.on('remote-admin:sessions', (_event, count) => {
+                remoteSessions = Number(count) || 0;
+                renderRemoteNotice();
+            });
+        } catch (_) { /* remote panel: no local events */ }
         function showToast(message, type = 'success') {
+            playBeep(type === 'error' ? 'warn' : 'note');
+            if (type === 'success' && typeof markModalsClean === 'function') markModalsClean();
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             toast.textContent = message;
@@ -9628,6 +10952,7 @@ return module.exports; })();</script>
                 document.getElementById('confirm-modal-message').textContent = message;
                 document.getElementById('confirm-modal-yes').textContent = confirmText;
                 modal.classList.remove('hidden');
+                playBeep('warn');
                 
                 const yesBtn = document.getElementById('confirm-modal-yes');
                 const noBtn = document.getElementById('confirm-modal-no');

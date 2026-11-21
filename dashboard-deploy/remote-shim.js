@@ -80,7 +80,7 @@
   css.textContent =
     'body.remote-mode .header-actions, body.remote-mode #loading, body.remote-mode .osk-icon,' +
     'body.remote-mode [data-tab="security"], body.remote-mode [data-tab="cloud"], body.remote-mode [data-tab="updates"],' +
-    'body.remote-mode #admin-clear-all-data, body.remote-mode #test-printer-settings,' +
+    'body.remote-mode #admin-clear-all-data, body.remote-mode #test-printer-settings, body.remote-mode #close-admin,' +
     'body.remote-mode #categories-section, body.remote-mode #daily-summary-section, body.remote-mode #teller-wood-section { display: none !important; }' +
     '#hpos-remote-bar{position:sticky;top:0;z-index:30000;background:#4c1d95;color:#fff;display:flex;gap:1rem;align-items:center;justify-content:space-between;padding:0.5rem 1rem;font-family:inherit;direction:rtl}' +
     '#hpos-remote-bar button{background:#fff;color:#4c1d95;border:none;border-radius:6px;padding:0.35rem 0.8rem;font-weight:700;cursor:pointer}' +
@@ -88,7 +88,27 @@
     '#hpos-overlay .box{background:#fff;border-radius:14px;padding:1.6rem;width:min(92vw,380px);text-align:center}' +
     '#hpos-overlay input{width:100%;padding:0.7rem;font-size:1.1rem;border:2px solid #cbd5e1;border-radius:8px;margin:0.8rem 0;box-sizing:border-box;text-align:center}' +
     '#hpos-overlay button{width:100%;padding:0.7rem;font-size:1rem;border:none;border-radius:8px;background:#4c1d95;color:#fff;font-weight:700;cursor:pointer}' +
-    '#hpos-overlay .err{color:#b91c1c;min-height:1.3em;margin-top:0.6rem}#hpos-overlay a{display:block;margin-top:0.8rem;color:#475569}';
+    '#hpos-overlay .err{color:#b91c1c;min-height:1.3em;margin-top:0.6rem}#hpos-overlay a{display:block;margin-top:0.8rem;color:#475569}' +
+    '#hpos-remote-bar .acts{display:flex;gap:0.5rem}' +
+    // Phone: the admin panel in one column, wide tables scroll sideways, windows fill the screen.
+    '@media (max-width: 760px){' +
+    'body.remote-mode{font-size:15px}' +
+    '#hpos-remote-bar{padding:0.45rem 0.6rem;gap:0.5rem;font-size:0.85rem}' +
+    'body.remote-mode .modal-content{width:96vw!important;max-width:96vw!important;max-height:90vh!important;overflow:auto!important;padding:0.9rem!important;margin:0!important;box-sizing:border-box}' +
+    'body.remote-mode .modal{align-items:flex-start!important;padding-top:3vh}' +
+    'body.remote-mode table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}' +
+    'body.remote-mode .settings-tabs{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none}' +
+    'body.remote-mode .settings-tab-btn{flex:0 0 auto;white-space:nowrap}' +
+    'body.remote-mode .header{flex-wrap:wrap;gap:0.5rem;padding:0.6rem!important}' +
+    'body.remote-mode .header h1{font-size:1.1rem!important}' +
+    'body.remote-mode .admin-header{flex-wrap:wrap;gap:0.5rem;padding:0.7rem 0.9rem!important}' +
+    'body.remote-mode .admin-header h2, body.remote-mode .admin-header h1{font-size:1.25rem!important;margin:0}' +
+    'body.remote-mode .admin-dashboard, body.remote-mode #admin-dashboard{padding:0.5rem!important}' +
+    'body.remote-mode #admin-dashboard [style*="grid-template-columns"]{grid-template-columns:1fr 1fr!important}' +
+    'body.remote-mode #admin-dashboard .stats-grid, body.remote-mode #admin-dashboard .summary-cards{grid-template-columns:1fr 1fr!important}' +
+    'body.remote-mode input, body.remote-mode select, body.remote-mode textarea{font-size:16px!important;max-width:100%}' +
+    'body.remote-mode .btn{padding:0.55rem 0.8rem}' +
+    '}';
   document.head.appendChild(css);
 
   var overlay;
@@ -145,9 +165,19 @@
     if (!document.getElementById('hpos-remote-bar')) {
       var bar = document.createElement('div');
       bar.id = 'hpos-remote-bar';
-      bar.innerHTML = '<span>🖥 جلسة إدارة عن بعد — <b id="hpos-bar-name"></b></span><button type="button" id="hpos-end">إنهاء الجلسة</button>';
+      bar.innerHTML = '<span>🖥 جلسة إدارة عن بعد — <b id="hpos-bar-name" data-no-i18n></b></span><span class="acts"><button type="button" id="hpos-lang" data-no-i18n>FR</button><button type="button" id="hpos-end">إنهاء الجلسة</button></span>';
       document.body.insertBefore(bar, document.body.firstChild);
       document.getElementById('hpos-end').onclick = endSession;
+      var langBtn = document.getElementById('hpos-lang');
+      var showLang = function () { langBtn.textContent = window.i18n && window.i18n.getLang() === 'fr' ? 'ع' : 'FR'; };
+      langBtn.onclick = function () {
+        var next = window.i18n && window.i18n.getLang() === 'fr' ? 'ar' : 'fr';
+        if (typeof window.switchLanguage === 'function') window.switchLanguage(next);
+        else { try { localStorage.setItem('hpos_lang', next); } catch (_) {} if (window.i18n) window.i18n.setLang(next); }
+        showLang();
+      };
+      document.addEventListener('hpos:lang', showLang);
+      showLang();
     }
     document.getElementById('hpos-bar-name').textContent = hammamName;
     if (panelStarted) return;

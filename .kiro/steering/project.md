@@ -1,5 +1,8 @@
 # HammamPOS — Project Context
 
+> **Update 2026-11-21 (cleanup):** the plugin system (`src/plugins/`: PluginManager, LicenseManager, Plugin interface) was removed. It had no plugins, its licence check was bypassed, and it logged an ENOTDIR error at startup. Last present in commit `7eaea77`. Add-ons (inventory, staff, prepaid cards, Telegram/WhatsApp reports) will be designed fresh in the separate HammamPro project; the add-on sections below that describe plugin folders and LicenseManager are historical. The updater validators (`tests/validate-*.js`) and the `.bat` release pipeline were also removed (stale at 2.6.0); releases use `scripts/release.ps1`.
+
+
 ## Business Model
 
 - SaaS for Moroccan hammams (bathhouses)

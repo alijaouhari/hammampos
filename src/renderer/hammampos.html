@@ -2,6 +2,8 @@
 <!-- HammamPOS - Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved. -->
 <html lang="ar" dir="rtl">
 <head>
+    <script src="i18n-fr.js"></script>
+    <script src="i18n.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HammamPOS - نظام نقاط البيع للحمامات</title>
@@ -168,6 +170,10 @@
             font-size: 1.1rem;
         }
         
+/* French: left-to-right */
+        html[dir="ltr"] body { direction: ltr; }
+        html[dir="ltr"] .modal-content, html[dir="ltr"] .settings-section, html[dir="ltr"] .category-section { text-align: left; }
+        .lang-btn { min-width: 3rem; font-weight: 700; }
         #remote-admin-notice {
             position: fixed; bottom: 14px; left: 14px; z-index: 50000; pointer-events: none;
             background: #4c1d95; color: #fff; border-radius: 999px; padding: 0.45rem 1rem;
@@ -1489,11 +1495,12 @@
     <div class="main-content">
         <!-- Header -->
         <div class="header">
-            <h1 id="hammam-name">حمام جديد</h1>
+            <h1 id="hammam-name" data-no-i18n>حمام جديد</h1>
             <div class="header-actions">
                 <button id="add-expense-btn" class="btn btn-warning">إضافة مصروف</button>
                 <button id="remote-collection-btn" class="btn btn-info" style="display:none;">💸 إيداع / تحويل</button>
                 <button id="header-update-btn" class="btn btn-secondary" data-state="idle" title="التحقق من التحديثات">🔄 تحديث</button>
+                <button id="lang-btn" class="btn btn-secondary lang-btn" title="Français / العربية" data-no-i18n>FR</button>
                 <button id="admin-btn" class="btn btn-success">إدارة</button>
             </div>
         </div>
@@ -2792,6 +2799,16 @@
                     <input type="text" id="settings-hammam-name" placeholder="اسم الحمام">
                 </div>
             </div>
+            <div class="category-section">
+                <h4>🌐 اللغة</h4>
+                <div class="form-group">
+                    <label for="settings-language">لغة البرنامج</label>
+                    <select id="settings-language" data-no-i18n onchange="switchLanguage(this.value)">
+                        <option value="ar">العربية</option>
+                        <option value="fr">Français</option>
+                    </select>
+                </div>
+            </div>
             <!-- Alerts: both switches save immediately -->
             <div class="category-section">
                 <h4>التنبيهات</h4>
@@ -3133,6 +3150,15 @@
                     <button type="button" id="admin-clear-all-data" class="btn" style="background: #dc2626; color: white;">🗑️ مسح جميع البيانات</button>
                     <button type="button" id="admin-diagnostics-btn" class="btn btn-secondary">🩺 تشخيص هذا الجهاز</button>
                 </div>
+                <div id="excel-file-section" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e5e7eb;">
+                    <h4 style="margin-bottom: 0.4rem;">ملف Excel</h4>
+                    <p style="color: #6b7280; font-size: 0.85rem; margin: 0 0 0.6rem 0;">نسخة من كل البيانات (التذاكر، المصروفات، التحصيل، الملخص اليومي) تُحدَّث تلقائياً. للقراءة فقط: التعديل فيها لا يغيّر البرنامج.</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                        <button type="button" id="excel-open-btn" class="btn btn-primary">📊 فتح ملف Excel</button>
+                        <button type="button" id="excel-folder-btn" class="btn btn-secondary">📁 فتح المجلد</button>
+                    </div>
+                    <div id="excel-file-status" style="color: #6b7280; font-size: 0.8rem; margin-top: 0.5rem;"></div>
+                </div>
                 <pre id="diagnostics-output" style="display:none; direction:ltr; text-align:left; background:#0f172a; color:#e2e8f0; padding:0.75rem; border-radius:6px; margin-top:0.75rem; max-height:280px; overflow:auto; font-size:0.78rem; white-space:pre-wrap;"></pre>
             </div>
 
@@ -3141,68 +3167,6 @@
             </div>
     </div>
 
-    <!-- Data Export Modal -->
-    <div id="data-export-modal" class="modal hidden">
-        <div class="modal-content category-modal-content">
-            <h3>📊 تصدير البيانات</h3>
-            
-            <div class="form-group">
-                <label>نوع التصدير:</label>
-                <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="radio" name="export-type" value="excel" checked style="margin-left: 0.5rem;">
-                        Excel (.xlsx)
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="radio" name="export-type" value="csv" style="margin-left: 0.5rem;">
-                        CSV (.csv)
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>البيانات المطلوب تصديرها:</label>
-                <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="export-tickets" checked style="margin-left: 0.5rem;">
-                        التذاكر المباعة
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="export-expenses" checked style="margin-left: 0.5rem;">
-                        المصروفات
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="export-collections" checked style="margin-left: 0.5rem;">
-                        عمليات التحصيل
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="export-daily-summary" checked style="margin-left: 0.5rem;">
-                        الملخص اليومي
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="export-date-from">من تاريخ:</label>
-                <input type="date" id="export-date-from" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="export-date-to">إلى تاريخ:</label>
-                <input type="date" id="export-date-to" required>
-            </div>
-            
-            <div id="export-progress" style="display: none; text-align: center; padding: 1rem;">
-                <div style="color: #2563eb; font-weight: 600;">جاري تصدير البيانات...</div>
-                <div style="margin-top: 0.5rem; color: #6b7280;">يرجى الانتظار</div>
-            </div>
-            
-            <div class="modal-actions">
-                <button type="button" id="cancel-export" class="btn btn-secondary">إلغاء</button>
-                <button type="button" id="start-export" class="btn btn-primary">تصدير البيانات</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Clear All Data Confirmation Modal -->
     <div id="clear-data-modal" class="modal hidden">
@@ -3345,6 +3309,11 @@
                 listPrinters: () => ipcRenderer.invoke('printer:listPrinters'),
                 testPrint: (printerName) => ipcRenderer.invoke('printer:testPrint', printerName)
             },
+            excel: {
+                getStatus: () => ipcRenderer.invoke('excel:getStatus'),
+                open: () => ipcRenderer.invoke('excel:open'),
+                showInFolder: () => ipcRenderer.invoke('excel:showInFolder')
+            },
             backup: {
                 getStatus: () => ipcRenderer.invoke('backup:getStatus'),
                 rebuild: () => ipcRenderer.invoke('backup:rebuild'),
@@ -3469,11 +3438,8 @@
         // Returns HTML: currency label + an LTR-isolated numeric token.
         function formatMoney(n) {
             const numStr = moneyNumber(n);
-            return `درهم <span dir="ltr" style="unicode-bidi:isolate; direction:ltr;">${numStr}</span>`;
-        }
-        // Plain-text variant (for places that must stay textContent, e.g. canvas).
-        function formatMoneyText(n) {
-            return `درهم ${moneyNumber(n)}`;
+            const num = `<span dir="ltr" style="unicode-bidi:isolate; direction:ltr;">${numStr}</span>`;
+            return window.i18n && window.i18n.getLang() === 'fr' ? `${num} درهم` : `درهم ${num}`;
         }
         // LTR-isolated numeric token WITHOUT the currency label — for dense table
         // cells whose column header already denotes currency. Ensures a negative
@@ -3549,6 +3515,7 @@
                 console.log('Settings loaded:', settings);
                 hammamData.name = settings.hammam_name || 'حمام جديد';
                 applyAlertSettings(settings);
+                applyLanguage(settings.ui_language);
                 console.log('Hammam name set to:', hammamData.name);
                 
                 // Update UI
@@ -3608,7 +3575,7 @@
                     const categoryBtn = document.createElement('button');
                     categoryBtn.className = 'category-btn';
                     categoryBtn.innerHTML = `
-                        <div class="category-name">${category.name}</div>
+                        <div class="category-name" data-no-i18n>${category.name}</div>
                         <div class="category-price">${category.price} درهم</div>
                     `;
                     categoryBtn.onclick = () => sellTicket(category);
@@ -3877,21 +3844,6 @@
                 addWoodSellerBtn.onclick = () => { addWoodSellerFromSettings(); };
             }
 
-            // Data Export Modal handlers
-            const cancelExport = document.getElementById('cancel-export');
-            const startExport = document.getElementById('start-export');
-            
-            if (cancelExport) {
-                cancelExport.onclick = () => {
-                    document.getElementById('data-export-modal').classList.add('hidden');
-                };
-            }
-            
-            if (startExport) {
-                startExport.onclick = () => {
-                    performDataExport();
-                };
-            }
 
             console.log('Event listeners set up');
         }
@@ -7350,59 +7302,6 @@
             }
         }
 
-        // Load lifetime statistics
-        async function loadLifetimeStats(ctx, canvas) {
-            try {
-                // Get lifetime data
-                const [lifetimeRevenue, allTickets, allExpenses, categories] = await Promise.all([
-                    api.storage.getLifetimeRevenue(),
-                    api.storage.getTodayTickets(), // We'll need a getAllTickets function
-                    api.storage.getExpenses(), // All expenses
-                    api.storage.getCategories(false) // All categories
-                ]);
-
-                const totalExpenses = allExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-                const netProfit = lifetimeRevenue - totalExpenses;
-
-                // Display lifetime stats as text
-                ctx.fillStyle = '#1f2937';
-                ctx.font = 'bold 18px Arial';
-                ctx.textAlign = 'right';
-                
-                let y = 50;
-                const lineHeight = 30;
-                
-                ctx.fillText(`إجمالي الإيرادات: ${lifetimeRevenue} درهم`, canvas.width - 50, y);
-                y += lineHeight;
-                
-                ctx.fillText(`إجمالي المصروفات: ${totalExpenses} درهم`, canvas.width - 50, y);
-                y += lineHeight;
-                
-                ctx.fillStyle = netProfit >= 0 ? '#059669' : '#dc2626';
-                ctx.fillText(`صافي الربح: ${netProfit} درهم`, canvas.width - 50, y);
-                y += lineHeight * 1.5;
-                
-                // Category breakdown
-                ctx.fillStyle = '#1f2937';
-                ctx.font = 'bold 16px Arial';
-                ctx.fillText('إحصائيات الفئات:', canvas.width - 50, y);
-                y += lineHeight;
-                
-                ctx.font = '14px Arial';
-                categories.forEach(category => {
-                    // Count tickets for this category (simplified - would need proper query)
-                    ctx.fillText(`${category.name}: ${category.today_count || 0} تذكرة`, canvas.width - 50, y);
-                    y += lineHeight * 0.8;
-                });
-                
-            } catch (error) {
-                console.error('Failed to load lifetime stats:', error);
-                ctx.fillStyle = '#dc2626';
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('خطأ في تحميل الإحصائيات', canvas.width / 2, canvas.height / 2);
-            }
-        }
 
         // Settings Management Functions
         async function showSettingsModal() {
@@ -7471,7 +7370,7 @@
                 await loadWoodSellersList();
 
                 // Load Zakat settings + history
-                await loadZakatSettings(); loadAlertSettings(settings);
+                await loadZakatSettings(); loadAlertSettings(settings); applyLanguage(settings.ui_language);
                 
                 switchSettingsTab('general');
                 await refreshRecoveryStatus();
@@ -8077,6 +7976,20 @@
         }
 
         // ── Settings tabs: each tab saves only its own fields ────────────────
+        async function refreshExcelStatus() {
+            const el = document.getElementById('excel-file-status');
+            const section = document.getElementById('excel-file-section');
+            if (!el || !section) return;
+            // Opening a file only makes sense on the PC itself.
+            if (document.body.classList.contains('remote-mode')) { section.style.display = 'none'; return; }
+            try {
+                const st = await api.excel.getStatus();
+                if (!st || st.error) { el.textContent = ''; return; }
+                const when = st.lastModified ? new Date(st.lastModified).toLocaleString('ar-MA') : '';
+                el.textContent = st.exists ? ('آخر تحديث: ' + when + (st.pending ? ' · تحديث قادم خلال ثوانٍ' : '')) : 'سيُنشأ الملف عند أول فتح';
+                if (st.lastError) el.textContent += ' · آخر خطأ: ' + st.lastError;
+            } catch (_) { el.textContent = ''; }
+        }
         function switchSettingsTab(name) {
             document.querySelectorAll('#settings-tabs .settings-tab-btn').forEach(b => {
                 b.classList.toggle('active', b.dataset.tab === name);
@@ -8086,6 +7999,7 @@
             });
             if (name === 'money') loadMoneyTab();
             if (name === 'cloud') refreshCloudStatus();
+            if (name === 'data') refreshExcelStatus();
         }
 
         async function saveGeneralSettings() {
@@ -8306,203 +8220,29 @@
                 on('cloud-fullsync-btn', cloudFullSync);
                 on('cloud-apply-code', cloudApplyCode);
                 on('admin-diagnostics-btn', showDiagnostics);
+        on('excel-open-btn', async () => {
+            const btn = document.getElementById('excel-open-btn');
+            btn.disabled = true;
+            try {
+                const r = await api.excel.open();
+                if (r && r.error) showToast(r.error, 'error');
+                refreshExcelStatus();
+            } catch (e) { showToast('تعذّر فتح ملف Excel: ' + e.message, 'error'); }
+            finally { btn.disabled = false; }
+        });
+        on('excel-folder-btn', async () => {
+            try { const r = await api.excel.showInFolder(); if (r && r.error) showToast(r.error, 'error'); }
+            catch (e) { showToast('تعذّر فتح المجلد: ' + e.message, 'error'); }
+        });
             };
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
             else bind();
         })();
 
-        // Data Export Functions
-        async function showDataExportModal() {
-            try {
-                // Set default date range (last 30 days)
-                const today = new Date();
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(today.getDate() - 30);
-                
-                document.getElementById('export-date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
-                document.getElementById('export-date-to').value = today.toISOString().split('T')[0];
-                
-                // Show modal
-                const modal = document.getElementById('data-export-modal');
-                modal.classList.remove('hidden');
-                
-            } catch (error) {
-                console.error('Failed to show data export modal:', error);
-                showToast('خطأ في فتح نافذة تصدير البيانات', 'error');
-            }
-        }
 
-        async function performDataExport() {
-            try {
-                // Get form values
-                const exportType = document.querySelector('input[name="export-type"]:checked').value;
-                const dateFrom = document.getElementById('export-date-from').value;
-                const dateTo = document.getElementById('export-date-to').value;
-                
-                const includeTickets = document.getElementById('export-tickets').checked;
-                const includeExpenses = document.getElementById('export-expenses').checked;
-                const includeCollections = document.getElementById('export-collections').checked;
-                const includeDailySummary = document.getElementById('export-daily-summary').checked;
-                
-                // Validate inputs
-                if (!dateFrom || !dateTo) {
-                    showToast('يرجى تحديد نطاق التاريخ', 'error');
-                    return;
-                }
-                
-                if (new Date(dateFrom) > new Date(dateTo)) {
-                    showToast('تاريخ البداية يجب أن يكون قبل تاريخ النهاية', 'error');
-                    return;
-                }
-                
-                if (!includeTickets && !includeExpenses && !includeCollections && !includeDailySummary) {
-                    showToast('يرجى اختيار نوع واحد على الأقل من البيانات للتصدير', 'error');
-                    return;
-                }
-                
-                // Show progress
-                document.getElementById('export-progress').style.display = 'block';
-                document.getElementById('start-export').disabled = true;
-                
-                // Collect data
-                const exportData = {};
-                
-                if (includeTickets) {
-                    exportData.tickets = await api.storage.getTickets(dateFrom, dateTo);
-                }
-                
-                if (includeExpenses) {
-                    exportData.expenses = await api.storage.getExpenses(dateFrom, dateTo);
-                }
-                
-                if (includeCollections) {
-                    exportData.collections = await api.storage.getCollections(dateFrom, dateTo);
-                }
-                
-                if (includeDailySummary) {
-                    exportData.dailySummary = await api.storage.getDailySummariesWithDetails(365);
-                    // Filter by date range
-                    exportData.dailySummary = exportData.dailySummary.filter(day => {
-                        return day.date >= dateFrom && day.date <= dateTo;
-                    });
-                }
-                
-                // Generate export content
-                let exportContent = '';
-                let filename = '';
-                
-                if (exportType === 'csv') {
-                    exportContent = generateCSVExport(exportData);
-                    filename = `hammampos-export-${dateFrom}-to-${dateTo}.csv`;
-                } else {
-                    exportContent = generateExcelExport(exportData);
-                    filename = `hammampos-export-${dateFrom}-to-${dateTo}.xlsx`;
-                }
-                
-                // Download file
-                downloadExportFile(exportContent, filename, exportType);
-                
-                // Hide progress and close modal
-                document.getElementById('export-progress').style.display = 'none';
-                document.getElementById('start-export').disabled = false;
-                document.getElementById('data-export-modal').classList.add('hidden');
-                
-                showToast(`تم تصدير البيانات بنجاح: ${filename}`, 'success');
-                
-                console.log('Data export completed:', filename);
-                
-            } catch (error) {
-                console.error('Failed to export data:', error);
-                showToast('خطأ في تصدير البيانات', 'error');
-                
-                // Hide progress and re-enable button
-                document.getElementById('export-progress').style.display = 'none';
-                document.getElementById('start-export').disabled = false;
-            }
-        }
 
-        function generateCSVExport(data) {
-            let csv = '';
-            
-            // Add tickets
-            if (data.tickets && data.tickets.length > 0) {
-                csv += '=== التذاكر المباعة ===\n';
-                csv += 'التاريخ,الوقت,الفئة,السعر,رقم التذكرة\n';
-                data.tickets.forEach(ticket => {
-                    const date = ticket.date || ticket.timestamp?.split('T')[0] || '';
-                    const time = ticket.time || ticket.timestamp?.split('T')[1]?.split('.')[0] || '';
-                    csv += `${date},${time},${ticket.category_name},${ticket.price},${ticket.serial_number}\n`;
-                });
-                csv += '\n';
-            }
-            
-            // Add expenses
-            if (data.expenses && data.expenses.length > 0) {
-                csv += '=== المصروفات ===\n';
-                csv += 'التاريخ,الوقت,الوصف,المبلغ\n';
-                data.expenses.forEach(expense => {
-                    const date = expense.date || expense.timestamp?.split('T')[0] || '';
-                    const time = expense.time || expense.timestamp?.split('T')[1]?.split('.')[0] || '';
-                    csv += `${date},${time},"${expense.description}",${expense.amount}\n`;
-                });
-                csv += '\n';
-            }
-            
-            // Add collections
-            if (data.collections && data.collections.length > 0) {
-                csv += '=== عمليات التحصيل ===\n';
-                csv += 'التاريخ,الوقت,المبلغ,الملاحظات\n';
-                data.collections.forEach(collection => {
-                    const date = collection.date || collection.timestamp?.split('T')[0] || '';
-                    const time = collection.time || collection.timestamp?.split('T')[1]?.split('.')[0] || '';
-                    const notes = collection.notes ? `"${collection.notes}"` : '';
-                    csv += `${date},${time},${collection.amount},${notes}\n`;
-                });
-                csv += '\n';
-            }
-            
-            // Add daily summary
-            if (data.dailySummary && data.dailySummary.length > 0) {
-                csv += '=== الملخص اليومي ===\n';
-                csv += 'التاريخ,إجمالي التذاكر,الإيرادات,المصروفات,صافي الربح\n';
-                data.dailySummary.forEach(day => {
-                    const netProfit = (day.revenue || 0) - (day.expenses || 0);
-                    csv += `${day.date},${day.total_tickets || 0},${day.revenue || 0},${day.expenses || 0},${netProfit}\n`;
-                });
-            }
-            
-            return csv;
-        }
 
-        function generateExcelExport(data) {
-            // For now, return CSV format - full Excel generation would require a library
-            // This is a simplified version that creates a tab-separated format
-            return generateCSVExport(data).replace(/,/g, '\t');
-        }
 
-        function downloadExportFile(content, filename, type) {
-            // Add UTF-8 BOM for proper Arabic text display
-            const BOM = '\uFEFF';
-            const contentWithBOM = BOM + content;
-            
-            const blob = new Blob([contentWithBOM], { 
-                type: type === 'csv' ? 'text/csv;charset=utf-8;' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-            });
-            
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', filename);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            // Clean up
-            setTimeout(() => {
-                URL.revokeObjectURL(url);
-            }, 100);
-        }
 
         // Delete transaction functions
         async function deleteTicket(ticketId) {
@@ -8938,10 +8678,6 @@
             }
         };
         
-        function showClearAllDataConfirmation() {
-            // Old function - now redirects to modal
-            showClearDataModal();
-        }
 
         async function clearAllData() {
             try {
@@ -9580,6 +9316,30 @@
             document.body.appendChild(bar);
             playBeep('note');
         }
+        // ── Language (Arabic / French) ──
+        function isRemotePanel() { return document.body.classList.contains('remote-mode'); }
+        function applyLanguage(fromSettings) {
+            let l = fromSettings === 'fr' ? 'fr' : 'ar';
+            if (isRemotePanel()) { try { l = localStorage.getItem('hpos_lang') === 'fr' ? 'fr' : 'ar'; } catch (_) {} }
+            if (window.i18n) window.i18n.setLang(l);
+            const btn = document.getElementById('lang-btn');
+            if (btn) btn.textContent = l === 'fr' ? 'ع' : 'FR';
+            const sel = document.getElementById('settings-language');
+            if (sel) sel.value = l;
+        }
+        async function switchLanguage(l) {
+            l = l === 'fr' ? 'fr' : 'ar';
+            if (isRemotePanel()) { try { localStorage.setItem('hpos_lang', l); } catch (_) {} }
+            else {
+                // On the PC: save, then reload the screen so dates and amounts are rewritten in the new language.
+                try { await api.settings.updateSettings({ ui_language: l }); } catch (_) {}
+                if (!window.__noLangReload) { location.reload(); return; }
+            }
+            applyLanguage(l);
+        }
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'lang-btn') switchLanguage(window.i18n && window.i18n.getLang() === 'fr' ? 'ar' : 'fr');
+        });
         function applyAlertSettings(settings) {
             soundAlertsOn = settings.sound_alerts !== '0';
             remoteNoticeOn = settings.remote_notice !== '0';
