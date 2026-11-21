@@ -32,7 +32,7 @@ const DENY = new Set([
   'storage:clearAllData', 'storage:generateTestData', 'storage:createTicket', 'money:refundTicket'
 ]);
 // Settings that would cut the PC off the cloud or change who can log in.
-const PROTECTED_SETTINGS = /^(cloud_|device_|location_id$|admin_password|recovery_)/;
+const PROTECTED_SETTINGS = /^(cloud_|device_|location_id$|admin_password|recovery_|remote_notice$)/;
 
 const MAX_PART = 180000; // characters per broadcast message
 const MAX_BAD_PASSWORDS = 5;

@@ -168,6 +168,14 @@
             font-size: 1.1rem;
         }
         
+        #remote-admin-notice {
+            position: fixed; bottom: 14px; left: 14px; z-index: 50000; pointer-events: none;
+            background: #4c1d95; color: #fff; border-radius: 999px; padding: 0.45rem 1rem;
+            font-size: 0.9rem; font-weight: 600; box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        #remote-admin-notice .dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: remote-pulse 1.6s infinite; }
+        @keyframes remote-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
         .toast {
             position: fixed;
             top: 80px;
@@ -2784,6 +2792,27 @@
                     <input type="text" id="settings-hammam-name" placeholder="اسم الحمام">
                 </div>
             </div>
+            <!-- Alerts: both switches save immediately -->
+            <div class="category-section">
+                <h4>التنبيهات</h4>
+                <div class="dashboard-toggle-row">
+                    <div class="dashboard-toggle-label"><span>صوت تنبيه قصير مع الرسائل والتحذيرات</span></div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sound-alerts-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="dashboard-toggle-row" style="margin-top: 0.5rem;">
+                    <div class="dashboard-toggle-label">
+                        <span>إظهار إشعار على الشاشة عندما يكون المدير متصلاً عن بعد</span>
+                        <small id="remote-notice-local-only" style="display:none;color:#6b7280;">يمكن تغيير هذا الخيار من الجهاز نفسه فقط</small>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="remote-notice-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
 
             <!-- Printer Settings Section -->
             <div class="category-section">
@@ -3519,6 +3548,7 @@
                 const settings = await api.settings.getAll();
                 console.log('Settings loaded:', settings);
                 hammamData.name = settings.hammam_name || 'حمام جديد';
+                applyAlertSettings(settings);
                 console.log('Hammam name set to:', hammamData.name);
                 
                 // Update UI
@@ -5183,7 +5213,35 @@
             'forgot-password-modal', 'recovery-key-modal', 'pay-bill-modal', 'refund-modal', 'collect-modal', 'seller-repay-modal', 'remote-collection-modal', 'cancel-collection-modal', 'expense-edit-modal', 'collection-edit-modal'
         ]);
 
-        function closeModalViaDismiss(modal) {
+        // ── Unsaved-changes warning ──
+        // A modal is "dirty" once the user types or picks something in it. It is clean
+        // again when it opens, or after a save inside it (a success message).
+        // Switches that save by themselves (.toggle-switch) and password prompts don't count.
+        const UNSAVED_IGNORE_IDS = new Set(['admin-password-modal', 'forgot-password-modal', 'recovery-key-modal']);
+        const dirtyModals = new Set();
+        function markModalsClean() { dirtyModals.clear(); }
+        document.addEventListener('input', onModalEdit, true);
+        document.addEventListener('change', onModalEdit, true);
+        function onModalEdit(e) {
+            if (!e.isTrusted) return;
+            const el = e.target;
+            if (!el || !el.closest || el.closest('.toggle-switch') || el.type === 'file') return;
+            const modal = el.closest('.modal');
+            if (modal && MODAL_X_ONLY_IDS.has(modal.id) && !UNSAVED_IGNORE_IDS.has(modal.id)) dirtyModals.add(modal.id);
+        }
+        new MutationObserver((records) => {
+            for (const r of records) {
+                const m = r.target;
+                if (m.classList && m.classList.contains('modal') && !m.classList.contains('hidden')
+                    && (r.oldValue || '').split(/\s+/).includes('hidden')) dirtyModals.delete(m.id);
+            }
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'], attributeOldValue: true, subtree: true });
+        async function closeModalViaDismiss(modal) {
+            if (dirtyModals.has(modal.id)) {
+                const leave = await showConfirm('لديك تغييرات غير محفوظة. هل تريد الإغلاق بدون حفظ؟', '⚠ تغييرات غير محفوظة', 'إغلاق بدون حفظ');
+                if (!leave) return;
+            }
+            dirtyModals.delete(modal.id);
             const btn = getModalDismissButton(modal);
             if (btn) btn.click();
             else modal.classList.add('hidden');
@@ -7413,7 +7471,7 @@
                 await loadWoodSellersList();
 
                 // Load Zakat settings + history
-                await loadZakatSettings();
+                await loadZakatSettings(); loadAlertSettings(settings);
                 
                 switchSettingsTab('general');
                 await refreshRecoveryStatus();
@@ -7427,6 +7485,30 @@
             }
         }
 
+        function loadAlertSettings(settings) {
+            const sound = document.getElementById('sound-alerts-toggle');
+            const notice = document.getElementById('remote-notice-toggle');
+            if (sound) {
+                sound.checked = settings.sound_alerts !== '0';
+                sound.onchange = async () => {
+                    await api.settings.updateSettings({ sound_alerts: sound.checked ? '1' : '0' });
+                    soundAlertsOn = sound.checked;
+                    if (sound.checked) playBeep('note');
+                };
+            }
+            if (notice) {
+                notice.checked = settings.remote_notice !== '0';
+                // The person connected remotely must not be able to hide this notice.
+                const remote = document.body.classList.contains('remote-mode');
+                notice.disabled = remote;
+                document.getElementById('remote-notice-local-only').style.display = remote ? 'block' : 'none';
+                notice.onchange = async () => {
+                    await api.settings.updateSettings({ remote_notice: notice.checked ? '1' : '0' });
+                    remoteNoticeOn = notice.checked;
+                    renderRemoteNotice();
+                };
+            }
+        }
         async function loadZakatSettings() {
             try {
                 const vis = await api.storage.getZakatVisibility();
@@ -9457,7 +9539,61 @@
             }
         }
         
+        // ── Short beep on warnings and notices (Settings → عام → التنبيهات) ──
+        let soundAlertsOn = true;
+        let beepCtx = null;
+        let lastBeepAt = 0;
+        function playBeep(kind = 'note') {
+            if (!soundAlertsOn) return;
+            const now = Date.now();
+            if (now - lastBeepAt < 250) return; // one beep for a burst of messages
+            lastBeepAt = now;
+            try {
+                beepCtx = beepCtx || new (window.AudioContext || window.webkitAudioContext)();
+                if (beepCtx.state === 'suspended') beepCtx.resume();
+                const t = beepCtx.currentTime;
+                const osc = beepCtx.createOscillator();
+                const gain = beepCtx.createGain();
+                const warn = kind === 'warn';
+                osc.type = 'sine';
+                osc.frequency.value = warn ? 880 : 660;
+                gain.gain.setValueAtTime(0.0001, t);
+                gain.gain.exponentialRampToValueAtTime(warn ? 0.25 : 0.15, t + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t + (warn ? 0.18 : 0.12));
+                osc.connect(gain);
+                gain.connect(beepCtx.destination);
+                osc.start(t);
+                osc.stop(t + 0.2);
+            } catch (_) { /* no sound device: stay silent */ }
+        }
+        // ── Notice while the manager is connected to the admin panel remotely ──
+        let remoteNoticeOn = true;
+        let remoteSessions = 0;
+        function renderRemoteNotice() {
+            let bar = document.getElementById('remote-admin-notice');
+            const show = remoteNoticeOn && remoteSessions > 0 && !document.body.classList.contains('remote-mode');
+            if (!show) { if (bar) bar.remove(); return; }
+            if (bar) return;
+            bar = document.createElement('div');
+            bar.id = 'remote-admin-notice';
+            bar.innerHTML = '<span class="dot"></span><span>المدير متصل الآن عن بعد بلوحة الإدارة</span>';
+            document.body.appendChild(bar);
+            playBeep('note');
+        }
+        function applyAlertSettings(settings) {
+            soundAlertsOn = settings.sound_alerts !== '0';
+            remoteNoticeOn = settings.remote_notice !== '0';
+            renderRemoteNotice();
+        }
+        try {
+            ipcRenderer.on('remote-admin:sessions', (_event, count) => {
+                remoteSessions = Number(count) || 0;
+                renderRemoteNotice();
+            });
+        } catch (_) { /* remote panel: no local events */ }
         function showToast(message, type = 'success') {
+            playBeep(type === 'error' ? 'warn' : 'note');
+            if (type === 'success' && typeof markModalsClean === 'function') markModalsClean();
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             toast.textContent = message;
@@ -9478,6 +9614,7 @@
                 document.getElementById('confirm-modal-message').textContent = message;
                 document.getElementById('confirm-modal-yes').textContent = confirmText;
                 modal.classList.remove('hidden');
+                playBeep('warn');
                 
                 const yesBtn = document.getElementById('confirm-modal-yes');
                 const noBtn = document.getElementById('confirm-modal-no');

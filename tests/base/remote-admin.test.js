@@ -85,8 +85,8 @@ test('local-only actions are refused remotely', async () => {
 test('settings that could cut the PC off the cloud are removed; secrets are hidden in answers', async () => {
   const { ask, calls } = setup();
   await ask('remote:open', ['1234']);
-  await ask('settings:updateSettings', [{ hammam_name: 'جديد', cloud_url: 'https://evil', device_password: 'x', location_id: 'y', admin_password: 'z', printer_name: 'P' }]);
-  assert.deepEqual(calls[0][1][0], { hammam_name: 'جديد', printer_name: 'P' });
+  await ask('settings:updateSettings', [{ hammam_name: 'جديد', cloud_url: 'https://evil', device_password: 'x', location_id: 'y', admin_password: 'z', printer_name: 'P', remote_notice: '0', sound_alerts: '0' }]);
+  assert.deepEqual(calls[0][1][0], { hammam_name: 'جديد', printer_name: 'P', sound_alerts: '0' }); // the remote notice can only be turned off on the PC
   const [r] = await ask('settings:getAll');
   assert.equal(r.result.hammam_name, 'x');
   assert.equal(r.result.admin_password, '••••••');

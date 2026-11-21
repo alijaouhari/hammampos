@@ -21,7 +21,6 @@ const PrintManager = require('../services/PrintManager');
 const SchedulerService = require('../services/SchedulerService');
 const EmailService = require('../services/EmailService');
 const ExpenseTemplateManager = require('../services/ExpenseTemplateManager');
-const PluginManager = require('../plugins/core/PluginManager');
 const LicenseManager = require('../plugins/core/LicenseManager');
 const CloudSync = require('../services/CloudSync');
 // Last errors, shown in the diagnostics and sent to the dashboard with the heartbeat.
@@ -51,7 +50,6 @@ let printer;
 let scheduler;
 let emailService;
 let expenseTemplates;
-let pluginManager;
 let licenseManager;
 let cloudSync;
 let updateManager;
@@ -70,7 +68,8 @@ function createLicenseWindow() {
       enableRemoteModule: true,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      experimentalFeatures: true
+      experimentalFeatures: true,
+      autoplayPolicy: 'no-user-gesture-required'
     }
   });
 
@@ -103,7 +102,8 @@ function createSetupWindow() {
       enableRemoteModule: true,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      experimentalFeatures: true
+      experimentalFeatures: true,
+      autoplayPolicy: 'no-user-gesture-required'
     }
   });
 
@@ -135,7 +135,8 @@ function createWindow() {
       enableRemoteModule: true,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      experimentalFeatures: true
+      experimentalFeatures: true,
+      autoplayPolicy: 'no-user-gesture-required'
     }
   });
 
@@ -330,7 +331,7 @@ async function initializeServices() {
   // Initialize Excel Manager
   try {
     excelManager = new ExcelManager();
-    await excelManager.initialize();
+    await excelManager.initialize(storage, money, { dbPath: storage.dbPath });
     console.log('✅ Excel Manager initialized');
   } catch (error) {
     console.error('❌ Excel Manager initialization failed:', error);
@@ -371,39 +372,6 @@ async function initializeServices() {
     }
   } catch (error) {
     console.warn('⚠️ Email service not initialized:', error.message);
-  }
-  
-  // Initialize Plugin Manager (hot reload only in dev mode)
-  pluginManager = new PluginManager();
-  pluginManager.hotReloadEnabled = process.argv.includes('--dev');
-  try {
-    const pluginContext = {
-      database: storage,
-      ui: null,
-      licensing: licenseManager,
-      events: new (require('events').EventEmitter)(),
-      config: storage,
-      logger: console,
-      storage: storage,
-      excel: excelManager
-    };
-    
-    await pluginManager.initialize(pluginContext);
-    console.log('✅ Plugin Manager ready');
-    
-    const loadResult = await pluginManager.loadAllPlugins();
-    console.log(`🔌 Loaded ${loadResult.loadedPlugins.length} plugins`);
-    
-    if (loadResult.errors.length > 0) {
-      console.warn(`⚠️ ${loadResult.errors.length} plugins failed to load`);
-      loadResult.errors.forEach(error => {
-        console.warn(`   - ${error.pluginId}: ${error.error}`);
-      });
-    }
-    
-  } catch (error) {
-    console.error('❌ Plugin Manager initialization failed:', error);
-    pluginManager = null;
   }
   
   // Initialize Cloud Sync (optional — only if configured)

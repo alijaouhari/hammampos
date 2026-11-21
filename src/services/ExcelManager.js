@@ -1,890 +1,178 @@
 /**
  * HammamPOS - ExcelManager
  * Copyright (c) 2024-2026 Ali Jaouhari. All rights reserved.
- * 
- * Unauthorized copying or distribution is strictly prohibited.
- * Unauthorized copying or distribution is strictly prohibited.
- * 
- * Excel File Integration - Handles real-time Excel backup and remote access
- * Works alongside BackupManager for dual backup strategy
+ *
+ * A plain Excel copy of the data (hammampos.xlsx), for reading the numbers if the
+ * app ever can't start. The database is the only source: every build rewrites the
+ * whole file from it, so the file can never drift or lose old rows.
+ *
+ * - Changes (ticket, expense, ...) only schedule a build; builds are grouped (30 s).
+ * - At startup the file is rebuilt only if the database is newer than it.
+ * - The file is written to a temporary name first, then swapped in, so a crash or a
+ *   power cut never leaves a half-written file.
+ * - No settings, passwords or keys are written.
  */
-
 const ExcelJS = require('exceljs');
 const path = require('path');
 const fs = require('fs');
+
+const BUILD_DELAY_MS = 30 * 1000;
+const STARTUP_DELAY_MS = 20 * 1000;
 
 class ExcelManager {
   constructor(excelPath = null) {
     const appDataDir = path.join(process.env.APPDATA || process.env.HOME, 'HammamPOS');
     this.excelPath = excelPath || path.join(appDataDir, 'hammampos.xlsx');
-    this.workbook = null;
+    this.workbook = null;       // the last workbook built
     this.isInitialized = false;
+    this.storage = null;
+    this.money = null;
+    this.timer = null;
+    this.building = null;
+    this.lastBuiltAt = null;
+    this.lastError = null;
   }
 
   /**
-   * Initialize Excel workbook and create sheets
+   * @param {object} [storage] StorageManager (enables automatic builds)
+   * @param {object} [money] MoneyService
+   * @param {{ dbPath?: string }} [opts] database file, to skip the startup build when the file is up to date
    */
-  async initialize() {
+  async initialize(storage = null, money = null, opts = {}) {
+    this.storage = storage;
+    this.money = money;
+    this.isInitialized = true;
+    if (storage && this._isStale(opts.dbPath)) this._schedule(STARTUP_DELAY_MS);
+    return { success: true };
+  }
+
+  _isStale(dbPath) {
     try {
-      console.log('📊 Initializing Excel Manager...');
-      
-      // Create workbook
-      this.workbook = new ExcelJS.Workbook();
-      
-      // Set workbook properties
-      this.workbook.creator = 'HammamPOS';
-      this.workbook.lastModifiedBy = 'HammamPOS';
-      this.workbook.created = new Date();
-      this.workbook.modified = new Date();
-      
-      // Create sheets - exact mirror of database tables
-      await this.createSettingsSheet();
-      await this.createCategoriesSheet();
-      await this.createTicketsSheet();
-      await this.createExpensesSheet();
-      await this.createCollectionsSheet();
-      await this.createChangeFloatSheet();
-      await this.createDailySummarySheet();
-      await this.createAuditLogSheet();
-      await this.createSerialResetsSheet();
-      await this.createEmailLogSheet();
-      await this.createSyncStatusSheet();
-      
-      // Save initial file
-      await this.save();
-      
-      this.isInitialized = true;
-      console.log('✅ Excel Manager initialized successfully');
-      console.log(`📁 Excel file: ${this.excelPath}`);
-      
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Excel Manager initialization failed:', error);
-      throw error;
+      if (!fs.existsSync(this.excelPath)) return true;
+      if (!dbPath || !fs.existsSync(dbPath)) return true;
+      return fs.statSync(dbPath).mtimeMs > fs.statSync(this.excelPath).mtimeMs;
+    } catch (_) {
+      return true;
     }
   }
 
-  /**
-   * Create Settings sheet - exact mirror of settings table
-   */
-  async createSettingsSheet() {
-    const sheet = this.workbook.addWorksheet('الإعدادات', {
-      properties: { rightToLeft: true }
-    });
-    
-    // Headers matching database columns
-    const headers = ['المفتاح', 'القيمة', 'تاريخ التحديث'];
-    sheet.addRow(headers);
-    
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6366f1' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Set column widths
-    sheet.columns = [
-      { width: 20 }, // key
-      { width: 25 }, // value
-      { width: 18 }  // updated_at
-    ];
-    
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+  _schedule(delay = BUILD_DELAY_MS) {
+    if (!this.storage) return;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      this.rebuildFromDatabase(this.storage, this.money).catch(() => {});
+    }, delay);
+    if (this.timer.unref) this.timer.unref();
   }
 
-  /**
-   * Create Categories sheet - exact mirror of categories table
-   */
-  async createCategoriesSheet() {
-    const sheet = this.workbook.addWorksheet('الفئات', {
-      properties: { rightToLeft: true }
-    });
-    
-    // Headers matching database columns
-    const headers = ['المعرف', 'الاسم', 'السعر', 'نشط', 'عداد التسلسل', 'تاريخ الإنشاء'];
-    sheet.addRow(headers);
-    
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '8b5cf6' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Set column widths
-    sheet.columns = [
-      { width: 8 },  // id
-      { width: 15 }, // name
-      { width: 10 }, // price
-      { width: 8 },  // active
-      { width: 12 }, // serial_counter
-      { width: 18 }  // created_at
-    ];
-    
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  }
-  /**
-   * Create Tickets sheet - exact mirror of tickets table
-   */
-  async createTicketsSheet() {
-    const sheet = this.workbook.addWorksheet('التذاكر', {
-      properties: { rightToLeft: true }
-    });
-    
-    // Headers matching database columns exactly
-    const headers = ['المعرف', 'الرقم التسلسلي', 'السنة', 'معرف الفئة', 'اسم الفئة', 'السعر', 'التاريخ', 'الوقت', 'الطابع الزمني'];
-    sheet.addRow(headers);
-    
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2563eb' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Set column widths
-    sheet.columns = [
-      { width: 8 },  // id
-      { width: 12 }, // serial_number
-      { width: 8 },  // year
-      { width: 10 }, // category_id
-      { width: 15 }, // category_name
-      { width: 10 }, // price
-      { width: 12 }, // date
-      { width: 10 }, // time
-      { width: 20 }  // timestamp
-    ];
-    
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  }
+  // Kept for the existing call sites: each one just asks for a new build.
+  async addTicket() { this._schedule(); }
+  async addExpense() { this._schedule(); }
+  async addCollection() { this._schedule(); }
+  async addFloatOperation() { this._schedule(); }
 
-  /**
-   * Create Expenses sheet - exact mirror of expenses table
-   */
-  async createExpensesSheet() {
-    const sheet = this.workbook.addWorksheet('المصروفات', {
-      properties: { rightToLeft: true }
-    });
-    
-    // Headers matching database columns exactly
-    const headers = ['المعرف', 'الوصف', 'المبلغ', 'التاريخ', 'الوقت', 'الطابع الزمني'];
-    sheet.addRow(headers);
-    
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'dc2626' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Set column widths
-    sheet.columns = [
-      { width: 8 },  // id
-      { width: 25 }, // description
-      { width: 12 }, // amount
-      { width: 12 }, // date
-      { width: 10 }, // time
-      { width: 20 }  // timestamp
-    ];
-    
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  }
-
-  /**
-   * Create Collections sheet - exact mirror of collections table
-   */
-  async createCollectionsSheet() {
-    const sheet = this.workbook.addWorksheet('عمليات التحصيل', {
-      properties: { rightToLeft: true }
-    });
-    
-    // Headers matching database columns exactly
-    const headers = ['المعرف', 'المبلغ', 'التاريخ', 'الوقت', 'الملاحظات', 'الطابع الزمني'];
-    sheet.addRow(headers);
-    
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '059669' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Set column widths
-    sheet.columns = [
-      { width: 8 },  // id
-      { width: 12 }, // amount
-      { width: 12 }, // date
-      { width: 10 }, // time
-      { width: 25 }, // notes
-      { width: 20 }  // timestamp
-    ];
-    
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  }
-
-  /**
-   * Create Change Float sheet - exact mirror of change_float table
-   */
-  async createChangeFloatSheet() {
-    const sheet = this.workbook.addWorksheet('صندوق الصرف', {
-      properties: { rightToLeft: true }
-    });
-
-    // Headers matching database columns exactly
-    const headers = ['المعرف', 'العملية', 'المبلغ', 'الرصيد بعد العملية', 'الملاحظة', 'التاريخ', 'الوقت', 'الطابع الزمني'];
-    sheet.addRow(headers);
-
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2563EB' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-
-    // Set column widths
-    sheet.columns = [
-      { width: 8 },  // id
-      { width: 12 }, // operation
-      { width: 12 }, // amount
-      { width: 18 }, // balance_after
-      { width: 25 }, // note
-      { width: 12 }, // date
-      { width: 10 }, // time
-      { width: 20 }  // timestamp
-    ];
-
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  }
-
-  /**
-   * Create Daily Summary sheet - exact mirror of daily_summary table
-   */
-  async createDailySummarySheet() {
-    const sheet = this.workbook.addWorksheet('الملخص اليومي', {
-      properties: { rightToLeft: true }
-    });
-    
-    // Headers matching database columns exactly
-    const headers = ['المعرف', 'التاريخ', 'إجمالي التذاكر', 'إجمالي الإيرادات', 'إجمالي المصروفات', 'صافي الإيرادات', 'النقد في اليد', 'تفصيل الفئات', 'تاريخ الإنشاء'];
-    sheet.addRow(headers);
-    
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '7c3aed' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Set column widths
-    sheet.columns = [
-      { width: 8 },  // id
-      { width: 12 }, // date
-      { width: 12 }, // total_tickets
-      { width: 15 }, // total_revenue
-      { width: 15 }, // total_expenses
-      { width: 15 }, // net_revenue
-      { width: 15 }, // cash_in_hand
-      { width: 30 }, // category_breakdown
-      { width: 18 }  // created_at
-    ];
-    
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  }
-
-  /**
-   * Create Audit Log sheet - exact mirror of audit_log table
-   */
-  async createAuditLogSheet() {
-    const sheet = this.workbook.addWorksheet('سجل المراجعة', {
-      properties: { rightToLeft: true }
-    });
-    
-    // Headers matching database columns exactly
-    const headers = ['المعرف', 'الإجراء', 'الكيان', 'معرف الكيان', 'التفاصيل', 'الطابع الزمني'];
-    sheet.addRow(headers);
-    
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'f59e0b' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Set column widths
-    sheet.columns = [
-      { width: 8 },  // id
-      { width: 15 }, // action
-      { width: 15 }, // entity
-      { width: 12 }, // entity_id
-      { width: 30 }, // details
-      { width: 20 }  // timestamp
-    ];
-    
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  }
-
-  /**
-   * Create Serial Resets sheet - exact mirror of serial_resets table
-   */
-  async createSerialResetsSheet() {
-    const sheet = this.workbook.addWorksheet('إعادة تعيين التسلسل', {
-      properties: { rightToLeft: true }
-    });
-    
-    // Headers matching database columns exactly
-    const headers = ['المعرف', 'السنة', 'تاريخ الإعادة', 'الطابع الزمني'];
-    sheet.addRow(headers);
-    
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '10b981' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Set column widths
-    sheet.columns = [
-      { width: 8 },  // id
-      { width: 10 }, // year
-      { width: 15 }, // reset_date
-      { width: 20 }  // timestamp
-    ];
-    
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  }
-
-  /**
-   * Create Email Log sheet - exact mirror of email_log table
-   */
-  async createEmailLogSheet() {
-    const sheet = this.workbook.addWorksheet('سجل البريد الإلكتروني', {
-      properties: { rightToLeft: true }
-    });
-    
-    // Headers matching database columns exactly
-    const headers = ['المعرف', 'المستقبل', 'الموضوع', 'الحالة', 'الخطأ', 'الطابع الزمني'];
-    sheet.addRow(headers);
-    
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'ef4444' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Set column widths
-    sheet.columns = [
-      { width: 8 },  // id
-      { width: 25 }, // recipient
-      { width: 30 }, // subject
-      { width: 12 }, // status
-      { width: 30 }, // error
-      { width: 20 }  // timestamp
-    ];
-    
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  }
-
-  /**
-   * Create Sync Status sheet - exact mirror of sync_status table
-   */
-  async createSyncStatusSheet() {
-    const sheet = this.workbook.addWorksheet('حالة المزامنة', {
-      properties: { rightToLeft: true }
-    });
-    
-    // Headers matching database columns exactly
-    const headers = ['المعرف', 'نوع المزامنة', 'الحالة', 'آخر مزامنة', 'الخطأ', 'الطابع الزمني'];
-    sheet.addRow(headers);
-    
-    // Style headers
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '3b82f6' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Set column widths
-    sheet.columns = [
-      { width: 8 },  // id
-      { width: 15 }, // sync_type
-      { width: 12 }, // status
-      { width: 18 }, // last_sync
-      { width: 30 }, // error
-      { width: 20 }  // timestamp
-    ];
-    
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  }
-
-  /**
-   * Add ticket to Excel - exact database mirror
-   */
-  async addTicket(ticket) {
-    if (!this.isInitialized) {
-      console.warn('⚠️ Excel Manager not initialized, skipping ticket add');
-      return;
-    }
-
-    try {
-      const sheet = this.workbook.getWorksheet('التذاكر');
-      
-      const row = [
-        ticket.id,
-        ticket.serial_number,
-        ticket.year,
-        ticket.category_id,
-        ticket.category_name,
-        ticket.price,
-        ticket.date,
-        ticket.time,
-        ticket.timestamp
-      ];
-      
-      sheet.addRow(row);
-      await this.save();
-      
-      console.log('📊 Ticket added to Excel');
-    } catch (error) {
-      console.error('❌ Failed to add ticket to Excel:', error);
-    }
-  }
-
-  /**
-   * Add expense to Excel - exact database mirror
-   */
-  async addExpense(expense) {
-    if (!this.isInitialized) {
-      console.warn('⚠️ Excel Manager not initialized, skipping expense add');
-      return;
-    }
-
-    try {
-      const sheet = this.workbook.getWorksheet('المصروفات');
-      
-      const row = [
-        expense.id,
-        expense.description,
-        expense.amount,
-        expense.date,
-        expense.time,
-        expense.timestamp
-      ];
-      
-      sheet.addRow(row);
-      await this.save();
-      
-      console.log('📊 Expense added to Excel');
-    } catch (error) {
-      console.error('❌ Failed to add expense to Excel:', error);
-    }
-  }
-
-  /**
-   * Add collection to Excel - exact database mirror
-   */
-  async addCollection(collection) {
-    if (!this.isInitialized) {
-      console.warn('⚠️ Excel Manager not initialized, skipping collection add');
-      return;
-    }
-
-    try {
-      const sheet = this.workbook.getWorksheet('عمليات التحصيل');
-      
-      const row = [
-        collection.id,
-        collection.amount,
-        collection.date,
-        collection.time,
-        collection.notes || '',
-        collection.timestamp
-      ];
-      
-      sheet.addRow(row);
-      await this.save();
-      
-      console.log('📊 Collection added to Excel');
-    } catch (error) {
-      console.error('❌ Failed to add collection to Excel:', error);
-    }
-  }
-
-  /**
-   * Add change float operation to Excel - exact database mirror
-   */
-  async addFloatOperation(operation) {
-    if (!this.isInitialized) {
-      console.warn('⚠️ Excel Manager not initialized, skipping float operation add');
-      return;
-    }
-
-    try {
-      let sheet = this.workbook.getWorksheet('صندوق الصرف');
-      if (!sheet) {
-        // Sheet may be missing on workbooks created before this feature existed
-        await this.createChangeFloatSheet();
-        sheet = this.workbook.getWorksheet('صندوق الصرف');
-      }
-
-      const opLabel = operation.operation === 'add' ? 'إضافة' : 'استرجاع';
-      const row = [
-        operation.id,
-        opLabel,
-        operation.amount,
-        operation.balance_after,
-        operation.note || '',
-        operation.date,
-        operation.time,
-        operation.timestamp || new Date().toISOString()
-      ];
-
-      sheet.addRow(row);
-      await this.save();
-
-      console.log('📊 Float operation added to Excel');
-    } catch (error) {
-      console.error('❌ Failed to add float operation to Excel:', error);
-    }
-  }
-
-  /**
-   * Add setting to Excel
-   */
-  async addSetting(setting) {
-    if (!this.isInitialized) return;
-
-    try {
-      const sheet = this.workbook.getWorksheet('الإعدادات');
-      const row = [setting.key, setting.value, setting.updated_at];
-      sheet.addRow(row);
-      await this.save();
-    } catch (error) {
-      console.error('❌ Failed to add setting to Excel:', error);
-    }
-  }
-
-  /**
-   * Add category to Excel
-   */
-  async addCategory(category) {
-    if (!this.isInitialized) return;
-
-    try {
-      const sheet = this.workbook.getWorksheet('الفئات');
-      const row = [
-        category.id,
-        category.name,
-        category.price,
-        category.active,
-        category.serial_counter,
-        category.created_at
-      ];
-      sheet.addRow(row);
-      await this.save();
-    } catch (error) {
-      console.error('❌ Failed to add category to Excel:', error);
-    }
-  }
-
-  /**
-   * Add daily summary to Excel
-   */
-  async addDailySummary(summary) {
-    if (!this.isInitialized) return;
-
-    try {
-      const sheet = this.workbook.getWorksheet('الملخص اليومي');
-      const row = [
-        summary.id,
-        summary.date,
-        summary.total_tickets,
-        summary.total_revenue,
-        summary.total_expenses,
-        summary.net_revenue,
-        summary.cash_in_hand,
-        summary.category_breakdown,
-        summary.created_at
-      ];
-      sheet.addRow(row);
-      await this.save();
-    } catch (error) {
-      console.error('❌ Failed to add daily summary to Excel:', error);
-    }
-  }
-
-  /**
-   * Add audit log entry to Excel
-   */
-  async addAuditLog(audit) {
-    if (!this.isInitialized) return;
-
-    try {
-      const sheet = this.workbook.getWorksheet('سجل المراجعة');
-      const row = [
-        audit.id,
-        audit.action,
-        audit.entity,
-        audit.entity_id,
-        audit.details,
-        audit.timestamp
-      ];
-      sheet.addRow(row);
-      await this.save();
-    } catch (error) {
-      console.error('❌ Failed to add audit log to Excel:', error);
-    }
-  }
-
-  /**
-   * Add serial reset to Excel
-   */
-  async addSerialReset(reset) {
-    if (!this.isInitialized) return;
-
-    try {
-      const sheet = this.workbook.getWorksheet('إعادة تعيين التسلسل');
-      const row = [reset.id, reset.year, reset.reset_date, reset.timestamp];
-      sheet.addRow(row);
-      await this.save();
-    } catch (error) {
-      console.error('❌ Failed to add serial reset to Excel:', error);
-    }
-  }
-
-  /**
-   * Add email log to Excel
-   */
-  async addEmailLog(email) {
-    if (!this.isInitialized) return;
-
-    try {
-      const sheet = this.workbook.getWorksheet('سجل البريد الإلكتروني');
-      const row = [
-        email.id,
-        email.recipient,
-        email.subject,
-        email.status,
-        email.error,
-        email.timestamp
-      ];
-      sheet.addRow(row);
-      await this.save();
-    } catch (error) {
-      console.error('❌ Failed to add email log to Excel:', error);
-    }
-  }
-
-  /**
-   * Add sync status to Excel
-   */
-  async addSyncStatus(sync) {
-    if (!this.isInitialized) return;
-
-    try {
-      const sheet = this.workbook.getWorksheet('حالة المزامنة');
-      const row = [
-        sync.id,
-        sync.sync_type,
-        sync.status,
-        sync.last_sync,
-        sync.error,
-        sync.timestamp
-      ];
-      sheet.addRow(row);
-      await this.save();
-    } catch (error) {
-      console.error('❌ Failed to add sync status to Excel:', error);
-    }
-  }
-
-  /**
-   * Rebuild Excel from database - complete mirror
-   */
+  /** Rebuild the whole file from the database now. */
   async rebuildFromDatabase(storage, money = null) {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-
+    if (this.building) await this.building.catch(() => {});
+    clearTimeout(this.timer);
+    this.timer = null;
+    this.building = this._build(storage || this.storage, money || this.money);
     try {
-      console.log('🔄 Rebuilding Excel from database...');
-      
-      // Clear existing data (keep headers)
-      const sheets = [
-        'الإعدادات', 'الفئات', 'التذاكر', 'المصروفات', 
-        'عمليات التحصيل', 'صندوق الصرف', 'الملخص اليومي', 'سجل المراجعة',
-        'إعادة تعيين التسلسل', 'سجل البريد الإلكتروني', 'حالة المزامنة'
-      ];
-
-      // Ensure the change float sheet exists on workbooks created before this feature
-      if (!this.workbook.getWorksheet('صندوق الصرف')) {
-        await this.createChangeFloatSheet();
-      }
-      
-      sheets.forEach(sheetName => {
-        const sheet = this.workbook.getWorksheet(sheetName);
-        if (sheet) {
-          const rowCount = sheet.rowCount;
-          if (rowCount > 1) {
-            sheet.spliceRows(2, rowCount - 1); // Remove all rows except header
-          }
-        }
-      });
-      
-      // Rebuild all data from database
-      await this.rebuildSettings(storage);
-      await this.rebuildCategories(storage);
-      await this.rebuildTickets(storage);
-      await this.rebuildExpenses(storage);
-      await this.rebuildCollections(storage);
-      await this.rebuildChangeFloat(storage);
-      if (money) this.rebuildMoneySheets(money.exportData());
-      await this.save();
-      // Note: Other tables (audit_log, daily_summary, etc.) would need similar methods
-      
-      console.log('✅ Excel rebuilt from database');
+      await this.building;
+      this.lastBuiltAt = new Date().toISOString();
+      this.lastError = null;
       return { success: true };
-      
     } catch (error) {
-      console.error('❌ Failed to rebuild Excel:', error);
+      this.lastError = error.message;
+      console.error('Excel build failed:', error.message);
       throw error;
+    } finally {
+      this.building = null;
     }
   }
 
-  /**
-   * Rebuild settings sheet from database
-   */
-  async rebuildSettings(storage) {
-    const settings = storage.getAllSettings();
-    const sheet = this.workbook.getWorksheet('الإعدادات');
-    
-    Object.entries(settings).forEach(([key, value]) => {
-      const row = [key, value, new Date().toISOString()];
-      sheet.addRow(row);
-    });
-  }
-
-  /**
-   * Rebuild categories sheet from database
-   */
-  async rebuildCategories(storage) {
-    const categories = storage.getCategories(false); // Get all categories
-    const sheet = this.workbook.getWorksheet('الفئات');
-    
-    categories.forEach(category => {
-      const row = [
-        category.id,
-        category.name,
-        category.price,
-        category.active,
-        category.serial_counter,
-        category.created_at
-      ];
-      sheet.addRow(row);
-    });
-  }
-
-  /**
-   * Rebuild tickets sheet from database
-   */
-  async rebuildTickets(storage) {
-    const tickets = storage.getTickets('2000-01-01', '2099-12-31');
-    const sheet = this.workbook.getWorksheet('التذاكر');
-    
-    tickets.forEach(ticket => {
-      const row = [
-        ticket.id,
-        ticket.serial_number,
-        ticket.year,
-        ticket.category_id,
-        ticket.category_name,
-        ticket.price,
-        ticket.date,
-        ticket.time,
-        ticket.timestamp
-      ];
-      sheet.addRow(row);
-    });
-  }
-
-  /**
-   * Rebuild expenses sheet from database
-   */
-  async rebuildExpenses(storage) {
-    const expenses = storage.getExpenses('2000-01-01', '2099-12-31');
-    const sheet = this.workbook.getWorksheet('المصروفات');
-    
-    expenses.forEach(expense => {
-      const row = [
-        expense.id,
-        expense.description,
-        expense.amount,
-        expense.date,
-        expense.time,
-        expense.timestamp
-      ];
-      sheet.addRow(row);
-    });
-  }
-
-  /**
-   * Rebuild collections sheet from database
-   */
-  async rebuildCollections(storage) {
-    const collections = storage.getCollections('2000-01-01', '2099-12-31');
-    const sheet = this.workbook.getWorksheet('عمليات التحصيل');
-    
-    collections.forEach(collection => {
-      const row = [
-        collection.id,
-        collection.amount,
-        collection.date,
-        collection.time,
-        collection.notes || '',
-        collection.timestamp
-      ];
-      sheet.addRow(row);
-    });
-  }
-
-  /**
-   * New money system sheets (expenses with how they were paid, collections, seller
-   * debts, refunds). Recreated from scratch on every rebuild.
-   */
-  rebuildMoneySheets(data) {
-    const make = (name, headers, rows, widths) => {
-      const old = this.workbook.getWorksheet(name);
-      if (old) this.workbook.removeWorksheet(old.id);
-      const sheet = this.workbook.addWorksheet(name, { properties: { rightToLeft: true } });
-      sheet.addRow(headers);
-      const h = sheet.getRow(1);
-      h.font = { bold: true, color: { argb: 'FFFFFF' } };
-      h.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '7C3AED' } };
-      h.alignment = { horizontal: 'center', vertical: 'middle' };
-      sheet.columns = widths.map(w => ({ width: w }));
-      sheet.views = [{ state: 'frozen', ySplit: 1 }];
-      rows.forEach(r => sheet.addRow(r));
+  async _build(storage, money) {
+    if (!storage) throw new Error('no database');
+    const rows = (sql) => {
+      const r = storage.db.exec(sql);
+      if (!r[0]) return [];
+      const cols = r[0].columns;
+      return r[0].values.map(v => Object.fromEntries(cols.map((c, i) => [c, v[i]])));
     };
+    const has = (table, col) => rows(`PRAGMA table_info(${table})`).some(c => c.name === col);
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'HammamPOS';
+    wb.created = new Date();
+
+    const refundCols = has('tickets', 'refunded_at');
+    const tickets = rows(`SELECT id, serial_number, year, category_name, price, date, time${refundCols ? ', refunded_at, refund_reason' : ''} FROM tickets ORDER BY id`);
+    const expenses = rows('SELECT id, date, time, description, amount FROM expenses ORDER BY date, id');
+
+    // Daily summary first: the sheet people open
+    const days = new Map();
+    const day = (d) => { if (!days.has(d)) days.set(d, { t: 0, s: 0, r: 0, e: 0 }); return days.get(d); };
+    for (const t of tickets) {
+      const x = day(t.date);
+      if (t.refunded_at) x.r++; else { x.t++; x.s += Number(t.price) || 0; }
+    }
+    for (const e of expenses) day(e.date).e += Number(e.amount) || 0;
+    const r2 = (n) => Math.round(n * 100) / 100;
+    this._sheet(wb, 'الملخص اليومي', ['التاريخ', 'التذاكر', 'المبيعات', 'المسترجعة', 'المصروفات', 'الصافي'],
+      [...days.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([d, x]) => [d, x.t, r2(x.s), x.r, r2(x.e), r2(x.s - x.e)]),
+      [12, 10, 12, 10, 12, 12]);
+
+    this._sheet(wb, 'التذاكر', ['المعرف', 'الرقم', 'الفئة', 'السعر', 'التاريخ', 'الوقت', 'مسترجعة', 'سبب الاسترجاع'],
+      tickets.map(t => [t.id, t.serial_number + '/' + t.year, t.category_name, t.price, t.date, t.time, t.refunded_at ? 'نعم' : '', t.refund_reason || '']),
+      [8, 12, 16, 10, 12, 10, 10, 28]);
+
+    this._sheet(wb, 'المصروفات', ['المعرف', 'التاريخ', 'الوقت', 'الوصف', 'المبلغ'],
+      expenses.map(e => [e.id, e.date, e.time, e.description, e.amount]),
+      [8, 12, 10, 34, 12]);
+
+    const collections = rows('SELECT id, date, time, amount, notes FROM collections ORDER BY date, id');
+    this._sheet(wb, 'عمليات التحصيل', ['المعرف', 'التاريخ', 'الوقت', 'المبلغ', 'ملاحظة'],
+      collections.map(c => [c.id, c.date, c.time, c.amount, c.notes || '']),
+      [8, 12, 10, 12, 34]);
+
+    if (typeof storage.getFloatHistory === 'function') {
+      const ops = storage.getFloatHistory().slice().reverse();
+      this._sheet(wb, 'صندوق الصرف', ['المعرف', 'العملية', 'المبلغ', 'الرصيد بعدها', 'ملاحظة', 'التاريخ', 'الوقت'],
+        ops.map(o => [o.id, o.operation === 'add' ? 'إضافة' : 'استرجاع', o.amount, o.balance_after, o.note || '', o.date, o.time]),
+        [8, 10, 12, 14, 28, 12, 10]);
+    }
+
+    if (money && typeof money.exportData === 'function') this._moneySheets(wb, money.exportData());
+
+    this.workbook = wb;
+    await this._writeAtomic(wb);
+  }
+
+  _sheet(wb, name, headers, data, widths) {
+    const sheet = wb.addWorksheet(name, { properties: { rightToLeft: true }, views: [{ state: 'frozen', ySplit: 1, rightToLeft: true }] });
+    sheet.columns = widths.map(w => ({ width: w }));
+    sheet.addRow(headers).font = { bold: true };
+    for (const r of data) sheet.addRow(r);
+    return sheet;
+  }
+
+  _moneySheets(wb, data) {
     const who = (x) => (x === 'manager' ? 'المدير' : 'البائع');
     const src = (x) => (x === 'manager' ? 'من جيب المدير' : 'من الصندوق');
     const late = (x) => ({ pending: 'قيد المراجعة', accepted: 'مقبول', rejected: 'مرفوض' }[x] || '');
     const types = { in_person: 'تحصيل شخصي', bank: 'إيداع بنكي', transfer: 'تحويل', on_behalf: 'دفع نيابة عنك' };
-
-    make('مصاريف (النظام الجديد)',
+    this._sheet(wb, 'مصاريف (النظام الجديد)',
       ['المعرف', 'التاريخ', 'الوصف', 'المورد', 'المبلغ الإجمالي', 'المدفوع', 'المتبقي', 'سجّله', 'وقت التسجيل'],
       data.expenses.map(e => {
         const paid = e.payments.filter(p => !p.late_status || p.late_status === 'accepted').reduce((a, p) => a + p.amount, 0);
         return [e.id, e.date, e.description, e.supplier || '', e.total, paid, Math.max(e.total - paid, 0), who(e.created_by), e.created_at];
       }),
       [8, 12, 28, 16, 14, 12, 12, 10, 20]);
-
-    make('دفعات المصاريف',
+    this._sheet(wb, 'دفعات المصاريف',
       ['المعرف', 'رقم المصروف', 'التاريخ', 'المبلغ', 'مصدر الدفع', 'إدخال متأخر', 'سجّله', 'وقت التسجيل'],
       data.payments.map(p => [p.id, p.expense_id, p.date, p.amount, src(p.source), late(p.late_status), who(p.created_by), p.created_at]),
       [8, 12, 12, 12, 16, 14, 10, 20]);
-
-    make('تحصيل (النظام الجديد)',
+    this._sheet(wb, 'تحصيل (النظام الجديد)',
       ['المعرف', 'النوع', 'المبلغ', 'المتوقع', 'المعدود', 'الفرق', 'تسديد للمدير', 'ربح', 'المرجع', 'المستلم', 'ملاحظة', 'سجّلها', 'الحالة', 'وقت التسجيل'],
       data.collections.map(c => [c.id, types[c.type] || c.type, c.amount,
         c.expected == null ? '' : c.expected, c.counted == null ? '' : c.counted,
@@ -892,9 +180,7 @@ class ExcelManager {
         c.repayment_part, c.profit_part, c.reference || '', c.recipient || '', c.note || '', who(c.recorded_by),
         c.cancelled_at ? 'ملغاة: ' + (c.cancel_reason || '') : 'سارية', c.created_at]),
       [8, 16, 12, 12, 12, 10, 14, 10, 14, 14, 20, 10, 22, 20]);
-
-    make('ديون البائع',
-      ['النوع', 'المبلغ', 'ملاحظة', 'الوقت'],
+    this._sheet(wb, 'ديون البائع', ['النوع', 'المبلغ', 'ملاحظة', 'الوقت'],
       [
         ...data.sellerDebts.map(d => ['نقص في العد', d.amount, d.note || '', d.created_at]),
         ...data.sellerDebtPayments.map(d => ['تسديد من البائع', -d.amount, d.note || '', d.created_at]),
@@ -902,67 +188,38 @@ class ExcelManager {
         ...data.corrections.filter(c => c.type === 'unexplained_surplus').map(c => ['زيادة غير مبررة', c.amount, c.note || '', c.created_at])
       ],
       [20, 12, 30, 20]);
-
-    make('تذاكر مسترجعة',
-      ['المعرف', 'التذكرة', 'الفئة', 'السعر', 'تاريخ البيع', 'وقت الاسترجاع', 'السبب'],
+    this._sheet(wb, 'تذاكر مسترجعة', ['المعرف', 'التذكرة', 'الفئة', 'السعر', 'تاريخ البيع', 'وقت الاسترجاع', 'السبب'],
       data.refundedTickets.map(t => [t.id, t.serial_number + '/' + t.year, t.category_name, t.price, t.date, t.refunded_at, t.refund_reason || '']),
       [8, 12, 14, 10, 12, 20, 30]);
   }
 
-  /**
-   * Rebuild change float sheet from database (chronological order)
-   */
-  async rebuildChangeFloat(storage) {
-    if (typeof storage.getFloatHistory !== 'function') return;
-    const history = storage.getFloatHistory(); // newest first
-    const sheet = this.workbook.getWorksheet('صندوق الصرف');
-    if (!sheet) return;
-
-    history.slice().reverse().forEach(op => {
-      const opLabel = op.operation === 'add' ? 'إضافة' : 'استرجاع';
-      const row = [
-        op.id,
-        opLabel,
-        op.amount,
-        op.balance_after,
-        op.note || '',
-        op.date,
-        op.time,
-        op.timestamp
-      ];
-      sheet.addRow(row);
-    });
-  }
-
-  /**
-   * Save workbook to file
-   */
-  async save() {
+  async _writeAtomic(wb) {
+    const dir = path.dirname(this.excelPath);
+    fs.mkdirSync(dir, { recursive: true });
+    const tmp = this.excelPath + '.tmp';
+    await wb.xlsx.writeFile(tmp);
     try {
-      // Ensure directory exists
-      const dir = path.dirname(this.excelPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      
-      await this.workbook.xlsx.writeFile(this.excelPath);
-      console.log('💾 Excel file saved');
+      fs.renameSync(tmp, this.excelPath);
     } catch (error) {
-      console.error('❌ Failed to save Excel file:', error);
-      throw error;
+      // The file is open in Excel (Windows locks it): keep the new copy next to it.
+      const side = this.excelPath.replace(/\.xlsx$/i, '') + ' (جديد).xlsx';
+      try { fs.renameSync(tmp, side); } catch (_) { fs.rmSync(tmp, { force: true }); }
+      throw new Error('الملف مفتوح في Excel. أغلقه، أو استعمل النسخة: ' + path.basename(side));
     }
   }
 
-  /**
-   * Get Excel file status
-   */
   getStatus() {
+    const exists = fs.existsSync(this.excelPath);
+    const st = exists ? fs.statSync(this.excelPath) : null;
     return {
       initialized: this.isInitialized,
       filePath: this.excelPath,
-      exists: fs.existsSync(this.excelPath),
-      size: fs.existsSync(this.excelPath) ? fs.statSync(this.excelPath).size : 0,
-      lastModified: fs.existsSync(this.excelPath) ? fs.statSync(this.excelPath).mtime : null
+      exists,
+      size: st ? st.size : 0,
+      lastModified: st ? st.mtime : null,
+      lastBuiltAt: this.lastBuiltAt,
+      pending: !!this.timer || !!this.building,
+      lastError: this.lastError
     };
   }
 }
