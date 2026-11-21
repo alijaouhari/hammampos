@@ -67,9 +67,9 @@
           ]
         }
       ],
-      "icon": "resources/icon.ico",
-      "requestedExecutionLevel": "requireAdministrator",
-      "signAndEditExecutable": false,
+      "icon": "assets/icon.png",
+      "requestedExecutionLevel": "asInvoker",
+      "signAndEditExecutable": true,
       "signingHashAlgorithms": []
     },
     "nsis": {

@@ -4,99 +4,135 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HammamPOS — لوحة المراقبة</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0a0a0b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-:root{--bg:#f1f5f9;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--brand:#1d4ed8;--brand2:#4c1d95;--green:#059669;--red:#dc2626;--amber:#b45309;--violet:#7c3aed;--radius:14px}
+:root{--bg:#0a0a0b;--panel:#121214;--panel2:#18181b;--line:#232327;--ink:#ededef;--muted:#8b8b93;--dim:#5f5f67;--accent:#3ecf8e;--warn:#f5a524;--bad:#f06464;--radius:12px}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+html{color-scheme:dark}
+body{font-family:'IBM Plex Sans Arabic',system-ui,'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;min-height:100vh;-webkit-font-smoothing:antialiased}
 .hidden{display:none!important}
-.login-container{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1e3a8a,#4c1d95)}
-.login-box{background:#fff;padding:2rem;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.25);width:90%;max-width:400px;text-align:center}
-.login-box h1{font-size:1.9rem;margin-bottom:0.3rem;color:var(--brand)}
-.login-box input{width:100%;padding:0.75rem;border:2px solid #cbd5e1;border-radius:10px;font-size:1rem;margin-bottom:1rem;background:#f8fafc}
-.login-box button{width:100%;padding:0.8rem;background:var(--brand);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer}
-.login-box .link-btn{background:none;color:var(--brand);width:auto;padding:0;margin-top:1rem;font-weight:500;text-decoration:underline;font-size:0.95rem}
-.login-box button:disabled{opacity:0.6;cursor:wait}
-.login-box p.sub{margin-bottom:1.5rem;color:var(--muted)}
-.login-box .msg{margin:0 0 1rem 0;text-align:right}
-/* top bar + navigation */
-.topbar{background:linear-gradient(90deg,#1e3a8a,#4c1d95);color:#fff;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,0.15)}
-.topbar-in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:1rem;padding:0.7rem 1.2rem;flex-wrap:wrap}
-.brand{font-size:1.25rem;font-weight:800;display:flex;align-items:center;gap:0.5rem;margin-left:auto}
-.nav{display:flex;gap:0.3rem;flex-wrap:wrap}
-.nav button{background:rgba(255,255,255,0.12);border:none;color:#fff;padding:0.5rem 0.9rem;border-radius:10px;cursor:pointer;font-size:0.95rem;position:relative}
-.nav button.active{background:#fff;color:#1e3a8a;font-weight:700}
-.nav .badge{position:absolute;top:-6px;left:-6px;background:#ef4444;color:#fff;border-radius:999px;font-size:0.72rem;padding:0 0.4rem;min-width:1.2rem;line-height:1.2rem}
-.logout{background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:0.45rem 0.8rem;border-radius:10px;cursor:pointer}
-.container{max-width:1280px;margin:0 auto;padding:1.2rem}
-h2.section{font-size:1.15rem;margin:1.4rem 0 0.8rem;color:#1e293b;display:flex;align-items:center;gap:0.5rem}
-/* cards */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.8rem}
-.stat{background:var(--card);border-radius:var(--radius);padding:1rem 1.1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);border-top:4px solid var(--brand)}
-.stat .k{color:var(--muted);font-size:0.85rem}
-.stat .v{font-size:1.6rem;font-weight:800;margin-top:0.25rem;direction:ltr;text-align:right}
-.stat .s{color:var(--muted);font-size:0.78rem;margin-top:0.2rem}
-.stat.green{border-top-color:var(--green)}.stat.green .v{color:var(--green)}
-.stat.red{border-top-color:var(--red)}.stat.red .v{color:var(--red)}
-.stat.amber{border-top-color:#f59e0b}.stat.amber .v{color:var(--amber)}
-.stat.violet{border-top-color:var(--violet)}.stat.violet .v{color:var(--violet)}
-.hammams{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1rem}
-.hcard{background:var(--card);border-radius:var(--radius);box-shadow:0 1px 3px rgba(15,23,42,0.08);overflow:hidden;display:flex;flex-direction:column}
-.hcard-head{padding:0.9rem 1.1rem;display:flex;justify-content:space-between;align-items:center;gap:0.5rem;border-bottom:1px solid var(--line)}
-.hcard-head h3{font-size:1.15rem}
-.pill{border-radius:999px;padding:0.15rem 0.6rem;font-size:0.8rem;font-weight:700;white-space:nowrap}
-.pill.on{background:#dcfce7;color:#166534}.pill.late{background:#fef3c7;color:#92400e}.pill.off{background:#fee2e2;color:#991b1b}.pill.none{background:#f1f5f9;color:#475569}
-.hcard-body{padding:0.9rem 1.1rem;display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem}
-.mini .k{color:var(--muted);font-size:0.75rem}.mini .v{font-weight:800;font-size:1.05rem;direction:ltr;text-align:right}
-.hcard-flags{padding:0 1.1rem 0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap}
-.flag{background:#fef2f2;color:#991b1b;border-radius:8px;padding:0.15rem 0.5rem;font-size:0.8rem}
-.flag.amber{background:#fffbeb;color:#92400e}.flag.ok{background:#f0fdf4;color:#166534}
-.hcard-foot{margin-top:auto;padding:0.7rem 1.1rem;background:#f8fafc;display:flex;gap:0.5rem;flex-wrap:wrap;border-top:1px solid var(--line)}
-.btn{border:none;border-radius:10px;padding:0.5rem 0.9rem;cursor:pointer;font-weight:700;font-size:0.9rem;text-decoration:none;display:inline-block}
-.btn.primary{background:var(--brand2);color:#fff}.btn.light{background:#e2e8f0;color:#0f172a}.btn.blue{background:var(--brand);color:#fff}
-.panel{background:var(--card);border-radius:var(--radius);box-shadow:0 1px 3px rgba(15,23,42,0.08);padding:1rem 1.1rem;margin-bottom:1rem}
-.panel-head{display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.6rem}
-.seg{display:inline-flex;background:#f1f5f9;border-radius:10px;padding:0.2rem}
-.seg button{border:none;background:transparent;padding:0.35rem 0.8rem;border-radius:8px;cursor:pointer;font-weight:600;color:#334155}
-.seg button.active{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.1);color:#1e3a8a}
-select{padding:0.4rem 0.6rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff}
-.chart-box{position:relative;height:300px}
-table.t{width:100%;border-collapse:collapse}
-table.t th{background:#f8fafc;color:var(--muted);font-size:0.82rem;text-align:right;padding:0.55rem;border-bottom:1px solid var(--line)}
-table.t td{padding:0.55rem;border-bottom:1px solid #f1f5f9}
-.num{direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
-.alert{display:flex;gap:0.7rem;padding:0.75rem 0.9rem;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,0.06);margin-bottom:0.5rem;align-items:flex-start;border-right:4px solid #cbd5e1}
-.alert.unread{background:#eff6ff;border-right-color:var(--brand)}
-.alert.warn{border-right-color:#f59e0b}.alert.bad{border-right-color:var(--red)}
-.alert .ico{font-size:1.3rem}.alert .ttl{font-weight:700}.alert .sub{color:var(--muted);font-size:0.85rem;margin-top:0.15rem}
-.empty{color:var(--muted);text-align:center;padding:1.5rem}
-.updated{color:var(--muted);font-size:0.8rem}
-/* kept from the previous dashboard (devices / download / settings) */
-.back-btn{background:#64748b;color:#fff;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;margin-bottom:1rem}
-.settings-section{background:#fff;padding:1.3rem;border-radius:var(--radius);margin-bottom:1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08)}
-.settings-section h3{margin-bottom:1rem;color:var(--brand)}
-.settings-section input{padding:0.55rem;border:2px solid #cbd5e1;border-radius:8px;margin-bottom:0.5rem;width:100%;max-width:340px;background:#f8fafc}
-.settings-section button{padding:0.5rem 1rem;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-top:0.5rem}
-.btn-blue{background:var(--brand);color:#fff}.btn-red{background:#ef4444;color:#fff}
-.loc-item{display:flex;justify-content:space-between;align-items:center;padding:0.75rem;border-bottom:1px solid #f1f5f9}
-.msg{padding:0.5rem;border-radius:6px;margin-top:0.5rem;font-size:0.9rem}.msg-ok{background:#d1fae5;color:#065f46}.msg-err{background:#fee2e2;color:#991b1b}
-@media (max-width:640px){
-  .topbar-in{padding:0.6rem}.brand{font-size:1.05rem}.nav button{padding:0.45rem 0.6rem;font-size:0.85rem}
-  .container{padding:0.7rem}.stat .v{font-size:1.3rem}.hammams{grid-template-columns:1fr}.chart-box{height:240px}
-  .hcard-body{grid-template-columns:repeat(2,1fr)}
-  .topbar-in{gap:0.5rem}.brand{flex:1}
-  .nav{order:3;width:100%;flex-wrap:nowrap;overflow-x:auto;padding-top:6px;scrollbar-width:none}
-  .nav button{white-space:nowrap;flex:0 0 auto}
+a{color:inherit}
+.num{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;text-align:right}
+/* login */
+.login-container{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+.login-box{background:var(--panel);border:1px solid var(--line);padding:32px 28px;border-radius:16px;width:100%;max-width:380px;text-align:center}
+.login-box .logo{width:48px;height:48px;margin:0 auto 14px;display:block}
+.login-box h1{font-size:20px;font-weight:600;margin-bottom:4px}
+.login-box p.sub{margin-bottom:22px;color:var(--muted);font-size:13px}
+.login-box input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;margin-bottom:12px;background:var(--bg);color:var(--ink);outline:none}
+.login-box input:focus{border-color:#3a3a40}
+.login-box button{width:100%;padding:11px;background:var(--ink);color:var(--bg);border:none;border-radius:10px;font:inherit;font-weight:600;cursor:pointer}
+.login-box .link-btn{background:none;color:var(--muted);width:auto;padding:0;margin-top:14px;font-weight:400;text-decoration:underline;font-size:13px}
+.login-box button:disabled{opacity:.6;cursor:wait}
+.login-box .msg{margin:0 0 12px 0;text-align:right}
+/* layout: side menu + content */
+#dashboard-view{display:flex;min-height:100vh}
+.side{width:220px;flex:none;border-left:1px solid var(--line);padding:20px 12px;display:flex;flex-direction:column;gap:2px;position:sticky;top:0;height:100vh}
+.brand{font-weight:600;padding:2px 10px 22px;display:flex;align-items:center;gap:10px;font-size:15px}
+.brand img{width:24px;height:24px;display:block}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button,.side .logout{font:inherit;background:none;border:none;color:var(--muted);text-align:right;padding:8px 10px;border-radius:8px;display:flex;align-items:center;gap:10px;cursor:pointer;width:100%}
+.nav button:hover,.side .logout:hover{color:var(--ink)}
+.nav button.active{background:#1b1b1f;color:var(--ink)}
+.nav svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.nav .badge{margin-right:auto;font-size:11px;color:var(--bg);background:var(--accent);border-radius:9px;padding:0 6px;line-height:18px;font-weight:600}
+.side .bottom{margin-top:auto;display:flex;flex-direction:column;gap:2px}
+.container{flex:1;min-width:0;max-width:1180px;padding:28px 32px 60px}
+h2.section{font-size:15px;font-weight:600;margin:28px 0 12px;display:flex;align-items:baseline;gap:10px}
+.view>h2.section:first-child{margin-top:0}
+h3{font-size:13px;font-weight:500;color:var(--muted)}
+/* numbers */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.stat .k{color:var(--muted);font-size:12px}
+.stat .v{font-size:22px;font-weight:600;margin-top:6px;letter-spacing:-0.02em;direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
+.stat .s{color:var(--muted);font-size:12px;margin-top:4px}
+.stat.green .s{color:var(--accent)}.stat.red .s,.stat.red .v{color:var(--bad)}.stat.amber .s{color:var(--warn)}
+/* hammam cards */
+.hammams{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.hcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column}
+.hcard-head{padding:16px 16px 0;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hcard-head h3{font-size:15px;font-weight:600;color:var(--ink)}
+.pill{font-size:11px;border:1px solid var(--line);color:var(--muted);padding:1px 8px;border-radius:9px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-weight:400;vertical-align:middle}
+.pill:before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.on{color:var(--accent);border-color:rgba(62,207,142,.3)}.pill.late{color:var(--warn);border-color:rgba(245,165,36,.3)}.pill.off{color:var(--bad);border-color:rgba(240,100,100,.3)}
+.hcard-body{padding:14px 16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px 10px}
+.mini .k{color:var(--muted);font-size:11px}.mini .v{font-size:15px;font-weight:500;direction:ltr;text-align:right;font-variant-numeric:tabular-nums;margin-top:1px}
+.hcard-flags{padding:0 16px 12px;display:flex;gap:6px 14px;flex-wrap:wrap}
+.flag{font-size:12px;color:var(--bad);display:inline-flex;align-items:center;gap:6px}
+.flag:before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.flag.amber{color:var(--warn)}.flag.ok{color:var(--muted)}
+.hcard-foot{margin-top:auto;padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line)}
+.btn,.back-btn{font:inherit;font-size:12px;color:var(--ink);background:#1b1b1f;border:1px solid var(--line);padding:6px 12px;border-radius:8px;text-decoration:none;cursor:pointer;display:inline-block;white-space:nowrap}
+.btn:hover,.back-btn:hover{background:#222226}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+.back-btn{margin-bottom:16px}
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{border:none;background:none;color:var(--muted);font:inherit;font-size:12px;padding:3px 10px;border-radius:6px;cursor:pointer}
+.seg button.active{background:#232327;color:var(--ink)}
+select{font:inherit;font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.chart-box{position:relative;height:280px}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{color:var(--muted);font-weight:400;font-size:12px;text-align:right;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.t td{padding:10px;border-bottom:1px solid var(--line)}
+table.t tr:last-child td{border-bottom:none}
+/* alerts */
+.alert{display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line);align-items:flex-start}
+.panel .alert:first-child,#ov-alerts .alert:first-child{border-top:none}
+.alert .ico{width:7px;height:7px;border-radius:50%;background:var(--dim);margin-top:7px;flex:none;font-size:0}
+.alert.unread .ico{background:var(--accent)}
+.alert.warn .ico{background:var(--warn)}.alert.bad .ico{background:var(--bad)}
+.alert .ttl{font-size:13px}.alert .sub{color:var(--muted);font-size:12px;margin-top:2px}
+.alert:not(.unread) .ttl{color:#c4c4ca}
+.empty{color:var(--muted);text-align:center;padding:20px;font-size:13px}
+.updated{color:var(--muted);font-size:12px;font-weight:400}
+/* devices / download / settings */
+.settings-section{background:var(--panel);border:1px solid var(--line);padding:18px;border-radius:var(--radius);margin-bottom:12px}
+.settings-section h3{margin-bottom:12px;font-size:14px;color:var(--ink);font-weight:600}
+.settings-section p,.settings-section li{color:var(--muted)}
+.settings-section input,.settings-section textarea{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;width:100%;max-width:360px;background:var(--bg);color:var(--ink)}
+.settings-section button{font:inherit;font-size:13px;padding:7px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;margin-top:6px;background:#1b1b1f;color:var(--ink)}
+.btn-blue{background:#1b1b1f;color:var(--ink)}
+.settings-section .btn-red,.btn-red{color:var(--bad);border-color:rgba(240,100,100,.3)}
+.settings-section button.primary-act{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+.loc-item{display:flex;justify-content:space-between;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+.loc-item:last-child{border-bottom:none}
+.msg{padding:8px 10px;border-radius:8px;margin-top:8px;font-size:13px;border:1px solid var(--line)}
+.msg-ok{background:rgba(62,207,142,.08);color:#8ee6bd;border-color:rgba(62,207,142,.25)}
+.msg-err{background:rgba(240,100,100,.08);color:#f5a3a3;border-color:rgba(240,100,100,.25)}
+.msg-info{background:#16181d;color:#a9b4c6}
+.dl-btn{display:inline-block;background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;text-decoration:none;font-weight:600}
+@media (max-width:860px){
+  #dashboard-view{flex-direction:column}
+  .side{width:auto;height:auto;position:sticky;top:0;z-index:50;background:var(--bg);flex-direction:row;flex-wrap:wrap;align-items:center;border-left:none;border-bottom:1px solid var(--line);padding:8px 10px;gap:6px}
+  .brand{padding:0 4px;font-size:14px;gap:8px}.brand img{width:24px;height:24px}
+  .nav{flex-direction:row;overflow-x:auto;scrollbar-width:none;flex:1 1 100%;order:3}
+  .nav button{white-space:nowrap;width:auto;padding:7px 10px}
+  .nav svg{display:none}
+  .side .bottom{margin:0 auto 0 0;flex-direction:row;flex:0 0 auto;order:2}.side .logout{width:auto;padding:7px 8px;font-size:12px}
+  .container{padding:16px 14px 48px}
+  .stats{grid-template-columns:1fr 1fr;gap:8px}.stat{padding:12px}.stat .v{font-size:18px}
+  .hammams{grid-template-columns:1fr}.hcard-body{grid-template-columns:repeat(2,1fr)}
+  .chart-box{height:230px}
+  .loc-item{flex-direction:column;gap:10px}
 }
 </style>
 </head>
 <body>
 <div id="loading-view" class="login-container">
-<p style="color:#e2e8f0">جاري التحميل...</p>
+<p style="color:#8b8b93">جاري التحميل...</p>
 </div>
 <div id="login-view" class="login-container hidden">
 <div class="login-box">
+<img class="logo" src="logo.svg" alt="">
 <h1>HammamPOS</h1>
 <p class="sub">لوحة المراقبة</p>
 <div id="login-msg"></div>
@@ -125,43 +161,45 @@ table.t td{padding:0.55rem;border-bottom:1px solid #f1f5f9}
 </div>
 </div>
 <div id="dashboard-view" class="hidden">
-<div class="topbar"><div class="topbar-in">
-<div class="brand">🛁 HammamPOS</div>
+<aside class="side">
+<div class="brand"><img src="logo.svg" alt="">HammamPOS</div>
 <nav class="nav" id="nav">
-<button data-view="overview" onclick="go('overview')">🏠 الرئيسية</button>
-<button data-view="charts" onclick="go('charts')">📈 الإحصائيات</button>
-<button data-view="alerts" onclick="go('alerts')">🔔 التنبيهات<span class="badge hidden" id="alerts-badge"></span></button>
-<button data-view="devices" onclick="go('devices')">📱 الأجهزة</button>
-<button data-view="download" onclick="go('download')">⬇ التطبيق</button>
-<button data-view="settings" onclick="go('settings')">⚙️</button>
+<button data-view="overview" onclick="go('overview')"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>الرئيسية</button>
+<button data-view="charts" onclick="go('charts')"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>الإحصائيات</button>
+<button data-view="alerts" onclick="go('alerts')"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4"/></svg>التنبيهات<span class="badge hidden" id="alerts-badge"></span></button>
+<button data-view="devices" onclick="go('devices')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>الأجهزة</button>
+<button data-view="download" onclick="go('download')"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>التطبيق</button>
 </nav>
-<button class="logout" onclick="logout()">خروج</button>
-</div></div>
+<div class="bottom nav">
+<button data-view="settings" onclick="go('settings')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>الإعدادات</button>
+<button class="logout" onclick="logout()"><svg viewBox="0 0 24 24"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l-5-5 5-5M5 12h11"/></svg>خروج</button>
+</div>
+</aside>
 <div class="container">
 
 <div id="view-overview" class="view">
-<div class="panel-head" style="margin-top:0.3rem"><h2 class="section" style="margin:0">اليوم <span class="updated" id="ov-date"></span></h2><span class="updated" id="ov-updated"></span></div>
+<div class="panel-head"><h2 class="section" style="margin:0">اليوم <span class="updated" id="ov-date"></span></h2><span class="updated" id="ov-updated"></span></div>
 <div class="stats" id="ov-stats"></div>
 <h2 class="section">الحمامات</h2>
 <div class="hammams" id="ov-hammams"></div>
 <div class="panel" style="margin-top:1rem">
-<div class="panel-head"><h3>📈 المبيعات — آخر 14 يوماً (كل الحمامات)</h3><button class="btn light" onclick="go('charts')">المزيد</button></div>
+<div class="panel-head"><h3>المبيعات — آخر 14 يوماً</h3><button class="btn light" onclick="go('charts')">المزيد</button></div>
 <div class="chart-box" dir="ltr" style="height:220px"><canvas id="ov-chart"></canvas></div>
 </div>
 <div class="panel">
-<div class="panel-head"><h3>🔔 آخر التنبيهات</h3><button class="btn light" onclick="go('alerts')">الكل</button></div>
+<div class="panel-head"><h3>آخر التنبيهات</h3><button class="btn light" onclick="go('alerts')">الكل</button></div>
 <div id="ov-alerts"></div>
 </div>
 </div>
 
 <div id="view-hammam" class="view hidden">
-<button class="back-btn" onclick="go('overview')">→ العودة</button>
+<button class="back-btn" onclick="go('overview')">رجوع</button>
 <div class="panel-head"><h2 class="section" style="margin:0" id="hm-title"></h2><div id="hm-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap"></div></div>
 <p class="updated" id="hm-updated" style="margin-bottom:0.6rem"></p>
 <div id="hm-flags" class="hcard-flags" style="padding:0 0 0.6rem"></div>
 <div class="stats" id="hm-stats"></div>
 <div class="panel" style="margin-top:1rem">
-<div class="panel-head"><h3>📈 المبيعات</h3><div class="seg" id="hm-seg"><button data-p="day" class="active">يومي</button><button data-p="week">أسبوعي</button><button data-p="month">شهري</button></div></div>
+<div class="panel-head"><h3>المبيعات</h3><div class="seg" id="hm-seg"><button data-p="day" class="active">يومي</button><button data-p="week">أسبوعي</button><button data-p="month">شهري</button></div></div>
 <div class="chart-box" dir="ltr"><canvas id="hm-chart"></canvas></div>
 </div>
 <div class="panel"><h3 style="margin-bottom:0.6rem">مبيعات اليوم حسب الفئة</h3><div id="hm-cats"></div></div>
@@ -171,7 +209,7 @@ table.t td{padding:0.55rem;border-bottom:1px solid #f1f5f9}
 <div id="view-charts" class="view hidden">
 <div class="panel">
 <div class="panel-head">
-<h3>📈 الإحصائيات</h3>
+<h3>الإحصائيات</h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
 <select id="ch-loc" onchange="renderCharts()"></select>
 <div class="seg" id="ch-seg"><button data-p="day" class="active">يومي</button><button data-p="week">أسبوعي</button><button data-p="month">شهري</button></div>
@@ -185,16 +223,16 @@ table.t td{padding:0.55rem;border-bottom:1px solid #f1f5f9}
 
 <div id="view-alerts" class="view hidden">
 <div class="panel" id="al-now-box">
-<h3 style="margin-bottom:0.6rem">⚠ يحتاج انتباهك الآن</h3>
+<h3 style="margin-bottom:0.6rem">يحتاج انتباهك الآن</h3>
 <div id="al-now"></div>
 </div>
 <div class="panel">
 <div class="panel-head">
-<h3>🔔 سجل التنبيهات</h3>
+<h3>سجل التنبيهات</h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
 <select id="al-loc" onchange="renderAlerts()"></select>
 <div class="seg" id="al-seg"><button data-f="all" class="active">الكل</button><button data-f="unread">غير المقروءة</button></div>
-<button class="btn light" onclick="markAllRead()">✓ تعليم الكل كمقروء</button>
+<button class="btn light" onclick="markAllRead()">تعليم الكل كمقروء</button>
 </div>
 </div>
 <div id="al-list"></div>
@@ -202,55 +240,55 @@ table.t td{padding:0.55rem;border-bottom:1px solid #f1f5f9}
 </div>
 
 <div id="view-devices" class="view hidden">
-<h2 class="section" style="margin-top:0.3rem">📱 الأجهزة (الفروع)</h2>
+<h2 class="section">الأجهزة (الفروع)</h2>
 <div class="settings-section">
 <h3>إضافة جهاز جديد</h3>
-<p style="color:#475569;margin-bottom:0.5rem;line-height:1.8">اكتب اسم الفرع ثم اضغط «إنشاء». سيظهر «رمز الربط»: انسخه والصقه في التطبيق على الجهاز: الإعدادات ← السحابة ← «رمز الربط» ← ربط.</p>
+<p style="color:var(--muted);margin-bottom:0.5rem;line-height:1.8">اكتب اسم الفرع ثم اضغط «إنشاء». سيظهر «رمز الربط»: انسخه والصقه في التطبيق على الجهاز: الإعدادات ← السحابة ← «رمز الربط» ← ربط.</p>
 <input type="text" id="new-device-name" placeholder="اسم الفرع، مثال: حمام الهدى - الفرع الثاني">
-<br><button class="btn-blue" onclick="createDevice()">إنشاء</button>
+<br><button class="primary-act" onclick="createDevice()">إنشاء</button>
 <div id="new-device-result"></div>
 </div>
 <div class="settings-section">
 <h3>الأجهزة المرتبطة</h3>
 <div id="devices-list"></div>
-<p style="color:#64748b;font-size:0.85rem;margin-top:0.75rem">الجهاز يرسل إشارة كل 15 ثانية. «اختبار الاتصال» يطلب من الجهاز الرد الآن. الأجهزة التي تعمل بنسخة أقدم من 2.8.29 لا ترسل إشارة: حدّثها أولاً.</p>
+<p style="color:var(--muted);font-size:0.85rem;margin-top:0.75rem">الجهاز يرسل إشارة كل 15 ثانية. «اختبار الاتصال» يطلب من الجهاز الرد الآن. الأجهزة التي تعمل بنسخة أقدم من 2.8.29 لا ترسل إشارة: حدّثها أولاً.</p>
 </div>
 </div>
 
 <div id="view-download" class="view hidden">
-<h2 class="section" style="margin-top:0.3rem">⬇ تحميل HammamPOS</h2>
+<h2 class="section">تحميل HammamPOS</h2>
 <div class="settings-section">
 <h3>آخر نسخة</h3>
-<p id="dl-version" style="margin-bottom:0.75rem;color:#334155">جاري البحث عن آخر نسخة...</p>
-<a id="dl-link" href="https://github.com/alijaouhari/hammampos/releases/latest" target="_blank" rel="noopener" style="display:inline-block;background:#1d4ed8;color:white;padding:0.7rem 1.4rem;border-radius:10px;text-decoration:none;font-weight:700">تحميل التطبيق (Windows)</a>
-<p id="dl-size" style="margin-top:0.5rem;color:#64748b;font-size:0.9rem"></p>
+<p id="dl-version" style="margin-bottom:0.75rem;color:var(--muted)">جاري البحث عن آخر نسخة...</p>
+<a id="dl-link" href="https://github.com/alijaouhari/hammampos/releases/latest" target="_blank" rel="noopener" class="dl-btn">تحميل التطبيق (Windows)</a>
+<p id="dl-size" style="margin-top:0.5rem;color:var(--muted);font-size:0.9rem"></p>
 </div>
 <div class="settings-section">
 <h3>طريقة التثبيت على جهاز جديد</h3>
-<ol style="padding-right:1.2rem;line-height:2;color:#334155">
+<ol style="padding-right:1.2rem;line-height:2;color:var(--muted)">
 <li>حمّل الملف من الزر أعلاه (ملف zip).</li>
 <li>انقر عليه بالزر الأيمن واختر «استخراج الكل» إلى مجلد مثل C:\HammamPOS.</li>
 <li>افتح المجلد وشغّل HammamPOS.exe. يمكنك إنشاء اختصار على سطح المكتب.</li>
 <li>عند أول تشغيل: أدخل اسم الحمام، الفئات والأسعار، ثم كلمة مرور الإدارة.</li>
 <li>لربط الجهاز بهذه اللوحة: صفحة «الأجهزة» هنا ← إنشاء، ثم الصق الرمز في التطبيق: الإعدادات ← السحابة.</li>
 </ol>
-<p style="color:#64748b;font-size:0.9rem">إذا ظهر تحذير ويندوز SmartScreen: اختر «مزيد من المعلومات» ثم «تشغيل على أي حال».</p>
+<p style="color:var(--muted);font-size:0.9rem">إذا ظهر تحذير ويندوز SmartScreen: اختر «مزيد من المعلومات» ثم «تشغيل على أي حال».</p>
 </div>
 </div>
 
 <div id="view-settings" class="view hidden">
-<h2 class="section" style="margin-top:0.3rem">⚙️ الإعدادات</h2>
+<h2 class="section">الإعدادات</h2>
 <div class="settings-section">
 <h3>تغيير كلمة المرور</h3>
 <input type="password" id="current-password" placeholder="كلمة المرور الحالية" autocomplete="current-password">
 <br><input type="password" id="new-password" placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)" autocomplete="new-password">
 <br><input type="password" id="confirm-password" placeholder="تأكيد كلمة المرور الجديدة" autocomplete="new-password">
-<br><button class="btn-blue" id="pw-btn" onclick="changePassword()">حفظ</button>
+<br><button class="primary-act" id="pw-btn" onclick="changePassword()">حفظ</button>
 <div id="pw-msg"></div>
 </div>
 <div class="settings-section">
 <h3>حذف فرع</h3>
-<p style="color:#475569">لحذف فرع وكل بياناته من السحابة: صفحة «الأجهزة» ← زر «حذف» بجانب الفرع.</p>
+<p style="color:var(--muted)">لحذف فرع وكل بياناته من السحابة: صفحة «الأجهزة» ← زر «حذف» بجانب الفرع.</p>
 </div>
 </div>
 
@@ -370,7 +408,7 @@ async function loadDevices(){
   if(error){box.innerHTML='<div class="msg msg-err">تعذّر تحميل الأجهزة: '+esc(error.message)+'</div>';return;}
   window.__devices=data||[];
   try{const{data:dv}=await sb.from('devices').select('location_id');const has=new Set((dv||[]).map(d=>d.location_id));window.__devices.forEach(l=>{l.__hasLogin=has.has(l.id);});}catch(_){}
-  if(!data||!data.length){box.innerHTML='<p style="color:#64748b">لا توجد أجهزة</p>';return;}
+  if(!data||!data.length){box.innerHTML='<p style="color:var(--muted)">لا توجد أجهزة</p>';return;}
   let html='';
   for(const l of data){
     const st=deviceState(l);
@@ -378,18 +416,18 @@ async function loadDevices(){
     const counts=info.counts?('تذاكر '+info.counts.tickets+' · مصروفات '+info.counts.expenses+' · تحصيل '+info.counts.collections):'';
     html+='<div class="loc-item" style="flex-wrap:wrap;gap:0.5rem" id="dev-'+l.id+'">'+
       '<div style="min-width:220px"><strong>'+esc(l.name)+'</strong><br>'+
-      '<span style="color:'+st.c+'">● '+st.t+'</span> <span style="color:#64748b;font-size:0.85rem">('+agoText(l.last_seen_at)+')</span>'+(l.live&&st.t==='متصل'?' <span style="background:#ede9fe;color:#6d28d9;border-radius:6px;padding:0 0.4rem;font-size:0.8rem">⚡ مباشر</span>':'')+'<br>'+
-      '<span style="color:#64748b;font-size:0.85rem">'+(l.__hasLogin?'🔐 دخول خاص':'⚠ بدون دخول خاص (رمز قديم)')+' · النسخة: '+esc(l.app_version||'—')+' · في الانتظار: '+(l.queue_size||0)+' · آخر مزامنة: '+agoText(l.last_sync_at)+'</span>'+
-      (counts?'<br><span style="color:#64748b;font-size:0.85rem">'+counts+'</span>':'')+
-      (l.last_error?'<br><span style="color:#b91c1c;font-size:0.85rem">آخر خطأ: '+esc(l.last_error)+'</span>':'')+
-      '<div style="margin-top:0.6rem"><a href="admin.html?loc='+l.id+'" target="_blank" rel="noopener" style="display:inline-block;background:#4c1d95;color:#fff;padding:0.45rem 0.9rem;border-radius:8px;text-decoration:none;font-weight:700">🖥 لوحة الإدارة عن بعد</a></div>'+
+      '<span style="color:'+st.c+'">'+st.t+'</span> <span style="color:var(--muted);font-size:0.85rem">('+agoText(l.last_seen_at)+')</span>'+(l.live&&st.t==='متصل'?' <span class="pill on">مباشر</span>':'')+'<br>'+
+      '<span style="color:var(--muted);font-size:0.85rem">'+(l.__hasLogin?'دخول خاص':'بدون دخول خاص (رمز قديم)')+' · النسخة: '+esc(l.app_version||'—')+' · في الانتظار: '+(l.queue_size||0)+' · آخر مزامنة: '+agoText(l.last_sync_at)+'</span>'+
+      (counts?'<br><span style="color:var(--muted);font-size:0.85rem">'+counts+'</span>':'')+
+      (l.last_error?'<br><span style="color:var(--bad);font-size:0.85rem">آخر خطأ: '+esc(l.last_error)+'</span>':'')+
+      '<div style="margin-top:0.6rem"><a href="admin.html?loc='+l.id+'" target="_blank" rel="noopener" class="btn primary">لوحة الإدارة عن بعد</a></div>'+
       '<div class="cmd-row" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.5rem">'+
-        cmdBtn(l.id,'ping','⚡ اختبار فوري')+cmdBtn(l.id,'sync_now','🔄 مزامنة الآن')+cmdBtn(l.id,'diagnostics','🩺 تشخيص')+
-        cmdBtn(l.id,'restart_app','♻ إعادة تشغيل البرنامج')+cmdBtn(l.id,'restart_pc','⏻ إعادة تشغيل الجهاز')+cmdBtn(l.id,'install_update','⬆ تثبيت آخر تحديث')+
+        cmdBtn(l.id,'ping','اختبار فوري')+cmdBtn(l.id,'sync_now','مزامنة الآن')+cmdBtn(l.id,'diagnostics','تشخيص')+
+        cmdBtn(l.id,'restart_app','إعادة تشغيل البرنامج')+cmdBtn(l.id,'restart_pc','إعادة تشغيل الجهاز')+cmdBtn(l.id,'install_update','تثبيت آخر تحديث')+
       '</div>'+
       '<div class="ping-result" id="ping-'+l.id+'"></div></div>'+
-      '<div><button class="btn-blue" onclick="pingDevice(\''+l.id+'\')">🔌 اختبار الاتصال</button> '+
-      '<button class="btn-blue" style="background:#64748b" onclick="showCode(\''+l.id+'\')">رمز ربط جديد</button> '+
+      '<div><button class="btn-blue" onclick="pingDevice(\''+l.id+'\')">اختبار الاتصال</button> '+
+      '<button class="btn-blue" onclick="showCode(\''+l.id+'\')">رمز ربط جديد</button> '+
       '<button class="btn-red" onclick="deleteDevice(\''+l.id+'\')">حذف</button></div></div>';
   }
   box.innerHTML=html;
@@ -414,7 +452,7 @@ async function createDevice(){
   const name=input.value.trim();
   const out=document.getElementById('new-device-result');
   if(!name){out.innerHTML='<div class="msg msg-err">اكتب اسم الفرع</div>';return;}
-  out.innerHTML='<div class="msg" style="background:#e0f2fe;color:#075985">جاري الإنشاء...</div>';
+  out.innerHTML='<div class="msg msg-info">جاري الإنشاء...</div>';
   try{
     const r=await deviceAdmin({action:'create',name});
     input.value='';
@@ -426,7 +464,7 @@ function renderCode(target,loc,code){
   target.innerHTML='<div class="msg msg-ok">رمز الربط للجهاز «'+esc(loc.name)+'»:</div>'+
     '<textarea readonly style="width:100%;max-width:560px;height:110px;direction:ltr;font-size:0.75rem;margin-top:0.5rem" onclick="this.select()">'+code+'</textarea>'+
     '<br><button class="btn-blue" onclick="copyText(this.parentNode.querySelector(\'textarea\').value)">نسخ</button>'+
-    '<p style="color:#64748b;font-size:0.85rem;margin-top:0.5rem">الصقه في التطبيق: الإعدادات ← السحابة ← رمز الربط ← ربط.<br>هذا الرمز يحتوي على دخول خاص بهذا الجهاز فقط ويظهر مرة واحدة. لا تشاركه.</p>';
+    '<p style="color:var(--muted);font-size:0.85rem;margin-top:0.5rem">الصقه في التطبيق: الإعدادات ← السحابة ← رمز الربط ← ربط.<br>هذا الرمز يحتوي على دخول خاص بهذا الجهاز فقط ويظهر مرة واحدة. لا تشاركه.</p>';
 }
 function copyText(t){navigator.clipboard.writeText(t).then(()=>alert('تم النسخ')).catch(()=>alert('انسخ النص يدوياً'));}
 async function showCode(id){
@@ -452,23 +490,23 @@ const CMD_INFO={
   restart_pc:{timeout:30,confirm:'إعادة تشغيل الجهاز بالكامل؟ ستظهر رسالة للبائع ويعاد التشغيل بعد 30 ثانية، ويتوقف البيع 2-3 دقائق.'},
   install_update:{timeout:600,confirm:'تحميل وتثبيت آخر نسخة على هذا الجهاز؟ يتوقف البيع حوالي دقيقة أثناء التثبيت.'}
 };
-function cmdBtn(id,action,label){return '<button class="btn-blue" style="background:#475569;padding:0.35rem 0.6rem;font-size:0.85rem;margin-top:0" onclick="sendCommand(\''+id+'\',\''+action+'\')">'+label+'</button>';}
+function cmdBtn(id,action,label){return '<button class="btn" style="margin-top:0" onclick="sendCommand(\''+id+'\',\''+action+'\')">'+label+'</button>';}
 function showCmd(id,cls,html){document.getElementById('ping-'+id).innerHTML='<div class="msg '+cls+'">'+html+'</div>';}
 function cmdResultHtml(action,r,secs){
   r=r||{};
-  if(action==='ping')return '✅ الجهاز يرد مباشرة (خلال '+secs+' ث) · النسخة '+esc(r.version||'—')+' · يعمل منذ '+esc(r.uptimeMin)+' د';
-  if(action==='sync_now'){const t=r;const p=(k,n)=>t[k]?n+': '+t[k].local+' (أُرسل '+t[k].sent+'، حُذف '+t[k].removed+')':'';return '✅ تمت المزامنة · '+[p('tickets','تذاكر'),p('expenses','مصروفات'),p('collections','تحصيل')].filter(Boolean).join(' · ');}
-  if(action==='diagnostics')return '✅ تقرير الجهاز:<pre style="direction:ltr;text-align:left;max-height:300px;overflow:auto;background:#0f172a;color:#e2e8f0;padding:0.5rem;border-radius:6px;font-size:0.75rem;white-space:pre-wrap">'+esc(JSON.stringify(r,null,2))+'</pre>';
-  if(action==='restart_app')return '♻ يعاد تشغيل البرنامج الآن. سيعود الجهاز متصلاً خلال 20-40 ثانية.';
-  if(action==='restart_pc')return '⏻ سيعاد تشغيل الجهاز بعد '+esc(r.restartingInSeconds||30)+' ثانية. سيعود متصلاً بعد 2-3 دقائق.';
-  if(action==='install_update')return r.upToDate?'✅ الجهاز يعمل بآخر نسخة ('+esc(r.version)+')':'⬆ جاري تثبيت النسخة '+esc(r.installing)+' (كانت '+esc(r.from)+'). سيعود الجهاز متصلاً خلال دقيقة إلى دقيقتين.';
-  return '✅ تم';
+  if(action==='ping')return 'الجهاز يرد مباشرة (خلال '+secs+' ث) · النسخة '+esc(r.version||'—')+' · يعمل منذ '+esc(r.uptimeMin)+' د';
+  if(action==='sync_now'){const t=r;const p=(k,n)=>t[k]?n+': '+t[k].local+' (أُرسل '+t[k].sent+'، حُذف '+t[k].removed+')':'';return 'تمت المزامنة · '+[p('tickets','تذاكر'),p('expenses','مصروفات'),p('collections','تحصيل')].filter(Boolean).join(' · ');}
+  if(action==='diagnostics')return 'تقرير الجهاز:<pre style="direction:ltr;text-align:left;max-height:300px;overflow:auto;background:#0f172a;color:#e2e8f0;padding:0.5rem;border-radius:6px;font-size:0.75rem;white-space:pre-wrap">'+esc(JSON.stringify(r,null,2))+'</pre>';
+  if(action==='restart_app')return 'يعاد تشغيل البرنامج الآن. سيعود الجهاز متصلاً خلال 20-40 ثانية.';
+  if(action==='restart_pc')return 'سيعاد تشغيل الجهاز بعد '+esc(r.restartingInSeconds||30)+' ثانية. سيعود متصلاً بعد 2-3 دقائق.';
+  if(action==='install_update')return r.upToDate?'الجهاز يعمل بآخر نسخة ('+esc(r.version)+')':'جاري تثبيت النسخة '+esc(r.installing)+' (كانت '+esc(r.from)+'). سيعود الجهاز متصلاً خلال دقيقة إلى دقيقتين.';
+  return 'تم';
 }
 async function sendCommand(id,action){
   const info=CMD_INFO[action]||{timeout:30};
   if(info.confirm&&!confirm(info.confirm))return;
   window.__pinging=true;
-  showCmd(id,'" style="background:#e0f2fe;color:#075985','⏳ تم إرسال الأمر، في انتظار الجهاز...');
+  showCmd(id,'msg-info','تم إرسال الأمر، في انتظار الجهاز...');
   const t0=Date.now();
   const{data:cmd,error}=await sb.from('device_commands').insert({location_id:id,action}).select('id').single();
   if(error){showCmd(id,'msg-err',esc(error.message));window.__pinging=false;return;}
@@ -478,19 +516,19 @@ async function sendCommand(id,action){
     const{data}=await sb.from('device_commands').select('status,result').eq('id',cmd.id).maybeSingle();
     if(!data)continue;
     last=data.status;
-    if(data.status==='running')showCmd(id,'" style="background:#e0f2fe;color:#075985','⏳ الجهاز ينفّذ الأمر...');
+    if(data.status==='running')showCmd(id,'msg-info','الجهاز ينفّذ الأمر...');
     if(data.status==='done'){showCmd(id,'msg-ok',cmdResultHtml(action,data.result,((Date.now()-t0)/1000).toFixed(1)));window.__pinging=false;return;}
-    if(data.status==='failed'){showCmd(id,'msg-err','❌ '+esc((data.result&&data.result.error)||'فشل التنفيذ'));window.__pinging=false;return;}
-    if(data.status==='expired'){showCmd(id,'msg-err','❌ انتهت صلاحية الأمر قبل أن يستلمه الجهاز');window.__pinging=false;return;}
+    if(data.status==='failed'){showCmd(id,'msg-err',''+esc((data.result&&data.result.error)||'فشل التنفيذ'));window.__pinging=false;return;}
+    if(data.status==='expired'){showCmd(id,'msg-err','انتهت صلاحية الأمر قبل أن يستلمه الجهاز');window.__pinging=false;return;}
   }
-  showCmd(id,'msg-err',last==='running'?'⏳ الجهاز ما زال ينفّذ الأمر. أعد فتح الصفحة لاحقاً لرؤية النتيجة.':'❌ لم يستلم الجهاز الأمر. الجهاز مغلق أو بلا إنترنت، أو يعمل بنسخة أقدم من 2.8.32.');
+  showCmd(id,'msg-err',last==='running'?'الجهاز ما زال ينفّذ الأمر. أعد فتح الصفحة لاحقاً لرؤية النتيجة.':'لم يستلم الجهاز الأمر. الجهاز مغلق أو بلا إنترنت، أو يعمل بنسخة أقدم من 2.8.32.');
   window.__pinging=false;
 }
 
 async function pingDevice(id){
   const el=document.getElementById('ping-'+id);
   window.__pinging=true;
-  el.innerHTML='<div class="msg" style="background:#e0f2fe;color:#075985">جاري الاتصال بالجهاز... (حتى 40 ثانية)</div>';
+  el.innerHTML='<div class="msg msg-info">جاري الاتصال بالجهاز... (حتى 40 ثانية)</div>';
   let requested=new Date().toISOString();
   const t0=Date.now();
   const{data:rq,error}=await sb.from('locations').update({ping_requested_at:requested}).eq('id',id).select('ping_requested_at').maybeSingle();
@@ -501,12 +539,12 @@ async function pingDevice(id){
     const{data}=await sb.from('locations').select('ping_reply_at,app_version,queue_size,last_error').eq('id',id).maybeSingle();
     if(data&&data.ping_reply_at&&new Date(data.ping_reply_at)>=new Date(requested)){
       const secs=((Date.now()-t0)/1000).toFixed(0);
-      el.innerHTML='<div class="msg msg-ok">✅ الجهاز يرد (خلال '+secs+' ث). النسخة '+esc(data.app_version||'—')+' · في الانتظار '+(data.queue_size||0)+(data.last_error?' · آخر خطأ: '+esc(data.last_error):'')+'</div>';
+      el.innerHTML='<div class="msg msg-ok">الجهاز يرد (خلال '+secs+' ث). النسخة '+esc(data.app_version||'—')+' · في الانتظار '+(data.queue_size||0)+(data.last_error?' · آخر خطأ: '+esc(data.last_error):'')+'</div>';
       window.__pinging=false;
       return;
     }
   }
-  el.innerHTML='<div class="msg msg-err">❌ لا رد خلال 40 ثانية. الجهاز مغلق أو بلا إنترنت، أو يعمل بنسخة أقدم من 2.8.29، أو لم يرتبط بهذه اللوحة.</div>';
+  el.innerHTML='<div class="msg msg-err">لا رد خلال 40 ثانية. الجهاز مغلق أو بلا إنترنت، أو يعمل بنسخة أقدم من 2.8.29، أو لم يرتبط بهذه اللوحة.</div>';
   window.__pinging=false;
 }
 
@@ -533,7 +571,7 @@ const VIEW_IDS=['overview','hammam','charts','alerts','devices','download','sett
 function go(view,arg){
   currentView=view;
   VIEW_IDS.forEach(v=>document.getElementById('view-'+v).classList.toggle('hidden',v!==view));
-  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===(view==='hammam'?'overview':view)));
+  document.querySelectorAll('.side [data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===(view==='hammam'?'overview':view)));
   window.scrollTo(0,0);
   if(view==='overview')renderOverview();
   if(view==='hammam'){currentHammam=arg||currentHammam;renderHammam();}
@@ -592,9 +630,9 @@ function todayOf(loc){const s=sumOf(loc);if(!s||s.day!==todayStr())return{ticket
 function pillOf(l){
   if(!l.last_seen_at)return{cls:'none',t:'لا إشارة'};
   const s=(Date.now()-new Date(l.last_seen_at).getTime())/1000;
-  if(s<60)return{cls:'on',t:'● متصل'};
-  if(s<600)return{cls:'late',t:'● إشارة متأخرة'};
-  return{cls:'off',t:'● غير متصل '+agoText(l.last_seen_at)};
+  if(s<60)return{cls:'on',t:'متصل'};
+  if(s<600)return{cls:'late',t:'إشارة متأخرة'};
+  return{cls:'off',t:'غير متصل '+agoText(l.last_seen_at)};
 }
 function statCard(k,v,cls,sub){return '<div class="stat '+(cls||'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div>'+(sub?'<div class="s">'+sub+'</div>':'')+'</div>';}
 function mini(k,v){return '<div class="mini"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>';}
@@ -605,12 +643,12 @@ function fillLocSelects(){
 function flagsOf(l){
   const s=sumOf(l),f=[];
   const p=pillOf(l);
-  if(p.cls==='off')f.push('<span class="flag">📴 الجهاز غير متصل</span>');
+  if(p.cls==='off')f.push('<span class="flag">الجهاز غير متصل</span>');
   if(!s){f.push('<span class="flag amber">لا ملخص بعد: حدّث الجهاز إلى 2.8.34</span>');return f;}
-  if(s.pendingLate&&s.pendingLate.count)f.push('<span class="flag amber">⏰ '+s.pendingLate.count+' إدخال متأخر في الانتظار ('+dh(s.pendingLate.total)+')</span>');
-  if(s.openBills&&s.openBills.count)f.push('<span class="flag amber">🧾 '+s.openBills.count+' فاتورة غير مدفوعة ('+dh(s.openBills.total)+')</span>');
-  if(s.day===todayStr()&&s.today&&s.today.refunds)f.push('<span class="flag">↩ '+s.today.refunds+' استرجاع اليوم</span>');
-  if(!f.length)f.push('<span class="flag ok">✓ لا شيء يحتاج انتباهك</span>');
+  if(s.pendingLate&&s.pendingLate.count)f.push('<span class="flag amber">'+s.pendingLate.count+' إدخال متأخر في الانتظار ('+dh(s.pendingLate.total)+')</span>');
+  if(s.openBills&&s.openBills.count)f.push('<span class="flag amber">'+s.openBills.count+' فاتورة غير مدفوعة ('+dh(s.openBills.total)+')</span>');
+  if(s.day===todayStr()&&s.today&&s.today.refunds)f.push('<span class="flag">'+s.today.refunds+' استرجاع اليوم</span>');
+  if(!f.length)f.push('<span class="flag ok">لا شيء يحتاج انتباهك</span>');
   return f;
 }
 
@@ -644,7 +682,7 @@ function renderOverview(){
       '</div>'+
       '<div class="hcard-flags">'+flagsOf(l).join('')+'</div>'+
       '<div class="hcard-foot"><button class="btn blue" onclick="go(\'hammam\',\''+l.id+'\')">التفاصيل</button>'+
-      '<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">🖥 لوحة الإدارة عن بعد</a>'+
+      '<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">لوحة الإدارة عن بعد</a>'+
       '<span class="updated" style="margin-right:auto;align-self:center">'+(l.summary_at?'تحديث '+agoText(l.summary_at):'')+(s&&s.lastTicketAt?' · آخر تذكرة '+esc(String(s.lastTicketAt).slice(11,16)):'')+'</span></div></div>';
   }
   document.getElementById('ov-hammams').innerHTML=html||'<div class="empty">لا توجد فروع. أضف جهازاً من صفحة «الأجهزة».</div>';
@@ -666,7 +704,7 @@ async function renderHammam(quiet){
   if(!l){go('overview');return;}
   const s=sumOf(l),t=todayOf(l),p=pillOf(l);
   document.getElementById('hm-title').innerHTML=esc(l.name)+' <span class="pill '+p.cls+'">'+p.t+'</span>';
-  document.getElementById('hm-actions').innerHTML='<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">🖥 لوحة الإدارة عن بعد</a><button class="btn light" onclick="go(\'devices\')">📱 أوامر الجهاز</button>';
+  document.getElementById('hm-actions').innerHTML='<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">لوحة الإدارة عن بعد</a><button class="btn light" onclick="go(\'devices\')">أوامر الجهاز</button>';
   document.getElementById('hm-updated').textContent=(l.summary_at?'آخر ملخص من الجهاز '+agoText(l.summary_at):'لم يرسل الجهاز ملخصاً بعد')+(l.app_version?' · النسخة '+l.app_version:'')+(s&&s.lastTicketAt?' · آخر تذكرة '+s.lastTicketAt:'');
   document.getElementById('hm-flags').innerHTML=flagsOf(l).join('');
   document.getElementById('hm-stats').innerHTML=!s?'<div class="empty">لا ملخص من هذا الجهاز بعد.</div>':
@@ -719,16 +757,20 @@ function labelOf(k,period){
 }
 function drawChart(canvasId,chart,rows,withTickets,period){
   if(typeof Chart==='undefined')return null;
+  Chart.defaults.color='#8b8b93';Chart.defaults.borderColor='#1f1f23';Chart.defaults.font.family="'IBM Plex Sans Arabic', system-ui, sans-serif";Chart.defaults.font.size=11;
   period=period||(rows.length&&rows[0][0].length===7?'month':(canvasId==='hm-chart'?hmPeriod:canvasId==='ch-chart'?chPeriod:'day'));
   const labels=rows.map(r=>labelOf(r[0],period));
   const ds=[
-    {type:'bar',label:'المبيعات (DH)',data:rows.map(r=>Math.round(r[2])),backgroundColor:'rgba(29,78,216,0.75)',borderRadius:6,yAxisID:'y'},
-    {type:'bar',label:'المصروفات (DH)',data:rows.map(r=>Math.round(r[3])),backgroundColor:'rgba(220,38,38,0.55)',borderRadius:6,yAxisID:'y'}
+    canvasId==='ov-chart'
+      ?{type:'line',label:'المبيعات (DH)',data:rows.map(r=>Math.round(r[2])),borderColor:'#3ecf8e',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.3,fill:true,yAxisID:'y',
+        backgroundColor:(c)=>{const a=c.chart.chartArea;if(!a)return 'rgba(62,207,142,0.1)';const g=c.chart.ctx.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,'rgba(62,207,142,0.25)');g.addColorStop(1,'rgba(62,207,142,0)');return g;}}
+      :{type:'bar',label:'المبيعات (DH)',data:rows.map(r=>Math.round(r[2])),backgroundColor:'#3ecf8e',borderRadius:4,maxBarThickness:28,yAxisID:'y'},
+    ...(canvasId==='ov-chart'?[]:[{type:'bar',label:'المصروفات (DH)',data:rows.map(r=>Math.round(r[3])),backgroundColor:'#3a3a40',borderRadius:4,maxBarThickness:28,yAxisID:'y'}])
   ];
-  if(withTickets)ds.push({type:'line',label:'التذاكر',data:rows.map(r=>r[1]),borderColor:'#7c3aed',backgroundColor:'#7c3aed',tension:0.3,yAxisID:'y1',pointRadius:2});
+  if(withTickets)ds.push({type:'line',label:'التذاكر',data:rows.map(r=>r[1]),borderColor:'#ededef',backgroundColor:'#ededef',borderWidth:1.5,tension:0.3,yAxisID:'y1',pointRadius:0,pointHoverRadius:4});
   const cfg={data:{labels,datasets:ds},options:{maintainAspectRatio:false,responsive:true,interaction:{mode:'index',intersect:false},
-    plugins:{legend:{position:'bottom',rtl:true,labels:{font:{family:'Segoe UI, Tahoma'}}},tooltip:{rtl:true}},
-    scales:{y:{beginAtZero:true,position:'left'},...(withTickets?{y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false}}}:{})}}};
+    plugins:{legend:{display:canvasId!=='ov-chart',position:'bottom',rtl:true,labels:{boxWidth:10,boxHeight:10,useBorderRadius:true,borderRadius:2}},tooltip:{rtl:true,backgroundColor:'#18181b',borderColor:'#2a2a30',borderWidth:1,titleColor:'#ededef',bodyColor:'#c4c4ca'}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:true,position:'left',border:{display:false}},...(withTickets?{y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},border:{display:false}}}:{})}}};
   if(chart)chart.destroy();
   return new Chart(document.getElementById(canvasId),cfg);
 }
@@ -758,14 +800,14 @@ function renderCharts(){
 
 // ═══ Alerts ═══
 const NOTE_TYPES={
-  seller_collection:{ico:'💰',t:'تحصيل سجّله البائع',cls:''},
-  refund:{ico:'↩',t:'استرجاع تذكرة',cls:'bad'},
-  paid_by_manager:{ico:'🧾',t:'مصروف على حساب المدير',cls:'warn'},
-  late_entry:{ico:'⏰',t:'إدخال متأخر',cls:'warn'}
+  seller_collection:{ico:'',t:'تحصيل سجّله البائع',cls:''},
+  refund:{ico:'',t:'استرجاع تذكرة',cls:'bad'},
+  paid_by_manager:{ico:'',t:'مصروف على حساب المدير',cls:'warn'},
+  late_entry:{ico:'',t:'إدخال متأخر',cls:'warn'}
 };
 function locName(id){const l=locations.find(x=>x.id===id);return l?l.name:'—';}
 function noteView(n){
-  const ty=NOTE_TYPES[n.type]||{ico:'🔔',t:n.type,cls:''};const p=n.payload||{};
+  const ty=NOTE_TYPES[n.type]||{ico:'',t:n.type,cls:''};const p=n.payload||{};
   let sub='';
   if(n.type==='seller_collection')sub=[dh(p.amount),p.label,p.recipient&&('إلى '+p.recipient),p.reference&&('مرجع '+p.reference)].filter(Boolean).join(' · ');
   else if(n.type==='refund')sub=[dh(p.amount),p.category,p.serial&&('#'+p.serial),p.reason&&('السبب: '+p.reason)].filter(Boolean).join(' · ');
@@ -779,22 +821,22 @@ function liveAlerts(){
   const out=[];
   for(const l of locations){
     const p=pillOf(l),s=sumOf(l);
-    if(p.cls==='off')out.push({ico:'📴',cls:'bad',title:l.name+': الجهاز غير متصل',sub:'آخر إشارة '+agoText(l.last_seen_at)+'. الجهاز مغلق أو بلا إنترنت.'});
-    if(s&&s.pendingLate&&s.pendingLate.count)out.push({ico:'⏰',cls:'warn',title:l.name+': '+s.pendingLate.count+' إدخال متأخر في انتظار مراجعتك',sub:'المجموع '+dh(s.pendingLate.total)+'. راجعها من لوحة الإدارة عن بعد.',loc:l.id});
-    if(s&&s.openBills&&s.openBills.count)out.push({ico:'🧾',cls:'warn',title:l.name+': '+s.openBills.count+' فاتورة غير مدفوعة',sub:'الباقي '+dh(s.openBills.total)+'.',loc:l.id});
+    if(p.cls==='off')out.push({ico:'',cls:'bad',title:l.name+': الجهاز غير متصل',sub:'آخر إشارة '+agoText(l.last_seen_at)+'. الجهاز مغلق أو بلا إنترنت.'});
+    if(s&&s.pendingLate&&s.pendingLate.count)out.push({ico:'',cls:'warn',title:l.name+': '+s.pendingLate.count+' إدخال متأخر في انتظار مراجعتك',sub:'المجموع '+dh(s.pendingLate.total)+'. راجعها من لوحة الإدارة عن بعد.',loc:l.id});
+    if(s&&s.openBills&&s.openBills.count)out.push({ico:'',cls:'warn',title:l.name+': '+s.openBills.count+' فاتورة غير مدفوعة',sub:'الباقي '+dh(s.openBills.total)+'.',loc:l.id});
   }
   return out;
 }
 function alertHtml(a,live){
   return '<div class="alert '+(a.cls||'')+(a.unread?' unread':'')+'"'+(a.id?' style="cursor:pointer" onclick="markRead('+a.id+')"':'')+'><div class="ico">'+a.ico+'</div><div style="flex:1"><div class="ttl">'+esc(a.title)+'</div><div class="sub">'+esc(a.sub)+'</div></div>'+
     (a.when?'<div class="updated" title="'+esc(new Date(a.when).toLocaleString('ar-MA'))+'">'+agoText(a.when)+'</div>':'')+
-    (live&&a.loc?'<a class="btn light" style="padding:0.3rem 0.6rem" href="admin.html?loc='+a.loc+'" target="_blank" rel="noopener">🖥 فتح</a>':'')+'</div>';
+    (live&&a.loc?'<a class="btn light" style="padding:0.3rem 0.6rem" href="admin.html?loc='+a.loc+'" target="_blank" rel="noopener">فتح</a>':'')+'</div>';
 }
 let alFilter='all';
 setupSeg('al-seg',f=>{alFilter=f;renderAlerts();});
 function renderAlerts(){
   const live=liveAlerts();
-  document.getElementById('al-now').innerHTML=live.map(a=>alertHtml(a,true)).join('')||'<div class="empty">✓ لا شيء يحتاج انتباهك الآن</div>';
+  document.getElementById('al-now').innerHTML=live.map(a=>alertHtml(a,true)).join('')||'<div class="empty">لا شيء يحتاج انتباهك الآن</div>';
   const loc=document.getElementById('al-loc').value;
   const list=notes.filter(n=>(!loc||n.location_id===loc)&&(alFilter==='all'||!n.read_at));
   document.getElementById('al-list').innerHTML=list.map(n=>alertHtml(noteView(n))).join('')||'<div class="empty">لا تنبيهات</div>';
