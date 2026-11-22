@@ -260,7 +260,7 @@ table.t tr:last-child td{border-bottom:none}
 <div class="settings-section">
 <h3>الأجهزة المرتبطة</h3>
 <div id="devices-list"></div>
-<p style="color:var(--muted);font-size:0.85rem;margin-top:0.75rem">الجهاز يرسل إشارة كل دقيقة. «اختبار فوري» يطلب من الجهاز الرد الآن عبر الاتصال المباشر.</p>
+<p style="color:var(--muted);font-size:0.85rem;margin-top:0.75rem">الجهاز يرسل إشارة كل 15 ثانية. «اختبار الاتصال» يطلب من الجهاز الرد الآن. الأجهزة التي تعمل بنسخة أقدم من 2.8.29 لا ترسل إشارة: حدّثها أولاً.</p>
 </div>
 </div>
 
@@ -413,7 +413,7 @@ function agoTextAr(iso){
 function deviceState(l){
   if(!l.last_seen_at)return{c:'#94a3b8',t:'لا إشارة (لم يرتبط أو نسخة قديمة)'};
   const s=(Date.now()-new Date(l.last_seen_at).getTime())/1000;
-  if(s<150)return{c:'#16a34a',t:'متصل'};
+  if(s<60)return{c:'#16a34a',t:'متصل'};
   if(s<600)return{c:'#f59e0b',t:'إشارة متأخرة'};
   return{c:'#dc2626',t:'غير متصل'};
 }
@@ -442,7 +442,8 @@ async function loadDevices(){
         cmdBtn(l.id,'restart_app','إعادة تشغيل البرنامج')+cmdBtn(l.id,'restart_pc','إعادة تشغيل الجهاز')+cmdBtn(l.id,'install_update','تثبيت آخر تحديث')+
       '</div>'+
       '<div class="ping-result" id="ping-'+l.id+'"></div></div>'+
-      '<div>'+'<button class="btn-blue" onclick="showCode(\''+l.id+'\')">رمز ربط جديد</button> '+
+      '<div><button class="btn-blue" onclick="pingDevice(\''+l.id+'\')">اختبار الاتصال</button> '+
+      '<button class="btn-blue" onclick="showCode(\''+l.id+'\')">رمز ربط جديد</button> '+
       '<button class="btn-red" onclick="deleteDevice(\''+l.id+'\')">حذف</button></div></div>';
   }
   box.innerHTML=html;
@@ -540,6 +541,28 @@ async function sendCommand(id,action){
   window.__pinging=false;
 }
 
+async function pingDevice(id){
+  const el=document.getElementById('ping-'+id);
+  window.__pinging=true;
+  el.innerHTML='<div class="msg msg-info">جاري الاتصال بالجهاز... (حتى 40 ثانية)</div>';
+  let requested=new Date().toISOString();
+  const t0=Date.now();
+  const{data:rq,error}=await sb.from('locations').update({ping_requested_at:requested}).eq('id',id).select('ping_requested_at').maybeSingle();
+  if(rq&&rq.ping_requested_at)requested=rq.ping_requested_at; // server time (the PC clock may differ)
+  if(error){el.innerHTML='<div class="msg msg-err">'+esc(error.message)+'</div>';window.__pinging=false;return;}
+  while(Date.now()-t0<40000){
+    await new Promise(r=>setTimeout(r,2000));
+    const{data}=await sb.from('locations').select('ping_reply_at,app_version,queue_size,last_error').eq('id',id).maybeSingle();
+    if(data&&data.ping_reply_at&&new Date(data.ping_reply_at)>=new Date(requested)){
+      const secs=((Date.now()-t0)/1000).toFixed(0);
+      el.innerHTML='<div class="msg msg-ok">الجهاز يرد (خلال '+secs+' ث). النسخة '+esc(data.app_version||'—')+' · في الانتظار '+(data.queue_size||0)+(data.last_error?' · آخر خطأ: '+esc(data.last_error):'')+'</div>';
+      window.__pinging=false;
+      return;
+    }
+  }
+  el.innerHTML='<div class="msg msg-err">لا رد خلال 40 ثانية. الجهاز مغلق أو بلا إنترنت، أو يعمل بنسخة أقدم من 2.8.29، أو لم يرتبط بهذه اللوحة.</div>';
+  window.__pinging=false;
+}
 
 async function changePassword(){
   const cur=document.getElementById('current-password').value;
@@ -625,7 +648,7 @@ function todayOf(loc){const s=sumOf(loc);if(!s||s.day!==todayStr())return{ticket
 function pillOf(l){
   if(!l.last_seen_at)return{cls:'none',t:'لا إشارة'};
   const s=(Date.now()-new Date(l.last_seen_at).getTime())/1000;
-  if(s<150)return{cls:'on',t:'متصل'};
+  if(s<60)return{cls:'on',t:'متصل'};
   if(s<600)return{cls:'late',t:'إشارة متأخرة'};
   return{cls:'off',t:'غير متصل '+agoText(l.last_seen_at)};
 }

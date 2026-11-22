@@ -8,7 +8,7 @@
  *  - Anything that fails (offline) goes to a local queue and is retried every 30 s.
  *  - reconcile() compares the whole local data with the cloud and repairs differences
  *    (used at start-up, by the "full sync" button, and as a safety net).
- *  - A heartbeat every 60 s tells the dashboard the device is alive (version, queue,
+ *  - A heartbeat every 15 s tells the dashboard the device is alive (version, queue,
  *    last error) and answers "test connection" pings sent from the dashboard.
  *
  * Config (stored in settings): cloud_url, cloud_key, location_id, location_name,
@@ -47,7 +47,6 @@ function describeError(error) {
   return msg || 'خطأ غير معروف';
 }
 
-const HEARTBEAT_MS = 60 * 1000;
 class CloudSync {
   /**
    * @param {StorageManager} storage
@@ -235,9 +234,8 @@ class CloudSync {
     this._clearTimers();
     // Queue + re-registration every 30 s
     this.retryInterval = setInterval(() => this._tick(), 30000);
-    // Heartbeat once a minute (commands arrive instantly over the live connection;
-    // the heartbeat only says "alive", sends changed numbers and catches missed commands)
-    this.heartbeatInterval = setInterval(() => this.heartbeat().catch(() => {}), HEARTBEAT_MS);
+    // Heartbeat / ping answer every 15 s
+    this.heartbeatInterval = setInterval(() => this.heartbeat().catch(() => {}), 15000);
     if (this.retryInterval.unref) this.retryInterval.unref();
     if (this.heartbeatInterval.unref) this.heartbeatInterval.unref();
   }
@@ -522,23 +520,16 @@ class CloudSync {
     this._clearErrorIfIdle(); // the cloud answered the last call and nothing is waiting
     let info = null;
     try { info = this.options.getDeviceInfo ? this.options.getDeviceInfo() : null; } catch (_) {}
-    const row = {
+    const { error } = await this.supabase.from('locations').update({
       last_seen_at: now,
       app_version: this.options.appVersion || null,
       queue_size: this.queueSize(),
       live: !!(this.commands && this.commands.live),
+      summary: this._summary(),
       last_sync_at: this.lastSyncAt,
       last_error: this.lastError,
       device_info: info
-    };
-    // The summary is the biggest part: send it only when a number changed
-    // (and at least every 10 minutes, so a missed update is repaired).
-    const summary = this._summary();
-    const summaryJson = summary === undefined ? undefined : JSON.stringify(summary);
-    const resend = !this._summarySentAt || Date.now() - this._summarySentAt > 10 * 60 * 1000;
-    if (summaryJson !== undefined && (summaryJson !== this._lastSummaryJson || resend)) row.summary = summary;
-    const { error } = await this.supabase.from('locations').update(row).eq('id', this.locationId);
-    if (!error && row.summary !== undefined) { this._lastSummaryJson = summaryJson; this._summarySentAt = Date.now(); }
+    }).eq('id', this.locationId);
     if (error) {
       this.online = false;
       this.lastError = describeError(error);
@@ -548,6 +539,11 @@ class CloudSync {
     this.lastHeartbeatAt = now;
     if (this.lastError && this.queueSize() === 0 && !this._needsSignIn) {
       this.lastError = null; // reported once more above, cleared now that the link works
+    }
+    // Did the dashboard ask for a connection test?
+    const { data } = await this.supabase.from('locations').select('ping_requested_at,ping_reply_at').eq('id', this.locationId).maybeSingle();
+    if (data && data.ping_requested_at && (!data.ping_reply_at || data.ping_requested_at > data.ping_reply_at)) {
+      await this.supabase.from('locations').update({ ping_reply_at: new Date().toISOString() }).eq('id', this.locationId);
     }
     if (this.commands) await this.commands.poll().catch(() => {});
     else this._startCommands();
