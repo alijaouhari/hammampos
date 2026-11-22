@@ -32,9 +32,17 @@ const ARABIC_ROWS = [
   ['أ', 'إ', 'آ', 'ؤ', 'ئ', '،', '؟', '.', '-', '/']
 ];
 
+// Number pad for amount, weight, price and code fields.
+const NUMPAD_ROWS = [
+  ['7', '8', '9'],
+  ['4', '5', '6'],
+  ['1', '2', '3'],
+  ['.', '0']
+];
 const LAYOUTS = {
   qwerty: QWERTY_ROWS,
-  ar: ARABIC_ROWS
+  ar: ARABIC_ROWS,
+  num: NUMPAD_ROWS
 };
 
 /**

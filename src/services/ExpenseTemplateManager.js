@@ -242,7 +242,7 @@ class ExpenseTemplateManager {
    */
   calculateWoodExpense(grossWeight, emptyWeight, pricePerKg) {
     const netWeight = grossWeight - emptyWeight;
-    const totalAmount = netWeight * pricePerKg;
+    const totalAmount = Math.round(netWeight * pricePerKg * 100) / 100;
     
     return {
       netWeight,
@@ -532,7 +532,7 @@ class ExpenseTemplateManager {
       unit = Number(unitPrice);
       if (!Number.isFinite(net) || net <= 0) return { success: false, error: 'الوزن الصافي غير صالح' };
       if (!Number.isFinite(unit) || unit < 0) return { success: false, error: 'سعر الكيلو غير صالح' };
-      total = net * unit;
+      total = Math.round(net * unit * 100) / 100;
     } else {
       // per_load / agreement: the price is the agreed amount (NOT derived from a
       // per-kg default). A total weight may also be recorded (required for per_load).
