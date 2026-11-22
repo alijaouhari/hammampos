@@ -169,20 +169,29 @@ test('reconcile offline reports the error and changes nothing', async () => {
   } finally { cleanup(s); }
 });
 
-test('heartbeat records version and answers a dashboard ping', async () => {
+test('heartbeat records version; the summary is sent only when it changed', async () => {
   const { s, fake, cs } = await setup();
   try {
+    let sum = { v: 1, today: { tickets: 1 } };
+    cs.options.getSummary = () => sum;
+    const sent = [];
+    const orig = cs.supabase.from.bind(cs.supabase);
+    cs.supabase.from = (table) => { const q = orig(table); if (table === 'locations') { const up = q.update.bind(q); q.update = (row) => { sent.push(row); return up(row); }; } return q; };
     await cs.heartbeat();
     const loc = fake.db.locations[0];
     assert.equal(loc.app_version, '9.9.9');
     assert.ok(loc.last_seen_at);
-    assert.equal(loc.ping_reply_at, null);           // nobody asked yet
-    loc.ping_requested_at = new Date().toISOString();
+    assert.deepEqual(loc.summary, sum);
+    await cs.heartbeat();                                   // nothing changed: no summary sent
+    assert.equal('summary' in sent[sent.length - 1], false);
+    sum = { v: 1, today: { tickets: 2 } };
+    await cs.heartbeat();                                   // changed: sent again
+    assert.deepEqual(sent[sent.length - 1].summary, sum);
+    cs._summarySentAt = Date.now() - 11 * 60 * 1000;        // 10 minutes without: sent anyway
     await cs.heartbeat();
-    assert.ok(loc.ping_reply_at && loc.ping_reply_at >= loc.ping_requested_at);
+    assert.ok('summary' in sent[sent.length - 1]);
   } finally { cleanup(s); }
 });
-
 test('connection code round trip and bad codes', () => {
   const code = CloudSync.encodeConnection({ url: 'https://a.supabase.co', key: 'KEY', locationId: 'abc', name: 'حمام' });
   assert.ok(code.startsWith('HPOS1.'));
