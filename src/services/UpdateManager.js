@@ -24,6 +24,36 @@ const GITHUB_OWNER = 'alijaouhari';
 const GITHUB_REPO = 'hammampos';
 const RELEASES_API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
 
+// PowerShell: can this Windows user, without Administrator, do what the update
+// needs? (write inside the install folder, create folders next to it, rename or
+// delete the install folder itself). If yes, the updater skips the UAC prompt.
+// The Administrators group only counts when the process is really elevated.
+const CAN_WRITE_PS = String.raw`function Test-CanWriteInstall($dir) {
+    try {
+        $probe = Join-Path $dir ('.hpos-write-test-' + $PID)
+        Set-Content -Path $probe -Value 'x' -ErrorAction Stop
+        Remove-Item $probe -Force -ErrorAction Stop
+        $side = Join-Path (Split-Path $dir -Parent) ('HammamPOS-write-test-' + $PID)
+        New-Item -ItemType Directory -Path $side -ErrorAction Stop | Out-Null
+        Remove-Item $side -Force -ErrorAction Stop
+        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $elev = ([Security.Principal.WindowsPrincipal] $id).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        $sids = @($id.User.Value) + @($id.Groups | ForEach-Object { $_.Value })
+        if (-not $elev) { $sids = $sids | Where-Object { $_ -ne 'S-1-5-32-544' } }
+        $del = [Security.AccessControl.FileSystemRights]::Delete
+        $ok = $false
+        foreach ($r in (Get-Acl $dir).Access) {
+            $sid = $null
+            try { $sid = $r.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } catch {}
+            if (-not $sid -or -not ($sids -contains $sid)) { continue }
+            if (($r.FileSystemRights -band $del) -ne $del) { continue }
+            if ($r.AccessControlType -eq 'Deny') { return $false }
+            $ok = $true
+        }
+        return $ok
+    } catch { return $false }
+}`;
+
 class UpdateManager {
   constructor() {
     this.currentVersion = require('../../package.json').version;
@@ -276,8 +306,13 @@ function Abort($msg) {
 # to prevent a re-elevation loop. This does NOT elevate the HammamPOS app itself.
 $isElevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $alreadyRelaunched = ($args -contains '-Elevated')
+${CAN_WRITE_PS}
+# No UAC prompt when this Windows user can already change the install folder
+# (C:\\HammamPOS): updates from the dashboard must run with nobody at the PC.
+$canWrite = Test-CanWriteInstall $installDir
+if ($canWrite -and -not $isElevated) { Write-Log "Step 0: Install folder is writable without Administrator; no UAC prompt." }
 
-if (-not $isElevated) {
+if (-not $isElevated -and -not $canWrite) {
     if ($alreadyRelaunched) {
         # We asked for elevation but still are not elevated — do not loop.
         Write-Log "FATAL: Elevation requested but process is still not Administrator. Aborting update."
@@ -304,7 +339,7 @@ if (-not $isElevated) {
         exit 1
     }
 }
-Write-Log "Step 0: Running elevated (Administrator). Proceeding with update."
+if ($isElevated) { Write-Log "Step 0: Running elevated (Administrator). Proceeding with update." }
 
 # Create lock file to prevent concurrent updates
 Set-Content -Path $lockPath -Value "$PID" -Encoding UTF8 -ErrorAction SilentlyContinue
@@ -522,7 +557,9 @@ function Write-Log($msg) {
 # ─── UAC elevation guard (revert also modifies the install directory) ─
 $isElevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $alreadyRelaunched = ($args -contains '-Elevated')
-if (-not $isElevated) {
+${CAN_WRITE_PS}
+$canWrite = Test-CanWriteInstall $installDir
+if (-not $isElevated -and -not $canWrite) {
     if ($alreadyRelaunched) {
         Write-Log "FATAL: Elevation requested but still not Administrator. Aborting revert."
         $exe = Join-Path $installDir $exeName
@@ -544,7 +581,7 @@ if (-not $isElevated) {
         exit 1
     }
 }
-Write-Log "Running elevated (Administrator). Proceeding with revert."
+Write-Log "Proceeding with revert (elevated: $isElevated)."
 
 Write-Log "================================================================"
 Write-Log "=== HAMMAMPOS REVERT STARTED ==="
