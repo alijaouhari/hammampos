@@ -296,6 +296,7 @@ async function initializeServices() {
   scheduler = new SchedulerService(storage);
     // Reports and the end-of-day record use the same cash in hand as the screens.
     scheduler.getCashInHand = () => (money ? money.getBalances().cashInHand : storage.getCashInHand());
+    scheduler.money = money || null;
   try {
     scheduler.initialize();
     console.log('✅ Scheduler ready');
@@ -1669,15 +1670,7 @@ ipcMain.handle('recovery:sendCode', async () => {
   if (!created.ok) return created;
   try {
     if (!emailService) emailService = new EmailService(storage);
-    const name = storage.getSetting('hammam_name') || 'HammamPOS';
-    await emailService.sendSecurityEmail(
-      to,
-      'رمز استرداد كلمة مرور الإدارة - ' + name,
-      '<div dir="rtl" style="font-family:Arial,sans-serif;font-size:16px;">' +
-      '<p>رمز استرداد كلمة مرور الإدارة:</p>' +
-      '<p style="font-size:32px;font-weight:bold;letter-spacing:6px;direction:ltr;">' + created.code + '</p>' +
-      '<p>صالح لمدة 15 دقيقة ويُستعمل مرة واحدة. إذا لم تطلبه فتجاهل هذه الرسالة.</p></div>'
-    );
+    await emailService.sendRecoveryCode(to, created.code);
     return { ok: true, maskedEmail: maskEmail(to) };
   } catch (error) {
     console.error('Reset code email failed:', error.message);

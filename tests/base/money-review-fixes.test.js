@@ -97,8 +97,8 @@ test('scheduler daily report uses the new cash in hand when provided', async () 
     m.switchOver();
     sell(s, c, 50, '2026-11-15 10:30:00');
     const sch = new SchedulerService(s);
-    sch.getCashInHand = () => m.getBalances().cashInHand;
-    const report = await sch.generateDailyReport('2026-11-15', s.getTicketsForDate('2026-11-15'), s.getExpensesForDate('2026-11-15'));
+    sch.money = m;
+    const report = sch.generateDailyReport('2026-11-15');
     assert.equal(report.cashInHand, 50);
     assert.equal(s.getCashInHand(), 769); // old formula would have reported this
   } finally { cleanup(s); }

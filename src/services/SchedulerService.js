@@ -12,6 +12,7 @@
  */
 
 const cron = require('node-cron');
+const { buildDailyReport } = require('./DailyReport');
 
 class SchedulerService {
   constructor(storageManager, emailService = null) {
@@ -205,16 +206,8 @@ class SchedulerService {
         }
         
         console.log('📧 Sending daily email report...');
-        
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Get today's data
-        const tickets = (await this.storage.getTicketsForDate(today)).filter(t => !t.refunded_at);
-        const expenses = await this.storage.getExpensesForDate(today);
-        
-        // Generate report
-        const report = await this.generateDailyReport(today, tickets, expenses);
-        
+        const report = this.generateDailyReport(this.localToday());
+
         // Send email
         const emailAddress = this.storage.getSetting('email_address');
         if (emailAddress) {
@@ -238,43 +231,19 @@ class SchedulerService {
     console.log('📧 Email reports scheduled for 23:59:30 daily');
   }
 
+  /** Today's calendar day in local time, 'YYYY-MM-DD' (same as the dashboard). */
+  localToday() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
   /**
-   * Generate daily report data
+   * Daily report data: same numbers as the dashboard (see DailyReport.js).
+   * Language follows the app's ui_language setting.
    */
-  async generateDailyReport(date, tickets, expenses) {
-    const categoryBreakdown = {};
-    let totalRevenue = 0;
-    let totalExpenses = 0;
-    
-    // Calculate category breakdown and revenue
-    tickets.forEach(ticket => {
-      totalRevenue += ticket.price;
-      if (!categoryBreakdown[ticket.category_name]) {
-        categoryBreakdown[ticket.category_name] = { count: 0, revenue: 0 };
-      }
-      categoryBreakdown[ticket.category_name].count++;
-      categoryBreakdown[ticket.category_name].revenue += ticket.price;
-    });
-    
-    // Calculate expenses
-    expenses.forEach(expense => {
-      totalExpenses += expense.amount;
-    });
-    
-    const netRevenue = totalRevenue - totalExpenses;
-    const cashInHand = this.getCashInHand ? this.getCashInHand() : this.storage.getCashInHand();
-    
-    return {
-      date,
-      totalTickets: tickets.length,
-      totalRevenue,
-      totalExpenses,
-      netRevenue,
-      cashInHand,
-      categoryBreakdown,
-      tickets,
-      expenses
-    };
+  generateDailyReport(date) {
+    return buildDailyReport(this.storage, this.money || null, date);
   }
 
   /**
