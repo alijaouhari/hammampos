@@ -489,14 +489,19 @@ function buildSummary() {
     const monthStart = localDay(-370).slice(0, 7);
     const b = money ? money.getBalances() : { cashInHand: storage.getCashInHand() };
     const salesDay = Object.fromEntries(rows("SELECT date, COUNT(*), COALESCE(SUM(price),0) FROM tickets WHERE refunded_at IS NULL AND date >= ? GROUP BY date", [since]).map(([d, n, s]) => [d, [n, s]]));
-    const expDay = Object.fromEntries(rows('SELECT date, COALESCE(SUM(amount),0) FROM expenses WHERE date >= ? GROUP BY date', [since]));
+    // Expenses: same source as the daily report e-mail (the money system's list once it is on).
+    const useMoney = !!(money && b.switchedOver);
+    const expRows = (groupBy, from) => useMoney
+      ? rows(`SELECT ${groupBy}, COALESCE(SUM(total),0) FROM money_expenses WHERE date >= ? GROUP BY 1`, [from])
+      : rows(`SELECT ${groupBy}, COALESCE(SUM(amount),0) FROM expenses WHERE date >= ? GROUP BY 1`, [from]);
+    const expDay = Object.fromEntries(expRows('date', since));
     const days = [];
     for (let i = 34; i >= 0; i--) {
       const d = localDay(-i);
       days.push([d, (salesDay[d] || [0, 0])[0], Math.round(((salesDay[d] || [0, 0])[1]) * 100) / 100, Math.round((expDay[d] || 0) * 100) / 100]);
     }
     const mSales = Object.fromEntries(rows("SELECT substr(date,1,7), COUNT(*), COALESCE(SUM(price),0) FROM tickets WHERE refunded_at IS NULL AND substr(date,1,7) >= ? GROUP BY 1", [monthStart]).map(([m, n, s]) => [m, [n, s]]));
-    const mExp = Object.fromEntries(rows('SELECT substr(date,1,7), COALESCE(SUM(amount),0) FROM expenses WHERE substr(date,1,7) >= ? GROUP BY 1', [monthStart]));
+    const mExp = Object.fromEntries(expRows('substr(date,1,7)', monthStart + '-01'));
     const months = Array.from(new Set([...Object.keys(mSales), ...Object.keys(mExp)])).sort().slice(-12)
       .map(m => [m, (mSales[m] || [0, 0])[0], Math.round(((mSales[m] || [0, 0])[1]) * 100) / 100, Math.round((mExp[m] || 0) * 100) / 100]);
     const t = salesDay[today] || [0, 0];
