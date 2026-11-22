@@ -20,10 +20,11 @@ const samePath = (a, b) =>
  * @param {string[]} opts.desktopDirs folders to scan (user desktop, public desktop)
  * @param {string} opts.exePath      this installation's exe
  * @param {string} opts.version      e.g. "2.8.27"
+ * @param {string} [opts.iconPath]   logo file (.ico) to show on the shortcut
  * @param {function} [opts.log]
  * @returns {{renamed: string[], skipped: string[]}}
  */
-function syncDesktopShortcutName({ shell, desktopDirs, exePath, version, log = () => {} }) {
+function syncDesktopShortcutName({ shell, desktopDirs, exePath, version, iconPath, log = () => {} }) {
   const result = { renamed: [], skipped: [] };
   const wantedName = `HammamPOS v${version}.lnk`;
 
@@ -51,7 +52,15 @@ function syncDesktopShortcutName({ shell, desktopDirs, exePath, version, log = (
     for (const o of ours) {
       try {
         if (o === keep) {
-          if (o.full.toLowerCase() === target.toLowerCase()) continue; // already right
+          if (o.full.toLowerCase() === target.toLowerCase()) {
+            // Right name already; only the logo may still need setting.
+            if (iconPath && !samePath(o.link.icon, iconPath)) {
+              const ok = shell.writeShortcutLink(o.full, 'update', { icon: iconPath, iconIndex: 0 });
+              if (!ok) throw new Error('writeShortcutLink returned false');
+              result.renamed.push(`${o.name} (logo)`);
+            }
+            continue;
+          }
           // Write the new one first, then remove the old one, so a failure never
           // leaves the desktop without a shortcut.
           const ok = shell.writeShortcutLink(target, 'create', {
@@ -59,8 +68,8 @@ function syncDesktopShortcutName({ shell, desktopDirs, exePath, version, log = (
             cwd: o.link.cwd || path.dirname(exePath),
             args: o.link.args || '',
             description: o.link.description || 'HammamPOS',
-            icon: o.link.icon || exePath,
-            iconIndex: o.link.iconIndex || 0
+            icon: iconPath || o.link.icon || exePath,
+            iconIndex: iconPath ? 0 : (o.link.iconIndex || 0)
           });
           if (!ok) throw new Error('writeShortcutLink returned false');
           fs.unlinkSync(o.full);

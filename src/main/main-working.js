@@ -38,6 +38,15 @@ const UpdateManager = require('../services/UpdateManager');
 const MoneyService = require('../services/MoneyService');
 
 // Keep a global reference of the window object
+// App logo for the window, taskbar and desktop shortcut. The exe itself is left
+// as the standard Electron program (editing it makes Windows Smart App Control
+// block it), so the logo comes from this separate file instead.
+function appIconPath() {
+  const p = app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.ico')
+    : path.join(__dirname, '../../assets/icon.ico');
+  return fs.existsSync(p) ? p : undefined;
+}
 let mainWindow;
 let money;
 let setupWindow;
@@ -57,6 +66,7 @@ function createSetupWindow() {
     width: 800,
     height: 700,
     show: true,
+    icon: appIconPath(),
     resizable: false,
     autoHideMenuBar: true,
     webPreferences: {
@@ -91,6 +101,7 @@ function createWindow() {
     width: 1280,
     height: 800,
     show: true,
+    icon: appIconPath(),
     autoHideMenuBar: true, // Hide the menu bar
     webPreferences: {
       nodeIntegration: true,
@@ -199,6 +210,7 @@ app.whenReady().then(async () => {
           shell,
           desktopDirs: [app.getPath('desktop'), path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'Desktop')],
           exePath: process.execPath,
+          iconPath: appIconPath(),
           version: require('../../package.json').version,
           log: (m) => console.log('🖥️ ' + m)
         });
