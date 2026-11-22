@@ -531,7 +531,9 @@ function buildSummary() {
       openBills: { count: bills.length, total: Math.round(bills.reduce((a, x) => a + (x.remaining || 0), 0) * 100) / 100 },
       pendingLate: { count: late.length, total: Math.round(late.reduce((a, x) => a + (x.amount || 0), 0) * 100) / 100 },
       refundsEnabled: money ? money.getRefundsEnabled() : false,
-      days, months
+      days, months,
+      // Detail lists for the dashboard (v2): what is behind each number.
+      details: summaryDetails(rows, b, bills, late, today)
     };
   } catch (error) {
     data = { v: 1, error: error.message };
@@ -540,6 +542,42 @@ function buildSummary() {
   return data;
 }
 
+// Lists behind the dashboard's numbers. Capped so the summary stays small.
+function summaryDetails(rows, b, bills, late, today) {
+  const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+  const out = { v: 1 };
+  try {
+    if (!b.switchedOver) return out;
+    // Today's expenses with how they were paid
+    const paidBy = {};
+    rows("SELECT expense_id, source, COALESCE(SUM(amount),0) FROM expense_payments WHERE late_status IS NULL OR late_status = 'accepted' GROUP BY expense_id, source")
+      .forEach(([id, src, amt]) => { (paidBy[id] = paidBy[id] || {})[src] = amt; });
+    out.expenses = rows("SELECT id, substr(created_at, 12, 5), description, supplier, total FROM money_expenses WHERE date = ? ORDER BY id LIMIT 40", [today])
+      .map(([id, time, d, sup, total]) => {
+        const p = paidBy[id] || {};
+        const drawer = r2(p.drawer), manager = r2(p.manager);
+        return { t: time || '', d, s: sup || '', a: r2(total), drawer, manager, left: r2(Math.max(total - drawer - manager, 0)) };
+      });
+    // Unpaid bills
+    out.bills = bills.slice(0, 30).map(x => ({ date: x.date, d: x.description, s: x.supplier || '', a: r2(x.total), left: r2(x.remaining) }));
+    // Pending late entries
+    out.late = late.slice(0, 20).map(x => ({ date: x.date, d: x.description, s: x.supplier || '', a: r2(x.amount) }));
+    // Paid by the manager from his pocket (latest), and what was repaid to him
+    out.manager = rows(`SELECT p.date, e.description, p.amount FROM expense_payments p JOIN money_expenses e ON e.id = p.expense_id
+        WHERE p.source = 'manager' ORDER BY p.id DESC LIMIT 15`).map(([date, d, a]) => ({ date, d, a: r2(a) }));
+    out.managerRepaid = r2((rows('SELECT COALESCE(SUM(repayment_part),0) FROM money_collections WHERE cancelled_at IS NULL')[0] || [0])[0]);
+    // What the seller owes: shortages and repayments (latest)
+    const debts = rows('SELECT substr(created_at,1,10), amount, note FROM seller_debts ORDER BY id DESC LIMIT 15').map(([date, a, n]) => ({ date, k: 'short', a: r2(a), n: n || '' }));
+    const pays = rows('SELECT substr(created_at,1,10), amount, note FROM seller_debt_payments ORDER BY id DESC LIMIT 15').map(([date, a, n]) => ({ date, k: 'paid', a: r2(a), n: n || '' }));
+    out.seller = debts.concat(pays).sort((x, y) => (x.date < y.date ? 1 : -1)).slice(0, 20);
+    // Last collection that took money out of the box
+    const lc = rows("SELECT substr(created_at,1,10), type, amount FROM money_collections WHERE cancelled_at IS NULL ORDER BY id DESC LIMIT 1")[0];
+    if (lc) out.lastCollection = { date: lc[0], type: lc[1], a: r2(lc[2]) };
+  } catch (error) {
+    out.error = error.message;
+  }
+  return out;
+}
 // Notifications stored by the money system, delivered to the dashboard by the heartbeat.
 const notificationHooks = {
   pending: () => {

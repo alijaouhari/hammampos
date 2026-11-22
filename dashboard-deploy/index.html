@@ -118,6 +118,42 @@ table.t tr:last-child td{border-bottom:none}
 .msg-err{background:rgba(240,100,100,.08);color:#f5a3a3;border-color:rgba(240,100,100,.25)}
 .msg-info{background:#16181d;color:#a9b4c6}
 .dl-btn{display:inline-block;background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;text-decoration:none;font-weight:600}
+/* overview v2 */
+.ov-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.stats4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.box{font:inherit;color:inherit;text-align:inherit;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;transition:border-color .15s}
+.box:hover{border-color:#3a3a40}
+.box .k{color:var(--muted);font-size:12px;display:flex;justify-content:space-between}
+.box .k .go{color:var(--dim)}
+.box .v{font-size:22px;font-weight:600;margin-top:6px;letter-spacing:-0.02em;text-align:start}
+.box .s{font-size:12px;color:var(--muted);margin-top:4px;min-height:18px}
+.box.red .v{color:var(--bad)}.box.amber .v{color:var(--warn)}
+.up{color:var(--accent)}.down{color:var(--bad)}.warn{color:var(--warn)}.violet{color:#a78bfa}.muted{color:var(--muted)}.small{font-size:12px;margin-top:6px}
+.attn{padding:4px 16px}
+.attn-row{font:inherit;color:inherit;text-align:inherit;background:none;border:none;width:100%;display:flex;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--line);cursor:pointer}
+.attn-row:first-child{border-top:none}
+.attn-row .t{flex:1;font-size:13px}.attn-row .m{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.attn-row .go{color:var(--dim)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--accent)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
+.row2{display:grid;grid-template-columns:1.5fr 1fr;gap:12px;margin-top:12px}
+.tag{font-size:11px;border-radius:9px;padding:1px 8px;border:1px solid var(--line);color:var(--muted)}
+.hbars{display:flex;align-items:flex-end;gap:4px;height:150px;direction:ltr}
+.hbars i{flex:1;background:var(--accent);border-radius:3px 3px 0 0;opacity:.85}
+.hax{display:flex;gap:4px;direction:ltr;color:var(--dim);font-size:10px;margin-top:4px}.hax span{flex:1;white-space:nowrap}
+.hc-big{font-size:24px;font-weight:600;padding:8px 16px 0}
+.hc-vs{font-size:12px;padding:2px 16px 6px}
+.hc-t{width:calc(100% - 32px);margin:0 16px;border-collapse:collapse;font-size:13px}
+.hc-t td{padding:6px 0;border-top:1px solid var(--line)}.hc-t td:first-child{color:var(--muted)}.hc-t td:last-child{text-align:left}
+html[dir="ltr"] .hc-t td:last-child{text-align:right}
+.drawer{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100}
+.drawer-in{position:absolute;top:0;bottom:0;left:0;width:min(600px,100vw);background:#0f0f11;border-right:1px solid var(--line);padding:22px;overflow:auto}
+html[dir="ltr"] .drawer-in{left:auto;right:0;border-right:none;border-left:1px solid var(--line)}
+.drawer-in h3{font-size:16px;color:var(--ink);font-weight:600}
+.drawer-in .sub{color:var(--muted);font-size:12px;margin:4px 0 14px}
+.drawer-in .sec{margin:18px 0 6px;font-size:12px;color:var(--muted);font-weight:600}
+.drawer-x{float:left;background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
+html[dir="ltr"] .drawer-x{float:right}
+@media (max-width:860px){.stats4{grid-template-columns:1fr 1fr;gap:8px}.row2{grid-template-columns:1fr}.box{padding:12px}.box .v{font-size:18px}}
 @media (max-width:860px){
   #dashboard-view{flex-direction:column}
   .side{width:auto;height:auto;position:sticky;top:0;z-index:50;background:var(--bg);flex-direction:row;flex-wrap:wrap;align-items:center;border-left:none;border-bottom:1px solid var(--line);padding:8px 10px;gap:6px}
@@ -187,18 +223,20 @@ table.t tr:last-child td{border-bottom:none}
 <div class="container">
 
 <div id="view-overview" class="view">
-<div class="panel-head"><h2 class="section" style="margin:0">اليوم <span class="updated" id="ov-date"></span></h2><span class="updated" id="ov-updated"></span></div>
-<div class="stats" id="ov-stats"></div>
+<div class="ov-top"><h2 class="section" style="margin:0">نظرة عامة <span class="updated" id="ov-date"></span></h2>
+<div class="seg" id="ov-period"><button data-p="today" class="active">اليوم</button><button data-p="yesterday">أمس</button><button data-p="week">هذا الأسبوع</button><button data-p="month">هذا الشهر</button></div></div>
+<h2 class="section" id="ov-period-title">اليوم</h2>
+<div class="stats4" id="ov-period-stats"></div>
+<h2 class="section">المال الآن</h2>
+<div class="stats4" id="ov-money"></div>
+<h2 class="section">يحتاج انتباهك</h2>
+<div class="panel attn" id="ov-attn"></div>
+<div class="row2">
+<div class="panel"><div class="panel-head"><h3>المبيعات حسب الساعة — اليوم</h3><span class="tag">الساعات المزدحمة</span></div><div id="ov-hours"></div></div>
+<div class="panel"><div class="panel-head"><h3>آخر 7 أيام</h3><span class="tag" id="ov-avg"></span></div><div class="chart-box" dir="ltr" style="height:170px"><canvas id="ov-chart"></canvas></div></div>
+</div>
 <h2 class="section">الحمامات</h2>
 <div class="hammams" id="ov-hammams"></div>
-<div class="panel" style="margin-top:1rem">
-<div class="panel-head"><h3>المبيعات — آخر 14 يوماً</h3><button class="btn light" onclick="go('charts')">المزيد</button></div>
-<div class="chart-box" dir="ltr" style="height:220px"><canvas id="ov-chart"></canvas></div>
-</div>
-<div class="panel">
-<div class="panel-head"><h3>آخر التنبيهات</h3><button class="btn light" onclick="go('alerts')">الكل</button></div>
-<div id="ov-alerts"></div>
-</div>
 </div>
 
 <div id="view-hammam" class="view hidden">
@@ -285,6 +323,7 @@ table.t tr:last-child td{border-bottom:none}
 </div>
 </div>
 
+<div id="drawer" class="drawer hidden"><div class="drawer-in"><button type="button" class="drawer-x" onclick="closeDrawer()" aria-label="إغلاق">×</button><div id="drawer-body"></div></div></div>
 <div id="view-settings" class="view hidden">
 <h2 class="section">الإعدادات</h2>
 <div class="settings-section">
@@ -671,50 +710,204 @@ function flagsOf(l){
 }
 
 // ═══ Overview ═══
-let ovChart=null;
-function renderOverview(){
+let ovChart=null,ovPeriod='today',ovTickets=[],ovTicketsAt=0;
+const dayOffset=(n)=>new Date(Date.now()+n*86400000).toISOString().slice(0,10);
+const pct=(a,b)=>b>0?Math.round((a-b)/b*100):null;
+function trend(cur,prev,label){
+  const p=pct(cur,prev);
+  if(p==null)return '';
+  return '<span class="'+(p>=0?'up':'down')+'">'+(p>=0?'▲ ':'▼ ')+Math.abs(p)+'%</span> '+esc(label);
+}
+// Numbers of one hammam for a period, from the days the PC sends (date, tickets, sales, expenses)
+function periodOf(l,period){
+  const s=sumOf(l);
+  const z={tickets:0,sales:0,expenses:0,prev:null,days:0};
+  if(!s)return z;
+  const days=s.days||[];
+  const byDate=Object.fromEntries(days.map(d=>[d[0],d]));
+  const sumRange=(from,to)=>{const r={tickets:0,sales:0,expenses:0,days:0};days.forEach(d=>{if(d[0]>=from&&d[0]<=to){r.tickets+=d[1];r.sales+=d[2];r.expenses+=d[3];r.days++;}});return r;};
   const today=todayStr();
-  document.getElementById('ov-date').textContent=new Date().toLocaleDateString('ar-MA',{weekday:'long',day:'numeric',month:'long'});
-  let sales=0,tickets=0,exp=0,cash=0,sup=0,mgr=0,online=0;
-  for(const l of locations){
-    const t=todayOf(l),s=sumOf(l);
-    sales+=t.sales||0;tickets+=t.tickets||0;exp+=t.expenses||0;
-    if(s){cash+=s.cashInHand||0;sup+=s.owedToSuppliers||0;mgr+=s.owedToManager||0;}
-    if(pillOf(l).cls==='on')online++;
+  if(period==='today'){
+    const t=todayOf(l);const w=byDate[dayOffset(-7)];
+    return {tickets:t.tickets||0,sales:t.sales||0,expenses:t.expenses||0,prev:w?w[2]:null,days:1};
   }
-  const unread=notes.filter(n=>!n.read_at).length;
-  document.getElementById('ov-stats').innerHTML=
-    statCard('مبيعات اليوم',dh(sales),'green',int(tickets)+' تذكرة')+
-    statCard('مصروفات اليوم',dh(exp),'')+
-    statCard('النقد في الصندوق',dh(cash),'violet','كل الحمامات')+
-    statCard('ديون الموردين',dh(sup),sup>0?'red':'')+
-    statCard('مستحق للمدير',dh(mgr),mgr>0?'amber':'')+
-    statCard('الأجهزة المتصلة',online+' / '+locations.length,online<locations.length?'red':'green',unread?unread+' تنبيه غير مقروء':'لا تنبيهات جديدة');
+  if(period==='yesterday'){
+    const y=byDate[dayOffset(-1)]||[0,0,0,0];const w=byDate[dayOffset(-8)];
+    return {tickets:y[1],sales:y[2],expenses:y[3],prev:w?w[2]:null,days:1};
+  }
+  if(period==='week'){
+    const wd=(new Date().getUTCDay()+6)%7; // days since Monday
+    const cur=sumRange(dayOffset(-wd),today);const prev=sumRange(dayOffset(-wd-7),dayOffset(-7));
+    return Object.assign(cur,{prev:prev.sales});
+  }
+  const cur=sumRange(today.slice(0,7)+'-01',today);
+  return Object.assign(cur,{prev:null});
+}
+function usualDay(l){ // average of the same weekday over the last 4 weeks
+  const s=sumOf(l);if(!s)return null;
+  const byDate=Object.fromEntries((s.days||[]).map(d=>[d[0],d]));
+  const v=[7,14,21,28].map(n=>byDate[dayOffset(-n)]).filter(Boolean).map(d=>d[2]);
+  return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
+}
+function box(k,v,cls,sub,action){
+  return '<button type="button" class="box '+(cls||'')+'" onclick="'+action+'"><div class="k">'+esc(k)+'<span class="go">‹</span></div><div class="v num">'+v+'</div><div class="s">'+(sub||'')+'</div></button>';
+}
+async function loadTodayTickets(){
+  if(Date.now()-ovTicketsAt<25000)return ovTickets;
+  ovTicketsAt=Date.now();
+  const{data,error}=await sb.from('tickets').select('location_id,time,price,category_name,serial_number,year').eq('date',todayStr()).order('time',{ascending:false}).limit(2000);
+  if(!error){ovTickets=data||[];ovTicketsAt=Date.now();}
+  return ovTickets;
+}
+function details(l){const s=sumOf(l);return (s&&s.details)||null;}
+function renderOverview(){
+  document.getElementById('ov-date').textContent=new Date().toLocaleDateString('ar-MA',{weekday:'long',day:'numeric',month:'long'});
+  const names={today:'اليوم',yesterday:'أمس',week:'هذا الأسبوع',month:'هذا الشهر'};
+  const cmp={today:'مقارنة بنفس اليوم من الأسبوع الماضي',yesterday:'مقارنة بنفس اليوم من الأسبوع الماضي',week:'مقارنة بنفس الفترة من الأسبوع الماضي',month:''};
+  let P={tickets:0,sales:0,expenses:0,prev:0,hasPrev:false,days:0};
+  let cash=0,sup=0,mgr=0,seller=0,bills=0,unpaidToday=0,expCount=0,lastCol=null,sellerWhere=[];
+  for(const l of locations){
+    const p=periodOf(l,ovPeriod),s=sumOf(l),d=details(l);
+    P.tickets+=p.tickets;P.sales+=p.sales;P.expenses+=p.expenses;P.days=Math.max(P.days,p.days||0);
+    if(p.prev!=null){P.prev+=p.prev;P.hasPrev=true;}
+    if(s){cash+=s.cashInHand||0;sup+=s.owedToSuppliers||0;mgr+=s.owedToManager||0;seller+=s.owedBySeller||0;bills+=(s.openBills&&s.openBills.count)||0;if((s.owedBySeller||0)>0)sellerWhere.push(l.name);}
+    if(d&&d.expenses&&ovPeriod==='today'){expCount+=d.expenses.length;unpaidToday+=d.expenses.filter(e=>e.left>0).length;}
+    if(d&&d.lastCollection&&(!lastCol||d.lastCollection.date>lastCol.date))lastCol=d.lastCollection;
+  }
+  document.getElementById('ov-period-title').innerHTML=esc(names[ovPeriod])+' <small>· '+(locations.length>1?'كل الحمامات':'')+'</small>';
+  document.querySelectorAll('#ov-period button').forEach(b=>b.classList.toggle('active',b.dataset.p===ovPeriod));
+  const lastT=locations.map(l=>{const s=sumOf(l);return s&&s.lastTicketAt&&s.lastTicketAt.slice(0,10)===todayStr()?s.lastTicketAt.slice(11,16):'';}).filter(Boolean).sort().pop();
+  const peak=peakHour(ovTickets);
+  const net=P.sales-P.expenses;
+  document.getElementById('ov-period-stats').innerHTML=
+    box('المبيعات',dh(P.sales),'',P.hasPrev?trend(P.sales,P.prev,cmp[ovPeriod]):(ovPeriod==='month'&&P.days?'معدل اليوم '+dh(P.sales/P.days):''),"openDrawer('sales')")+
+    box('التذاكر',int(P.tickets),'',ovPeriod==='today'?[lastT?'آخر تذكرة '+lastT:'',peak?'ذروة '+peak:''].filter(Boolean).join(' · '):(P.days?'معدل اليوم '+int(Math.round(P.tickets/P.days)):''),"openDrawer('sales')")+
+    box('المصروفات',dh(P.expenses),'',ovPeriod==='today'&&expCount?int(expCount)+' مصروفات'+(unpaidToday?' · <span class="warn">'+unpaidToday+' غير مدفوعة</span>':''):'',"openDrawer('expenses')")+
+    box('الصافي',dh(net),net<0?'red':'','المبيعات ناقص المصروفات',"openDrawer('expenses')");
+  document.getElementById('ov-money').innerHTML=
+    box('النقد في الصناديق',dh(cash),'',lastCol?'آخر تحصيل: '+esc(new Date(lastCol.date+'T12:00:00Z').toLocaleDateString('ar-MA',{weekday:'long',day:'numeric',month:'long'})):'',"openDrawer('cash')")+
+    box('ديون الموردين',dh(sup),sup>0?'red':'',bills?int(bills)+' فواتير غير مدفوعة':'لا توجد فواتير غير مدفوعة',"openDrawer('bills')")+
+    box('مستحق لك',dh(mgr),mgr>0?'amber':'','دفعتها من جيبك ولم تُسدَّد',"openDrawer('manager')")+
+    box('على البائعين',dh(seller),seller>0?'amber':'',sellerWhere.length?sellerWhere.map(esc).join(' · '):'لا شيء',"openDrawer('seller')");
+  renderAttention();
+  renderHourly();
+  const last7=seriesFor(null,'day').slice(-7);
+  ovChart=drawChart('ov-chart',ovChart,last7,false,'day');
+  const avg=last7.length?last7.reduce((a,r)=>a+r[2],0)/last7.length:0;
+  document.getElementById('ov-avg').textContent='المعدل '+dh(avg).replace(/[\u2066\u2069]/g,'');
+  renderHammamCards();
+  if(Date.now()-ovTicketsAt>25000)loadTodayTickets().then(()=>{if(currentView==='overview')renderOverview();});
+}
+function peakHour(list){
+  if(!list||!list.length)return '';
+  const h={};list.forEach(t=>{const k=String(t.time||'').slice(0,2);if(k)h[k]=(h[k]||0)+1;});
+  const best=Object.entries(h).sort((a,b)=>b[1]-a[1])[0];
+  return best?best[0]+':00–'+String(Number(best[0])+1).padStart(2,'0')+':00':'';
+}
+function renderHourly(){
+  const box=document.getElementById('ov-hours');
+  const per=new Array(24).fill(0);
+  ovTickets.forEach(t=>{const h=Number(String(t.time||'').slice(0,2));if(h>=0&&h<24)per[h]+=Number(t.price)||0;});
+  let first=per.findIndex(v=>v>0),last=23-[...per].reverse().findIndex(v=>v>0);
+  if(first<0){box.innerHTML='<div class="empty">لا مبيعات اليوم بعد</div>';return;}
+  first=Math.min(first,7);last=Math.max(last,20);
+  const max=Math.max(...per);
+  let bars='',ax='';
+  for(let h=first;h<=last;h++){bars+='<i title="'+h+':00 · '+Math.round(per[h])+' DH" style="height:'+Math.max(2,per[h]/max*100)+'%"></i>';ax+='<span>'+((h-first)%3===0?h+':00':'')+'</span>';}
+  box.innerHTML='<div class="hbars">'+bars+'</div><div class="hax">'+ax+'</div>';
+}
+function renderAttention(){
+  const items=liveAlerts().map(a=>({ico:a.cls,t:a.title,m:a.sub,act:a.loc?(a.title.includes('فاتورة')?"openDrawer('bills')":"openDrawer('late')"):"go('devices')"}));
+  notes.filter(n=>!n.read_at).slice(0,4).forEach(n=>{const v=noteView(n);items.push({ico:v.cls,t:v.title,m:v.sub+' · '+agoText(v.when),act:"markRead("+n.id+");go('alerts')"});});
+  document.getElementById('ov-attn').innerHTML=items.length?items.map(i=>'<button type="button" class="attn-row" onclick="'+i.act+'"><span class="dot '+(i.ico||'')+'"></span><span class="t">'+esc(i.t)+'<span class="m">'+esc(i.m||'')+'</span></span><span class="go">‹</span></button>').join(''):'<div class="empty">لا شيء يحتاج انتباهك الآن</div>';
+}
+function renderHammamCards(){
   let html='';
   for(const l of locations){
-    const s=sumOf(l),t=todayOf(l),p=pillOf(l);
+    const s=sumOf(l),t=todayOf(l),p=pillOf(l),usual=usualDay(l);
+    let state='';
+    if(usual&&usual>0){const r=(t.sales||0)/usual;state=r<0.85?'<span class="warn">● أقل من المعتاد</span>':r>1.15?'<span class="up">● أعلى من المعتاد</span>':'<span class="up">● طبيعي</span>';state+=' <span class="muted">· معدله في هذا اليوم '+dh(usual)+'</span>';}
     html+='<div class="hcard"><div class="hcard-head"><h3>'+esc(l.name)+'</h3><span class="pill '+p.cls+'">'+p.t+'</span></div>'+
-      '<div class="hcard-body">'+
-        mini('مبيعات اليوم',dh(t.sales))+mini('التذاكر',int(t.tickets))+mini('المصروفات',dh(t.expenses))+
-        mini('النقد في الصندوق',s?dh(s.cashInHand):'—')+mini('ديون الموردين',s?dh(s.owedToSuppliers):'—')+mini('مستحق للمدير',s?dh(s.owedToManager):'—')+
-      '</div>'+
+      '<div class="hc-big num">'+dh(t.sales)+'</div><div class="hc-vs">'+state+'</div>'+
+      '<table class="hc-t">'+
+        '<tr><td>التذاكر</td><td class="num">'+int(t.tickets)+'</td></tr>'+
+        '<tr><td>المصروفات</td><td class="num">'+dh(t.expenses)+'</td></tr>'+
+        '<tr><td>النقد في الصندوق</td><td class="num">'+(s?dh(s.cashInHand):'—')+'</td></tr>'+
+        '<tr><td>ديون الموردين</td><td class="num'+(s&&s.owedToSuppliers>0?' down':'')+'">'+(s?dh(s.owedToSuppliers):'—')+'</td></tr>'+
+      '</table>'+
       '<div class="hcard-flags">'+flagsOf(l).join('')+'</div>'+
-      '<div class="hcard-foot"><button class="btn blue" onclick="go(\'hammam\',\''+l.id+'\')">التفاصيل</button>'+
-      '<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">لوحة الإدارة عن بعد</a>'+
-      '<span class="updated" style="margin-right:auto;align-self:center">'+(l.summary_at?'آخر تحديث '+agoText(l.summary_at):'')+(s&&s.lastTicketAt?' · آخر تذكرة '+esc(String(s.lastTicketAt).slice(11,16)):'')+'</span></div></div>';
+      '<div class="hcard-foot"><span class="updated">'+(s&&s.lastTicketAt?'آخر تذكرة '+esc(String(s.lastTicketAt).slice(11,16)):'')+(l.summary_at?' · آخر تحديث '+agoText(l.summary_at):'')+'</span>'+
+      '<span style="margin-right:auto;display:flex;gap:6px"><button class="btn" onclick="go(\'hammam\',\''+l.id+'\')">التفاصيل</button>'+
+      '<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">الإدارة عن بعد</a></span></div></div>';
   }
   document.getElementById('ov-hammams').innerHTML=html||'<div class="empty">لا توجد فروع. أضف جهازاً من صفحة «الأجهزة».</div>';
-  document.getElementById('ov-updated').textContent='يتحدث تلقائياً';
-  const series=seriesFor(null,'day').slice(-14);
-  ovChart=drawChart('ov-chart',ovChart,series,false);
-  renderOverviewAlerts();
 }
-function renderOverviewAlerts(){
-  const live=liveAlerts();
-  const items=live.map(a=>alertHtml(a,true)).concat(notes.slice(0,5).map(n=>alertHtml(noteView(n))));
-  document.getElementById('ov-alerts').innerHTML=items.join('')||'<div class="empty">لا تنبيهات</div>';
+function renderOverviewAlerts(){renderAttention();}
+// ═══ Side panel: what is behind each number ═══
+const NEEDS_UPDATE='<div class="empty">تظهر التفاصيل بعد تحديث الجهاز إلى آخر نسخة.</div>';
+function tableHtml(head,rows){return rows.length?'<table class="t"><thead><tr>'+head.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table>':'';}
+const td=(v,cls)=>'<td'+(cls?' class="'+cls+'"':'')+'>'+v+'</td>';
+const shortDate=(d)=>d?esc(String(d).slice(8,10)+'/'+String(d).slice(5,7)):'';
+function locName2(id){const l=locations.find(x=>x.id===id);return l?l.name:'';}
+async function openDrawer(kind){
+  const el=document.getElementById('drawer'),body=document.getElementById('drawer-body');
+  el.classList.remove('hidden');
+  let h='';
+  if(kind==='sales'){
+    await loadTodayTickets();
+    let tot=0,cnt=0;const per=locations.map(l=>{const t=todayOf(l);const w=(sumOf(l)&&(sumOf(l).days||[]).find(d=>d[0]===dayOffset(-7)))||null;tot+=t.sales||0;cnt+=t.tickets||0;return [l,t,w];});
+    h='<h3>مبيعات اليوم</h3><div class="sub">'+dh(tot)+' · '+int(cnt)+' تذكرة</div>'+
+      tableHtml(['الحمام','التذاكر','المبيعات','مقارنة بالأسبوع الماضي'],per.map(([l,t,w])=>'<tr>'+td(esc(l.name))+td(int(t.tickets),'num')+td(dh(t.sales),'num')+td(w?trend(t.sales||0,w[2],''):'—')+'</tr>'));
+    const cats={};locations.forEach(l=>(todayOf(l).byCategory||[]).forEach(([n,c,v])=>{cats[n]=cats[n]||[0,0];cats[n][0]+=c;cats[n][1]+=v;}));
+    const cr=Object.entries(cats).sort((a,b)=>b[1][1]-a[1][1]).map(([n,v])=>'<tr>'+td(esc(n))+td(int(v[0]),'num')+td(dh(v[1]),'num')+'</tr>');
+    if(cr.length)h+='<div class="sec">حسب الفئة</div>'+tableHtml(['الفئة','التذاكر','المبلغ'],cr);
+    const refunds=notes.filter(n=>n.type==='refund'&&String(n.created_at||n.received_at).slice(0,10)===todayStr());
+    if(refunds.length)h+='<div class="sec">استرجاعات اليوم</div>'+tableHtml(['الحمام','التذكرة','المبلغ','السبب'],refunds.map(n=>{const p=n.payload||{};return '<tr>'+td(esc(locName2(n.location_id)))+td(esc((p.category||'')+' #'+(p.serial||'')))+td(dh(p.amount),'num')+td(esc(p.reason||''))+'</tr>';}));
+    h+='<div class="sec">آخر التذاكر</div>'+(tableHtml(['الوقت','الحمام','الفئة','الرقم','السعر'],ovTickets.slice(0,40).map(t=>'<tr>'+td(esc(String(t.time||'').slice(0,5)),'num')+td(esc(locName2(t.location_id)))+td(esc(t.category_name))+td('#'+esc(t.serial_number),'num')+td(dh(t.price),'num')+'</tr>'))||'<div class="empty">لا توجد تذاكر اليوم</div>');
+  }else if(kind==='expenses'){
+    let tot=0;locations.forEach(l=>{tot+=todayOf(l).expenses||0;});
+    h='<h3>مصروفات اليوم</h3><div class="sub">'+dh(tot)+'</div>';
+    const rows=[];let missing=false;
+    locations.forEach(l=>{const d=details(l);if(!d||!d.expenses){if((todayOf(l).expenses||0)>0)missing=true;return;}d.expenses.forEach(e=>{
+      const st=e.left>0?'<span class="warn">'+(e.left<e.a?'الباقي '+dh(e.left)+' غير مدفوع':'غير مدفوع')+'</span>':e.manager>0?'<span class="violet">'+(e.drawer>0?'دفع المدير '+dh(e.manager):'دفعه المدير')+'</span>':'<span class="up">مدفوع من الصندوق</span>';
+      rows.push('<tr>'+td(esc(e.t),'num')+td(esc(l.name))+td(esc(e.d))+td(esc(e.s||'—'))+td(dh(e.a),'num')+td(st)+'</tr>');});});
+    h+=tableHtml(['الوقت','الحمام','الوصف','المورد','المبلغ','الحالة'],rows)||(missing?NEEDS_UPDATE:'<div class="empty">لا توجد مصروفات اليوم</div>');
+    if(rows.length&&missing)h+=NEEDS_UPDATE;
+  }else if(kind==='cash'){
+    let tot=0;
+    const rows=locations.map(l=>{const s=sumOf(l),d=details(l);tot+=(s&&s.cashInHand)||0;const lc=d&&d.lastCollection;
+      return '<tr>'+td(esc(l.name))+td(s?dh(s.cashInHand):'—','num')+td(s&&s.changeFloat!=null?dh(s.changeFloat):'—','num')+td(lc?shortDate(lc.date)+' · '+dh(lc.a):'—')+td('<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">الإدارة عن بعد</a>')+'</tr>';});
+    h='<h3>النقد في الصناديق</h3><div class="sub">'+dh(tot)+'</div>'+tableHtml(['الحمام','النقد','صندوق الصرف','آخر تحصيل',''],rows);
+  }else if(kind==='bills'){
+    let tot=0;const rows=[];let missing=false;
+    locations.forEach(l=>{const s=sumOf(l),d=details(l);tot+=(s&&s.owedToSuppliers)||0;if(!d||!d.bills){if(s&&s.openBills&&s.openBills.count)missing=true;return;}
+      d.bills.forEach(b=>rows.push('<tr>'+td(shortDate(b.date),'num')+td(esc(l.name))+td(esc(b.d))+td(esc(b.s||'—'))+td(dh(b.a),'num')+td(dh(b.left),'num down')+'</tr>'));});
+    h='<h3>ديون الموردين</h3><div class="sub">'+dh(tot)+'</div>'+(tableHtml(['التاريخ','الحمام','الوصف','المورد','المبلغ','الباقي'],rows)||(missing?NEEDS_UPDATE:'<div class="empty">لا توجد فواتير غير مدفوعة</div>'));
+  }else if(kind==='manager'){
+    let tot=0;let html2='';let missing=false;
+    locations.forEach(l=>{const s=sumOf(l),d=details(l);tot+=(s&&s.owedToManager)||0;if(!d||!d.manager){if(s&&s.owedToManager)missing=true;return;}
+      if(!d.manager.length&&!(s&&s.owedToManager))return;
+      html2+='<div class="sec">'+esc(l.name)+' · '+dh(s.owedToManager)+'</div>'+tableHtml(['التاريخ','الوصف','دفعته'],d.manager.map(m=>'<tr>'+td(shortDate(m.date),'num')+td(esc(m.d))+td(dh(m.a),'num')+'</tr>'))+
+        (d.managerRepaid?'<div class="muted small">سُدِّد لك من التحصيلات حتى الآن: '+dh(d.managerRepaid)+'</div>':'');});
+    h='<h3>مستحق لك</h3><div class="sub">'+dh(tot)+' · دفعتها من جيبك ولم تُسدَّد بعد</div>'+(html2||(missing?NEEDS_UPDATE:'<div class="empty">لا شيء</div>'));
+  }else if(kind==='seller'){
+    let tot=0;let html2='';let missing=false;
+    locations.forEach(l=>{const s=sumOf(l),d=details(l);tot+=(s&&s.owedBySeller)||0;if(!d||!d.seller){if(s&&s.owedBySeller)missing=true;return;}
+      if(!d.seller.length)return;
+      html2+='<div class="sec">'+esc(l.name)+' · '+dh(s.owedBySeller)+'</div>'+tableHtml(['التاريخ','السبب','المبلغ'],d.seller.map(x=>'<tr>'+td(shortDate(x.date),'num')+td(esc(x.k==='short'?'نقص عند العدّ':'تسديد من البائع')+(x.n&&x.k!=='short'?' · '+esc(x.n):''))+td((x.k==='paid'?'− ':'')+dh(x.a),'num '+(x.k==='paid'?'up':'down'))+'</tr>'));});
+    h='<h3>على البائعين</h3><div class="sub">'+dh(tot)+'</div>'+(html2||(missing?NEEDS_UPDATE:'<div class="empty">لا شيء</div>'));
+  }else if(kind==='late'){
+    const rows=[];let missing=false;
+    locations.forEach(l=>{const s=sumOf(l),d=details(l);if(!d||!d.late){if(s&&s.pendingLate&&s.pendingLate.count)missing=true;return;}
+      d.late.forEach(x=>rows.push('<tr>'+td(shortDate(x.date),'num')+td(esc(l.name))+td(esc(x.d))+td(dh(x.a),'num')+td('<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">مراجعة</a>')+'</tr>'));});
+    h='<h3>إدخالات متأخرة تنتظر مراجعتك</h3><div class="sub">تُقبل أو تُرفض من لوحة الإدارة عن بعد</div>'+(tableHtml(['التاريخ','الحمام','الوصف','المبلغ',''],rows)||(missing?NEEDS_UPDATE:'<div class="empty">لا توجد إدخالات متأخرة</div>'));
+  }
+  body.innerHTML=h;
+  el.querySelector('.drawer-in').scrollTop=0;
 }
-
+function closeDrawer(){document.getElementById('drawer').classList.add('hidden');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
+document.addEventListener('click',e=>{if(e.target&&e.target.id==='drawer')closeDrawer();});
 // ═══ Hammam detail ═══
 let hmChart=null,hmPeriod='day';
 async function renderHammam(quiet){
@@ -800,6 +993,7 @@ function setupSeg(id,cb){
   });
 }
 setupSeg('ch-seg',p=>{chPeriod=p;renderCharts();});
+document.getElementById('ov-period').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;ovPeriod=b.dataset.p;renderOverview();});
 setupSeg('hm-seg',p=>{hmPeriod=p;hmChart=drawChart('hm-chart',hmChart,seriesFor(currentHammam,hmPeriod),true);});
 function renderCharts(){
   const locId=document.getElementById('ch-loc').value||null;
