@@ -33,7 +33,13 @@ test('Example A: 1,000 from drawer + 500 unpaid', async () => {
     const r = m.recordExpense({ description: 'خشب', total: 1500, fromDrawer: 1000, restAs: 'unpaid' });
     assert.equal(r.success, true, r.error);
     assert.deepEqual(four(m.getBalances()), [0, 500, 0, 0]);
-    assert.equal(m.getNotifications().length, 0);
+    // one event for the manager's phone: a new expense with its unpaid part
+    const n = m.getNotifications();
+    assert.equal(n.length, 1);
+    assert.equal(n[0].type, 'expense');
+    assert.equal(n[0].payload.total, 1500);
+    assert.equal(n[0].payload.unpaid, 500);
+    assert.equal(n[0].payload.fromDrawer, 1000);
   } finally { cleanup(s); }
 });
 
@@ -44,11 +50,14 @@ test('Example B: 1,000 from drawer + 500 paid by the manager (notified)', async 
     assert.equal(r.success, true, r.error);
     assert.deepEqual(four(m.getBalances()), [0, 0, 500, 0]);
     const n = m.getNotifications();
-    assert.equal(n.length, 1);
-    assert.equal(n[0].type, 'paid_by_manager');
-    assert.equal(n[0].payload.amount, 500);
-    assert.equal(n[0].payload.total, 1500);
-    assert.equal(n[0].delivery_status, 'pending');
+    assert.equal(n.length, 2);
+    const pm = n.find(x => x.type === 'paid_by_manager');
+    assert.equal(pm.payload.amount, 500);
+    assert.equal(pm.payload.total, 1500);
+    assert.equal(pm.delivery_status, 'pending');
+    const ex = n.find(x => x.type === 'expense');
+    assert.equal(ex.payload.paidByManager, 500);
+    assert.equal(ex.payload.unpaid, 0);
   } finally { cleanup(s); }
 });
 
@@ -173,5 +182,14 @@ test('wood refused when the drawer cannot pay: no wood row is left behind', asyn
     const r2 = m.recordWoodPurchase(w, { sellerId: seller.id, woodType: 'أوكاليبتوس', pricingMethod: 'per_load', totalAmount: 600, deliveryDate: '2026-11-15', fromDrawer: 200, restAs: 'unpaid' });
     assert.equal(r2.success, false);
     assert.deepEqual(four(m.getBalances()), [100, 0, 0, 0]);
+  } finally { cleanup(s); }
+});
+
+test('expense event: none when the manager records it himself', async () => {
+  const { s, m } = await setup(1000);
+  try {
+    const r = m.recordExpense({ description: 'كهرباء', total: 300, fromDrawer: 300, createdBy: 'manager' });
+    assert.equal(r.success, true, r.error);
+    assert.equal(m.getNotifications().filter(x => x.type === 'expense').length, 0);
   } finally { cleanup(s); }
 });

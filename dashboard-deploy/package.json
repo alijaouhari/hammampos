@@ -1,0 +1,8 @@
+{
+  "name": "hammampos-dashboard",
+  "private": true,
+  "description": "HammamPOS dashboard (static site) + push notification sender (api/push.js)",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

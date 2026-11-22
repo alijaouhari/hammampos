@@ -24,7 +24,7 @@
 // this to true and implementing _deliverNotification().
 const NOTIFICATION_DELIVERY_ENABLED = false;
 
-const NOTIFICATION_TYPES = ['seller_collection', 'refund', 'paid_by_manager', 'late_entry'];
+const NOTIFICATION_TYPES = ['seller_collection', 'refund', 'paid_by_manager', 'late_entry', 'expense'];
 
 class MoneyService {
   /**
@@ -439,6 +439,14 @@ class MoneyService {
       this.notify('paid_by_manager', {
         expenseId, description: v.description, supplier: v.supplier || null,
         amount: v.rest, total: v.total, date: v.date, recordedBy: v.createdBy
+      });
+    }
+    // New expense for the manager's phone (not when he recorded it himself; a late entry has its own event)
+    if (!v.late && v.createdBy !== 'manager') {
+      this.notify('expense', {
+        expenseId, description: v.description, supplier: v.supplier || null, total: v.total,
+        fromDrawer: v.fromDrawer, unpaid: v.restAs === 'manager' ? 0 : v.rest,
+        paidByManager: v.restAs === 'manager' ? v.rest : 0, date: v.date
       });
     }
     if (v.late) {

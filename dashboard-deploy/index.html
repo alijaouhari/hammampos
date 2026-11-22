@@ -334,6 +334,15 @@ html[dir="ltr"] .drawer-x{float:right}
 <br><button class="primary-act" id="pw-btn" onclick="changePassword()">حفظ</button>
 <div id="pw-msg"></div>
 </div>
+<div class="settings-section" id="push-section">
+<h3>الإشعارات على هذا الهاتف</h3>
+<p style="margin-bottom:10px">تصلك رسالة على الهاتف عند كل حدث، حتى واللوحة مغلقة. اضغط عليها لتفتح اللوحة على التفاصيل.</p>
+<div id="push-status" class="msg msg-info" style="margin-bottom:10px"></div>
+<div id="push-types" style="display:grid;gap:6px;margin-bottom:10px"></div>
+<button class="primary-act" id="push-on" onclick="pushEnable()">تفعيل الإشعارات</button>
+<button id="push-test" onclick="pushTest()">إرسال تجربة</button>
+<button id="push-off" class="btn-red" onclick="pushDisable()">إيقاف على هذا الهاتف</button>
+</div>
 <div class="settings-section">
 <h3>حذف فرع</h3>
 <p style="color:var(--muted)">لحذف فرع وكل بياناته من السحابة: صفحة «الأجهزة» ← زر «حذف» بجانب الفرع.</p>
@@ -634,6 +643,7 @@ function go(view,arg){
   if(view==='alerts')renderAlerts();
   if(view==='devices')loadDevices();
   if(view==='download')loadDownload();
+  if(view==='settings')renderPush();
 }
 
 // ═══ Data: locations (with the summary each PC sends) + notifications ═══
@@ -657,6 +667,81 @@ async function loadDashboard(){
   fillLocSelects();
   go(currentView,currentHammam);
   setInterval(refreshTick,30000);
+  openFromUrl(location.href);
+  pushRegisterWorker();
+}
+// A tapped notification opens the dashboard on its event: ?open=expenses|late|sales|alerts|devices
+function openFromUrl(href){
+  let u;try{u=new URL(href);}catch(_){return;}
+  const open=u.searchParams.get('open');
+  if(!open)return;
+  history.replaceState(null,'',location.pathname);
+  loadLocations().then(()=>loadNotes()).then(()=>{
+    if(open==='alerts'||open==='devices'){go(open);return;}
+    go('overview');
+    if(['expenses','late','sales','bills','cash','manager','seller'].includes(open))openDrawer(open);
+  });
+}
+// ═══ Push notifications ═══
+const PUSH_KEY='BGaqIvHzCO6OPI5Ssq4Il7aFL1jlcTCe1IRYN3pNwrzzoyPHLVRihv_jhvpdgQrqcivgzj82A0aWq-PoMNaG-es';
+const PUSH_TYPES=[['expense','مصروف جديد (ومصروف غير مدفوع)'],['late_entry','إدخال متأخر'],['refund','استرجاع تذكرة'],['seller_collection','إيداع / تحويل من البائع'],['offline','الجهاز غير متصل / عاد الاتصال']];
+let pushReg=null;
+function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
+function isIos(){return /iphone|ipad|ipod/i.test(navigator.userAgent);}
+function isStandalone(){return window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}
+async function pushRegisterWorker(){
+  if(!('serviceWorker' in navigator))return null;
+  try{pushReg=await navigator.serviceWorker.register('/sw.js');}catch(_){pushReg=null;}
+  navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='hpos-open')openFromUrl(e.data.url);});
+  return pushReg;
+}
+const b64=(buf)=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+function keyBytes(k){const p=(k+'='.repeat((4-k.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/');return Uint8Array.from(atob(p),c=>c.charCodeAt(0));}
+async function pushCurrent(){const r=pushReg||await pushRegisterWorker();return r?r.pushManager.getSubscription():null;}
+async function renderPush(){
+  const st=document.getElementById('push-status');if(!st)return;
+  const on=document.getElementById('push-on'),off=document.getElementById('push-off'),test=document.getElementById('push-test'),types=document.getElementById('push-types');
+  const show=(a,b,c)=>{on.style.display=a?'':'none';test.style.display=b?'':'none';off.style.display=c?'':'none';};
+  types.innerHTML='';
+  if(isIos()&&!isStandalone()){st.textContent='على الآيفون: أضف اللوحة إلى الشاشة الرئيسية أولاً (زر المشاركة ← «إضافة إلى الشاشة الرئيسية»)، ثم افتحها من هناك وفعّل الإشعارات.';show(false,false,false);return;}
+  if(!pushSupported()){st.textContent='هذا المتصفح لا يدعم الإشعارات.';show(false,false,false);return;}
+  if(Notification.permission==='denied'){st.textContent='الإشعارات ممنوعة لهذا الموقع في إعدادات المتصفح. اسمح بها ثم أعد المحاولة.';show(false,false,false);return;}
+  const sub=await pushCurrent();
+  if(!sub){st.textContent='الإشعارات غير مفعّلة على هذا الهاتف.';show(true,false,false);return;}
+  const{data}=await sb.from('push_subscriptions').select('types,lang').eq('endpoint',sub.endpoint).maybeSingle();
+  if(!data){st.textContent='الإشعارات غير مفعّلة على هذا الهاتف.';show(true,false,false);return;}
+  st.textContent='الإشعارات مفعّلة على هذا الهاتف.';show(false,true,true);
+  types.innerHTML=PUSH_TYPES.map(([k,label])=>'<label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" style="width:auto;margin:0" data-type="'+k+'"'+((data.types||[]).includes(k)?' checked':'')+' onchange="pushSaveTypes()"> '+esc(label)+'</label>').join('');
+}
+async function pushEnable(){
+  const st=document.getElementById('push-status');
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){renderPush();return;}
+    const reg=pushReg||await pushRegisterWorker();
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(PUSH_KEY)});
+    const j=sub.toJSON();
+    const{error}=await sb.from('push_subscriptions').upsert({endpoint:sub.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,lang:currentLang()},{onConflict:'endpoint'});
+    if(error)throw error;
+    await renderPush();
+    pushTest();
+  }catch(e){st.textContent='تعذّر تفعيل الإشعارات: '+(e.message||e);}
+}
+async function pushSaveTypes(){
+  const sub=await pushCurrent();if(!sub)return;
+  const types=[...document.querySelectorAll('#push-types input:checked')].map(x=>x.dataset.type);
+  await sb.from('push_subscriptions').update({types,lang:currentLang()}).eq('endpoint',sub.endpoint);
+}
+async function pushTest(){
+  const st=document.getElementById('push-status');
+  const{error}=await sb.rpc('push_test');
+  st.textContent=error?'تعذّر إرسال التجربة: '+error.message:'أُرسلت تجربة. يجب أن تصل خلال ثوانٍ.';
+}
+async function pushDisable(){
+  const sub=await pushCurrent();
+  if(sub){await sb.from('push_subscriptions').delete().eq('endpoint',sub.endpoint);try{await sub.unsubscribe();}catch(_){}}
+  renderPush();
 }
 async function refreshTick(){
   if(window.__pinging)return;
@@ -1015,7 +1100,8 @@ const NOTE_TYPES={
   seller_collection:{ico:'',t:'تحصيل سجّله البائع',cls:''},
   refund:{ico:'',t:'استرجاع تذكرة',cls:'bad'},
   paid_by_manager:{ico:'',t:'مصروف على حساب المدير',cls:'warn'},
-  late_entry:{ico:'',t:'إدخال متأخر',cls:'warn'}
+  late_entry:{ico:'',t:'إدخال متأخر',cls:'warn'},
+  expense:{ico:'',t:'مصروف جديد',cls:''}
 };
 function locName(id){const l=locations.find(x=>x.id===id);return l?l.name:'—';}
 function noteView(n){
@@ -1024,6 +1110,7 @@ function noteView(n){
   if(n.type==='seller_collection')sub=[dh(p.amount),p.label,p.recipient&&('إلى '+p.recipient),p.reference&&('مرجع '+p.reference)].filter(Boolean).join(' · ');
   else if(n.type==='refund')sub=[dh(p.amount),p.category,p.serial&&('#'+p.serial),p.reason&&('السبب: '+p.reason)].filter(Boolean).join(' · ');
   else if(n.type==='paid_by_manager')sub=[dh(p.amount)+(p.total&&p.total!==p.amount?' من '+dh(p.total):''),p.description,p.supplier].filter(Boolean).join(' · ');
+  else if(n.type==='expense')sub=[dh(p.total),p.description,p.supplier,Number(p.unpaid)>0?('غير مدفوع '+dh(p.unpaid)):''].filter(Boolean).join(' · ');
   else if(n.type==='late_entry')sub=[dh(p.amount),p.description,p.supplier,p.date&&('بتاريخ '+p.date)].filter(Boolean).join(' · ');
   else sub=esc(JSON.stringify(p));
   return{id:n.id,ico:ty.ico,cls:ty.cls,title:ty.t+' — '+locName(n.location_id),sub,when:n.created_at||n.received_at,unread:!n.read_at};
