@@ -36,7 +36,7 @@ function buildMessage(event, lang) {
       const status = unpaid > 0 ? (unpaid >= Number(p.total) ? t.fullyUnpaid : t.unpaidPart + ' ' + dh(unpaid))
         : (Number(p.paidByManager) > 0 ? t.byManager + ' ' + dh(p.paidByManager) : '');
       return { title: where + t.expense, body: parts((p.description || '') + ': ' + dh(p.total), p.supplier, status),
-        url: '/?open=expenses' + loc, tag: 'expense-' + (event.location_id || '') + '-' + (p.expenseId || '') };
+        url: '/?open=expenses' + loc + (/^\d{4}-\d{2}-\d{2}$/.test(String(p.date || '')) ? '&date=' + p.date : ''), tag: 'expense-' + (event.location_id || '') + '-' + (p.expenseId || '') };
     }
     case 'late_entry':
       return { title: where + t.late_entry, body: parts((p.description || '') + ': ' + dh(p.amount), t.lateWait),

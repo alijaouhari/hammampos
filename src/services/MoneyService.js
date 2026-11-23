@@ -741,11 +741,16 @@ class MoneyService {
     const p = this.getPeriodSummary();
     const e = one(`SELECT COUNT(*) AS n, COALESCE(SUM(total),0) AS t FROM money_expenses
       WHERE created_at ${this.getPeriodStart().op} ?`, [p.periodStart]);
+    // How those expenses were paid: from the box, by the manager (the rest is unpaid)
+    const ep = one(`SELECT COALESCE(SUM(CASE WHEN pay.source = 'drawer' THEN pay.amount END),0) AS d,
+        COALESCE(SUM(CASE WHEN pay.source = 'manager' THEN pay.amount END),0) AS m
+      FROM money_expenses x JOIN expense_payments pay ON pay.expense_id = x.id
+      WHERE x.created_at ${this.getPeriodStart().op} ? AND (pay.late_status IS NULL OR pay.late_status = 'accepted')`, [p.periodStart]);
     return {
       period: {
         start: p.periodStart, visit: !!p.lastVisit,
         n: p.sales.count, s: p.sales.total, r: p.refunds.total,
-        e: r(e.t), en: e.n || 0, p: p.payments.total, remote: p.remote.total, other: p.other, cash: p.expected
+        e: r(e.t), en: e.n || 0, ed: r(ep.d), em: r(ep.m), p: p.payments.total, remote: p.remote.total, other: p.other, cash: p.expected
       },
       visits
     };

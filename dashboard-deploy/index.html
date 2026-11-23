@@ -224,7 +224,7 @@ html[dir="ltr"] .drawer-x{float:right}
 
 <div id="view-overview" class="view">
 <div class="ov-top"><h2 class="section" style="margin:0">نظرة عامة <span class="updated" id="ov-date"></span></h2>
-<div class="seg" id="ov-period"><button data-p="today" class="active">اليوم</button><button data-p="yesterday">أمس</button><button data-p="week">هذا الأسبوع</button><button data-p="month">هذا الشهر</button><button data-p="visit">منذ آخر زيارة</button></div></div>
+<div class="seg" id="ov-period"><button data-p="today" class="active">اليوم</button><button data-p="yesterday">أمس</button><button data-p="week">هذا الأسبوع</button><button data-p="last7">آخر 7 أيام</button><button data-p="month">هذا الشهر</button><button data-p="visit">منذ آخر زيارة</button></div></div>
 <h2 class="section" id="ov-period-title">اليوم</h2>
 <div class="stats4" id="ov-period-stats"></div>
 <h2 class="section">المال الآن</h2>
@@ -678,6 +678,13 @@ function openFromUrl(href){
   history.replaceState(null,'',location.pathname);
   loadLocations().then(()=>loadNotes()).then(()=>{
     if(open==='alerts'||open==='devices'){go(open);return;}
+    // An expense dated another day (entered late) opens on its own date
+    const date=u.searchParams.get('date');
+    if(open==='expenses'&&/^\d{4}-\d{2}-\d{2}$/.test(date||'')&&date!==todayStr()){
+      if(date===dayOffset(-1)){ovPeriod='yesterday';go('overview');openDrawer('expenses');}
+      else{go('overview');openDrawer('expenses','d:'+date);}
+      return;
+    }
     go('overview');
     if(['expenses','late','sales','bills','cash','manager','seller'].includes(open))openDrawer(open);
   });
@@ -804,32 +811,59 @@ function trend(cur,prev,label){
   return '<span class="'+(p>=0?'up':'down')+'">'+(p>=0?'▲ ':'▼ ')+Math.abs(p)+'%</span> '+esc(label);
 }
 // Numbers of one hammam for a period, from the days the PC sends (date, tickets, sales, expenses)
+// First day this hammam sold through the app. Days before it are not counted in
+// averages or comparisons (they are empty because the app was not used yet).
+// '' = sales go back further than the 35 days the PC sends (no cut); null = no sales yet.
+function activeFrom(l){
+  const s=sumOf(l);const days=(s&&s.days)||[];
+  const i=days.findIndex(d=>d[1]>0||d[2]>0);
+  return i<0?null:(i===0?'':days[i][0]);
+}
+// Expenses of a period split by how they were paid. split = {drawer, manager} or null
+// when the PC does not send it yet; unpaid = the rest.
+function splitParts(expenses,split){
+  if(!split)return null;
+  const unpaid=Math.max(0,Math.round((expenses-split.drawer-split.manager)*100)/100);
+  return {drawer:split.drawer,manager:split.manager,unpaid};
+}
+function splitText(expenses,split){
+  const p=splitParts(expenses,split);if(!p||!(expenses>0))return '';
+  return [p.drawer>0?'<span>من الصندوق</span> '+dh(p.drawer):'',p.manager>0?'<span class="violet">دفعته أنت</span> '+dh(p.manager):'',p.unpaid>0?'<span class="warn">غير مدفوع</span> '+dh(p.unpaid):''].filter(Boolean).join(' · ');
+}
+const periodName=(p)=>PERIOD_NAMES[p]||(String(p).startsWith('d:')?shortDate(p.slice(2)):p);
 function periodOf(l,period){
   const s=sumOf(l);
-  const z={tickets:0,sales:0,expenses:0,prev:null,days:0};
+  const z={tickets:0,sales:0,expenses:0,prev:null,days:0,split:null};
   if(!s)return z;
   const days=s.days||[];
+  const act=activeFrom(l)||'';
   const byDate=Object.fromEntries(days.map(d=>[d[0],d]));
-  const sumRange=(from,to)=>{const r={tickets:0,sales:0,expenses:0,days:0};days.forEach(d=>{if(d[0]>=from&&d[0]<=to){r.tickets+=d[1];r.sales+=d[2];r.expenses+=d[3];r.days++;}});return r;};
+  const hasSplit=days.length>0&&days.every(d=>d.length>=6);
+  const sumRange=(from,to)=>{const r={tickets:0,sales:0,expenses:0,days:0,split:hasSplit?{drawer:0,manager:0}:null};
+    days.forEach(d=>{if(d[0]>=from&&d[0]<=to){r.tickets+=d[1];r.sales+=d[2];r.expenses+=d[3];if(r.split){r.split.drawer+=d[4];r.split.manager+=d[5];}if(d[0]>=act)r.days++;}});return r;};
   const today=todayStr();
-  if(period==='today'){
-    const t=todayOf(l);const w=byDate[dayOffset(-7)];
-    return {tickets:t.tickets||0,sales:t.sales||0,expenses:t.expenses||0,prev:w?w[2]:null,days:1};
+  const one=(d)=>Object.assign(sumRange(d,d),{days:1});
+  if(period==='today'||period==='yesterday'||String(period).startsWith('d:')){
+    const d=period==='today'?today:period==='yesterday'?dayOffset(-1):period.slice(2);
+    const r=one(d);
+    // Today before the PC sends the daily split: from today's expense list (exact)
+    if(period==='today'&&!r.split){const de=details(l);if(de&&de.expenses)r.split={drawer:de.expenses.reduce((a,e)=>a+(e.drawer||0),0),manager:de.expenses.reduce((a,e)=>a+(e.manager||0),0)};}
+    if(period==='d:'+d)return r;
+    const w=new Date(Date.parse(d)-7*86400000).toISOString().slice(0,10); // same day last week
+    return Object.assign(r,{prev:w>=act&&byDate[w]?byDate[w][2]:null});
   }
-  if(period==='yesterday'){
-    const y=byDate[dayOffset(-1)]||[0,0,0,0];const w=byDate[dayOffset(-8)];
-    return {tickets:y[1],sales:y[2],expenses:y[3],prev:w?w[2]:null,days:1};
-  }
-  if(period==='week'){
-    const wd=(new Date().getUTCDay()+6)%7; // days since Monday
-    const cur=sumRange(dayOffset(-wd),today);const prev=sumRange(dayOffset(-wd-7),dayOffset(-7));
-    return Object.assign(cur,{prev:prev.sales});
+  if(period==='week'||period==='last7'){
+    const back=period==='week'?(new Date().getUTCDay()+6)%7:6; // week: since Monday
+    const cur=sumRange(dayOffset(-back),today);
+    const from=dayOffset(-back-7);
+    return Object.assign(cur,{prev:from>=act?sumRange(from,dayOffset(-7)).sales:null});
   }
   if(period==='visit'){ // since the last visit, counted by the PC itself (exact to the second)
     const v=visitOf(l);
     if(!v)return Object.assign(z,{missing:true});
-    const days=Math.max(1,Math.round((Date.parse(todayStr())-Date.parse(v.start.slice(0,10)))/86400000)+1);
-    return {tickets:v.n,sales:Math.round((v.s-(v.r||0))*100)/100,expenses:v.e,prev:null,days};
+    const from=[v.start.slice(0,10),act].sort().pop();
+    const n=Math.max(1,Math.round((Date.parse(today)-Date.parse(from))/86400000)+1);
+    return {tickets:v.n,sales:Math.round((v.s-(v.r||0))*100)/100,expenses:v.e,prev:null,days:n,split:v.ed!=null?{drawer:v.ed,manager:v.em||0}:null};
   }
   const cur=sumRange(today.slice(0,7)+'-01',today);
   return Object.assign(cur,{prev:null});
@@ -840,7 +874,9 @@ function visitOf(l){const d=details(l);return d&&d.period&&d.period.start?d.peri
 function rangeOf(period){
   const today=todayStr();
   if(period==='yesterday'){const y=dayOffset(-1);return {from:y,to:y};}
+  if(String(period).startsWith('d:')){const d=period.slice(2);return {from:d,to:d};}
   if(period==='week')return {from:dayOffset(-((new Date().getUTCDay()+6)%7)),to:today};
+  if(period==='last7')return {from:dayOffset(-6),to:today};
   if(period==='month')return {from:today.slice(0,7)+'-01',to:today};
   return {from:today,to:today};
 }
@@ -864,8 +900,10 @@ async function periodRows(table,cols,period){
 }
 function usualDay(l){ // average of the same weekday over the last 4 weeks
   const s=sumOf(l);if(!s)return null;
+  const act=activeFrom(l);if(act==null)return null;
   const byDate=Object.fromEntries((s.days||[]).map(d=>[d[0],d]));
-  const v=[7,14,21,28].map(n=>byDate[dayOffset(-n)]).filter(Boolean).map(d=>d[2]);
+  // only weeks when the app was already in use
+  const v=[7,14,21,28].map(n=>dayOffset(-n)).filter(d=>d>=act&&byDate[d]).map(d=>byDate[d][2]);
   return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
 }
 function box(k,v,cls,sub,action){
@@ -879,7 +917,7 @@ async function loadTodayTickets(){
   return ovTickets;
 }
 function details(l){const s=sumOf(l);return (s&&s.details)||null;}
-const PERIOD_NAMES={today:'اليوم',yesterday:'أمس',week:'هذا الأسبوع',month:'هذا الشهر',visit:'منذ آخر زيارة'};
+const PERIOD_NAMES={today:'اليوم',yesterday:'أمس',week:'هذا الأسبوع',last7:'آخر 7 أيام',month:'هذا الشهر',visit:'منذ آخر زيارة'};
 // Where each hammam's "since my last visit" starts
 function visitStartsText(){
   return locations.map(l=>{const v=visitOf(l);const n=locations.length>1?esc(l.name)+' ':'';
@@ -889,28 +927,32 @@ function visitStartsText(){
 function renderOverview(){
   document.getElementById('ov-date').textContent=new Date().toLocaleDateString('ar-MA',{weekday:'long',day:'numeric',month:'long'});
   const names=PERIOD_NAMES;
-  const cmp={today:'مقارنة بنفس اليوم من الأسبوع الماضي',yesterday:'مقارنة بنفس اليوم من الأسبوع الماضي',week:'مقارنة بنفس الفترة من الأسبوع الماضي',month:'',visit:''};
-  let P={tickets:0,sales:0,expenses:0,prev:0,hasPrev:false,days:0};
+  const cmp={today:'مقارنة بنفس اليوم من الأسبوع الماضي',yesterday:'مقارنة بنفس اليوم من الأسبوع الماضي',week:'مقارنة بنفس الفترة من الأسبوع الماضي',last7:'مقارنة بالأيام السبعة السابقة',month:'',visit:''};
+  let P={tickets:0,sales:0,expenses:0,prev:0,hasPrev:false,days:0,split:{drawer:0,manager:0}};
   let cash=0,sup=0,mgr=0,seller=0,bills=0,unpaidToday=0,expCount=0,visitCount=0,lastCol=null,sellerWhere=[];
   for(const l of locations){
     const p=periodOf(l,ovPeriod),s=sumOf(l),d=details(l);
     P.tickets+=p.tickets;P.sales+=p.sales;P.expenses+=p.expenses;P.days=Math.max(P.days,p.days||0);
+    if(P.split&&p.split){P.split.drawer+=p.split.drawer;P.split.manager+=p.split.manager;}else if(s)P.split=null;
     if(p.prev!=null){P.prev+=p.prev;P.hasPrev=true;}
     if(s){cash+=s.cashInHand||0;sup+=s.owedToSuppliers||0;mgr+=s.owedToManager||0;seller+=s.owedBySeller||0;bills+=(s.openBills&&s.openBills.count)||0;if((s.owedBySeller||0)>0)sellerWhere.push(l.name);}
     if(ovPeriod==='visit'&&visitOf(l))visitCount+=visitOf(l).en||0;
     if(d&&d.expenses&&ovPeriod==='today'){expCount+=d.expenses.length;unpaidToday+=d.expenses.filter(e=>e.left>0).length;}
     if(d&&d.lastCollection&&(!lastCol||d.lastCollection.date>lastCol.date))lastCol=d.lastCollection;
   }
-  document.getElementById('ov-period-title').innerHTML=esc(names[ovPeriod])+' <small>· '+(ovPeriod==='visit'?visitStartsText():(locations.length>1?'كل الحمامات':''))+'</small>';
+  document.getElementById('ov-period-title').innerHTML=esc(periodName(ovPeriod))+' <small>· '+(ovPeriod==='visit'?visitStartsText():(locations.length>1?'كل الحمامات':''))+'</small>';
   document.querySelectorAll('#ov-period button').forEach(b=>b.classList.toggle('active',b.dataset.p===ovPeriod));
   const lastT=locations.map(l=>{const s=sumOf(l);return s&&s.lastTicketAt&&s.lastTicketAt.slice(0,10)===todayStr()?s.lastTicketAt.slice(11,16):'';}).filter(Boolean).sort().pop();
   const peak=peakHour(ovTickets);
   const net=P.sales-P.expenses;
+  const multi=!['today','yesterday'].includes(ovPeriod);
+  const avgSales=multi&&P.days>1?'معدل اليوم '+dh(P.sales/P.days):'';
+  const netSub=splitText(P.expenses,P.split);
   document.getElementById('ov-period-stats').innerHTML=
-    box('المبيعات',dh(P.sales),'',P.hasPrev?trend(P.sales,P.prev,cmp[ovPeriod]):((ovPeriod==='month'||ovPeriod==='visit')&&P.days?'معدل اليوم '+dh(P.sales/P.days):''),"openDrawer('sales')")+
-    box('التذاكر',int(P.tickets),'',ovPeriod==='today'?[lastT?'آخر تذكرة '+lastT:'',peak?'ذروة '+peak:''].filter(Boolean).join(' · '):(P.days?'معدل اليوم '+int(Math.round(P.tickets/P.days)):''),"openDrawer('sales')")+
+    box('المبيعات',dh(P.sales),'',[P.hasPrev?trend(P.sales,P.prev,cmp[ovPeriod]):'',avgSales].filter(Boolean).join('<br>'),"openDrawer('sales')")+
+    box('التذاكر',int(P.tickets),'',ovPeriod==='today'?[lastT?'آخر تذكرة '+lastT:'',peak?'ذروة '+peak:''].filter(Boolean).join(' · '):(multi&&P.days>1?'معدل اليوم '+int(Math.round(P.tickets/P.days)):''),"openDrawer('sales')")+
     box('المصروفات',dh(P.expenses),'',ovPeriod==='today'&&expCount?int(expCount)+' مصروفات'+(unpaidToday?' · <span class="warn">'+unpaidToday+' غير مدفوعة</span>':''):(ovPeriod==='visit'&&visitCount?int(visitCount)+' مصروفات':''),"openDrawer('expenses')")+
-    box('الصافي',dh(net),net<0?'red':'','المبيعات ناقص المصروفات',"openDrawer('expenses')");
+    box('الصافي',dh(net),net<0?'red':'','المبيعات ناقص كل المصروفات'+(netSub?'<br><span class="muted">المصروفات:</span> '+netSub:''),"openDrawer('expenses')");
   document.getElementById('ov-money').innerHTML=
     box('النقد في الصناديق',dh(cash),'',lastCol?'آخر تحصيل: '+esc(new Date(lastCol.date+'T12:00:00Z').toLocaleDateString('ar-MA',{weekday:'long',day:'numeric',month:'long'})):'',"openDrawer('cash')")+
     box('ديون الموردين',dh(sup),sup>0?'red':'',bills?int(bills)+' فواتير غير مدفوعة':'لا توجد فواتير غير مدفوعة',"openDrawer('bills')")+
@@ -963,26 +1005,29 @@ function renderHammamCards(){
         '<tr><td>ديون الموردين</td><td class="num'+(s&&s.owedToSuppliers>0?' down':'')+'">'+(s?dh(s.owedToSuppliers):'—')+'</td></tr>'+
       '</table>'+
       '<div class="hcard-flags">'+flagsOf(l).join('')+'</div>'+
-      '<div class="hcard-foot"><span class="updated">'+(s&&s.lastTicketAt?'آخر تذكرة '+esc(String(s.lastTicketAt).slice(11,16)):'')+(l.summary_at?' · آخر تحديث '+agoText(l.summary_at):'')+'</span>'+
+      '<div class="hcard-foot"><span class="updated">'+(s&&s.lastTicketAt?'آخر تذكرة '+lastTicketText(s.lastTicketAt):'')+(l.last_seen_at?' · آخر إشارة '+agoText(l.last_seen_at):'')+'</span>'+
       '<span style="margin-right:auto;display:flex;gap:6px"><button class="btn" onclick="go(\'hammam\',\''+l.id+'\')">التفاصيل</button>'+
       '<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">الإدارة عن بعد</a></span></div></div>';
   }
   document.getElementById('ov-hammams').innerHTML=html||'<div class="empty">لا توجد فروع. أضف جهازاً من صفحة «الأجهزة».</div>';
 }
 function renderOverviewAlerts(){renderAttention();}
+// "16:40" today, "22/11 16:40" another day
+function lastTicketText(st){st=String(st||'');return (st.slice(0,10)===todayStr()?'':shortDate(st)+' ')+esc(st.slice(11,16));}
 // ═══ Side panel: what is behind each number ═══
 const NEEDS_UPDATE='<div class="empty">تظهر التفاصيل بعد تحديث الجهاز إلى آخر نسخة.</div>';
 function tableHtml(head,rows){return rows.length?'<table class="t"><thead><tr>'+head.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table>':'';}
 const td=(v,cls)=>'<td'+(cls?' class="'+cls+'"':'')+'>'+v+'</td>';
 const shortDate=(d)=>d?esc(String(d).slice(8,10)+'/'+String(d).slice(5,7)):'';
 function locName2(id){const l=locations.find(x=>x.id===id);return l?l.name:'';}
-async function openDrawer(kind){
+async function openDrawer(kind,period){
   const el=document.getElementById('drawer'),body=document.getElementById('drawer-body');
   el.classList.remove('hidden');
   let h='';
-  if((kind==='sales'||kind==='expenses')&&ovPeriod!=='today'){
+  const per=period||ovPeriod;
+  if((kind==='sales'||kind==='expenses')&&per!=='today'){
     body.innerHTML='<div class="empty">جارٍ التحميل…</div>';
-    try{h=kind==='sales'?await salesPeriodHtml(ovPeriod):await expensesPeriodHtml(ovPeriod);}
+    try{h=kind==='sales'?await salesPeriodHtml(per):await expensesPeriodHtml(per);}
     catch(e){h='<div class="empty">تعذّر تحميل البيانات من السحابة. حاول مرة أخرى.</div>';}
     kind='';
   }
@@ -999,7 +1044,9 @@ async function openDrawer(kind){
     h+='<div class="sec">آخر التذاكر</div>'+(tableHtml(['الوقت','الحمام','الفئة','الرقم','السعر'],ovTickets.slice(0,40).map(t=>'<tr>'+td(esc(String(t.time||'').slice(0,5)),'num')+td(esc(locName2(t.location_id)))+td(esc(t.category_name))+td('#'+esc(t.serial_number),'num')+td(dh(t.price),'num')+'</tr>'))||'<div class="empty">لا توجد تذاكر اليوم</div>');
   }else if(kind==='expenses'){
     let tot=0;locations.forEach(l=>{tot+=todayOf(l).expenses||0;});
-    h='<h3>مصروفات اليوم</h3><div class="sub">'+dh(tot)+'</div>';
+    const sp=locations.reduce((a,l)=>{const p=periodOf(l,'today');return a&&p.split?{drawer:a.drawer+p.split.drawer,manager:a.manager+p.split.manager}:(sumOf(l)?null:a);},{drawer:0,manager:0});
+    const st0=splitText(tot,sp);
+    h='<h3>مصروفات اليوم</h3><div class="sub">'+dh(tot)+(st0?' · '+st0:'')+'</div>';
     const rows=[];let missing=false;
     locations.forEach(l=>{const d=details(l);if(!d||!d.expenses){if((todayOf(l).expenses||0)>0)missing=true;return;}d.expenses.forEach(e=>{
       const st=e.left>0?'<span class="warn">'+(e.left<e.a?'الباقي '+dh(e.left)+' غير مدفوع':'غير مدفوع')+'</span>':e.manager>0?'<span class="violet">'+(e.drawer>0?'دفع المدير '+dh(e.manager):'دفعه المدير')+'</span>':'<span class="up">مدفوع من الصندوق</span>';
@@ -1040,7 +1087,7 @@ async function openDrawer(kind){
 }
 // Side panels for yesterday / this week / this month / since my last visit
 const r2=(n)=>Math.round((Number(n)||0)*100)/100;
-function periodHead(what,period){return '<h3>'+esc(what)+' · '+esc(PERIOD_NAMES[period])+'</h3>';}
+function periodHead(what,period){return '<h3>'+esc(what)+' · '+periodName(period)+'</h3>';}
 function periodSubText(period){
   if(period==='visit')return visitStartsText();
   const r=rangeOf(period);return r.from===r.to?shortDate(r.from):shortDate(r.from)+' – '+shortDate(r.to);
@@ -1049,13 +1096,18 @@ const missingVisit=()=>locations.some(l=>!visitOf(l))?'<div class="muted small">
 async function expensesPeriodHtml(period){
   const per=locations.map(l=>[l,periodOf(l,period)]);
   const tot=r2(per.reduce((a,[,p])=>a+(p.expenses||0),0));
-  const rows=await periodRows('expenses','location_id,date,time,description,amount',period);
+  const rows=await periodRows('expenses','location_id,date,time,description,amount,created_at',period);
   const listTot=r2(rows.reduce((a,x)=>a+Number(x.amount||0),0));
-  let h=periodHead('المصروفات',period)+'<div class="sub">'+dh(tot)+' · '+periodSubText(period)+'</div>';
-  if(locations.length>1)h+=tableHtml(['الحمام','المصروفات'],per.map(([l,p])=>'<tr>'+td(esc(l.name))+td(dh(p.expenses),'num')+'</tr>'));
-  h+='<div class="sec">القائمة</div>'+(tableHtml(['التاريخ','الوقت','الحمام','الوصف','المبلغ'],rows.map(x=>'<tr>'+td(shortDate(x.date),'num')+td(esc(String(x.time||'').slice(0,5)),'num')+td(esc(locName2(x.location_id)))+td(esc(x.description))+td(dh(x.amount),'num')+'</tr>'))||'<div class="empty">لا توجد مصروفات في هذه الفترة</div>');
+  const split=per.every(([,p])=>p.split)?per.reduce((a,[,p])=>({drawer:a.drawer+p.split.drawer,manager:a.manager+p.split.manager}),{drawer:0,manager:0}):null;
+  const sp=splitText(tot,split);
+  let h=periodHead('المصروفات',period)+'<div class="sub">'+dh(tot)+' · '+periodSubText(period)+'</div>'+(sp?'<div class="sub">'+sp+'</div>':'');
+  if(locations.length>1)h+=tableHtml(['الحمام','المصروفات'].concat(split?['من الصندوق','دفعته أنت','غير مدفوع']:[]),per.map(([l,p])=>{const q=splitParts(p.expenses,p.split);
+    return '<tr>'+td(esc(l.name))+td(dh(p.expenses),'num')+(split?td(dh(q.drawer),'num')+td(dh(q.manager),'num')+td(dh(q.unpaid),'num'+(q.unpaid>0?' down':'')):'')+'</tr>';}));
+  // An expense entered on a later day than its date: show when it was entered
+  const when=(x)=>{const c=String(x.created_at||'');return c&&c.slice(0,10)>x.date?'<span class="muted">سُجّل '+shortDate(c)+' '+esc(c.slice(11,16))+'</span>':esc(String(x.time||'').slice(0,5));};
+  h+='<div class="sec">القائمة</div>'+(tableHtml(['التاريخ','الوقت','الحمام','الوصف','المبلغ'],rows.map(x=>'<tr>'+td(shortDate(x.date),'num')+td(when(x),'num')+td(esc(locName2(x.location_id)))+td(esc(x.description))+td(dh(x.amount),'num')+'</tr>'))||'<div class="empty">لا توجد مصروفات في هذه الفترة</div>');
   if(Math.abs(listTot-tot)>0.01)h+='<div class="muted small">مجموع القائمة '+dh(listTot)+' · <span>بعض المصروفات لم تصل إلى السحابة بعد أو سُجّلت بتاريخ سابق.</span></div>';
-  h+='<div class="muted small">حالة الدفع والمورد تظهر في «اليوم» فقط.</div>';
+  h+='<div class="muted small">'+(split?'حالة كل مصروف والمورد تظهر في «اليوم» فقط.':'حالة الدفع والمورد تظهر في «اليوم» فقط.')+'</div>';
   if(period==='visit')h+=missingVisit();
   return h;
 }
@@ -1075,9 +1127,10 @@ async function salesPeriodHtml(period){
         v.other?'<tr>'+td('أخرى')+td(dh(v.other),'num')+'</tr>':'',
         '<tr>'+td('<b>النقد المتوقع</b>')+td('<b>'+dh(v.cash)+'</b>','num')+'</tr>'].filter(Boolean));});
     h+=missingVisit();
-  }else if(period!=='yesterday'){
+  }else if(rangeOf(period).from!==rangeOf(period).to){
     const r=rangeOf(period),byDay={};
-    locations.forEach(l=>{const s=sumOf(l);(s&&s.days||[]).forEach(([d,n,v,e])=>{if(d<r.from||d>r.to)return;const x=byDay[d]=byDay[d]||[0,0,0];x[0]+=n;x[1]+=v;x[2]+=e;});});
+    const acts=locations.map(activeFrom).filter(a=>a!=null),cut=acts.length&&!acts.includes('')?acts.sort()[0]:'';
+    locations.forEach(l=>{const s=sumOf(l);(s&&s.days||[]).forEach(([d,n,v,e])=>{if(d<r.from||d>r.to||d<cut)return;const x=byDay[d]=byDay[d]||[0,0,0];x[0]+=n;x[1]+=v;x[2]+=e;});});
     const dr=Object.keys(byDay).sort().reverse().map(d=>{const[n,v,e]=byDay[d];return '<tr>'+td(shortDate(d),'num')+td(int(n),'num')+td(dh(v),'num')+td(dh(e),'num')+td(dh(v-e),'num'+(v-e<0?' down':''))+'</tr>';});
     if(dr.length)h+='<div class="sec">يوماً بيوم</div>'+tableHtml(['اليوم','التذاكر','المبيعات','المصروفات','الصافي'],dr);
   }
@@ -1115,7 +1168,7 @@ async function renderHammam(quiet){
   const s=sumOf(l),t=todayOf(l),p=pillOf(l);
   document.getElementById('hm-title').innerHTML=esc(l.name)+' <span class="pill '+p.cls+'">'+p.t+'</span>';
   document.getElementById('hm-actions').innerHTML='<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">لوحة الإدارة عن بعد</a><button class="btn light" onclick="go(\'devices\')">أوامر الجهاز</button>';
-  document.getElementById('hm-updated').textContent=(l.summary_at?'آخر ملخص من الجهاز '+agoText(l.summary_at):'لم يرسل الجهاز ملخصاً بعد')+(l.app_version?' · النسخة '+l.app_version:'')+(s&&s.lastTicketAt?' · آخر تذكرة '+s.lastTicketAt:'');
+  document.getElementById('hm-updated').textContent=(l.summary_at?'آخر إشارة من الجهاز '+agoText(l.last_seen_at):'لم يرسل الجهاز ملخصاً بعد')+(l.app_version?' · النسخة '+l.app_version:'')+(s&&s.lastTicketAt?' · آخر تذكرة '+s.lastTicketAt:'');
   document.getElementById('hm-flags').innerHTML=flagsOf(l).join('');
   document.getElementById('hm-stats').innerHTML=!s?'<div class="empty">لا ملخص من هذا الجهاز بعد.</div>':
     statCard('مبيعات اليوم',dh(t.sales),'green',int(t.tickets)+' تذكرة')+
@@ -1157,6 +1210,11 @@ function seriesFor(locId,period){
     else(s.days||[]).forEach(([d,n,v,e])=>add(period==='week'?weekKey(d):d,n,v,e));
   }
   let rows=[...map.values()].sort((a,b)=>a[0]<b[0]?-1:1);
+  // Start at the first day with sales (earlier days are empty: the app was not used yet)
+  if(period!=='month'){
+    const acts=locs.map(activeFrom).filter(a=>a!=null);
+    if(acts.length&&!acts.includes('')){const cut=acts.sort()[0];const k=period==='week'?weekKey(cut):cut;rows=rows.filter(r=>r[0]>=k);}
+  }
   if(period==='day')rows=rows.slice(-30);
   return rows;
 }

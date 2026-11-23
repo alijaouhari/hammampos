@@ -36,6 +36,7 @@ test('no visit yet: period starts at the switch-over, no visits', async () => {
     assert.equal(v.period.visit, false);
     assert.equal(v.period.start, '2026-11-15 06:00:00');
     assert.deepEqual([v.period.n, v.period.s, v.period.e, v.period.en, v.period.p, v.period.cash], [1, 100, 30, 1, 30, 70]);
+    assert.deepEqual([v.period.ed, v.period.em], [30, 0]);
   } finally { cleanup(s); }
 });
 
@@ -61,6 +62,11 @@ test('two visits: each row covers its own period, the current period starts afte
     assert.equal(v.period.visit, true);
     assert.equal(v.period.start, '2026-11-16 10:00:00');
     assert.deepEqual([v.period.n, v.period.s, v.period.e, v.period.en, v.period.p, v.period.cash], [1, 40, 90, 1, 0, 40]);
+    assert.deepEqual([v.period.ed, v.period.em], [0, 0]); // all 90 unpaid
+    at('2026-11-17T07:40:00Z');
+    assert.equal(m.recordExpense({ description: 'd', total: 500, fromDrawer: 30, restAs: 'manager' }).success, true);
+    const w = m.getDashboardVisits().period;
+    assert.deepEqual([w.e, w.ed, w.em], [590, 30, 470]);
   } finally { cleanup(s); }
 });
 

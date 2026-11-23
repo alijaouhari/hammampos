@@ -508,10 +508,21 @@ function buildSummary() {
       ? rows(`SELECT ${groupBy}, COALESCE(SUM(total),0) FROM money_expenses WHERE date >= ? GROUP BY 1`, [from])
       : rows(`SELECT ${groupBy}, COALESCE(SUM(amount),0) FROM expenses WHERE date >= ? GROUP BY 1`, [from]);
     const expDay = Object.fromEntries(expRows('date', since));
+    // How each day's expenses were paid (by expense date): from the box, by the manager.
+    // The rest of the day's total is still unpaid. Money system only.
+    const paidDay = useMoney ? Object.fromEntries(rows(`SELECT e.date,
+        COALESCE(SUM(CASE WHEN p.source = 'drawer' THEN p.amount END), 0),
+        COALESCE(SUM(CASE WHEN p.source = 'manager' THEN p.amount END), 0)
+      FROM money_expenses e JOIN expense_payments p ON p.expense_id = e.id
+      WHERE e.date >= ? AND (p.late_status IS NULL OR p.late_status = 'accepted') GROUP BY e.date`, [since])
+      .map(([d, dr, mg]) => [d, [dr, mg]])) : null;
+    const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
     const days = [];
     for (let i = 34; i >= 0; i--) {
       const d = localDay(-i);
-      days.push([d, (salesDay[d] || [0, 0])[0], Math.round(((salesDay[d] || [0, 0])[1]) * 100) / 100, Math.round((expDay[d] || 0) * 100) / 100]);
+      const row = [d, (salesDay[d] || [0, 0])[0], r2((salesDay[d] || [0, 0])[1]), r2(expDay[d] || 0)];
+      if (paidDay) row.push(r2((paidDay[d] || [0, 0])[0]), r2((paidDay[d] || [0, 0])[1]));
+      days.push(row);
     }
     const mSales = Object.fromEntries(rows("SELECT substr(date,1,7), COUNT(*), COALESCE(SUM(price),0) FROM tickets WHERE refunded_at IS NULL AND substr(date,1,7) >= ? GROUP BY 1", [monthStart]).map(([m, n, s]) => [m, [n, s]]));
     const mExp = Object.fromEntries(expRows('substr(date,1,7)', monthStart + '-01'));

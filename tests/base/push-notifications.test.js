@@ -15,6 +15,9 @@ test('messages: Arabic and French, with the page to open', () => {
   assert.match(ar.body, /حطب: 1 008 DH/);
   assert.match(ar.body, /غير مدفوع 600 DH/);
   assert.equal(ar.url, '/?open=expenses&loc=L1');
+  // the expense's date goes in the link, so a back-dated expense opens on its own day
+  assert.equal(buildMessage({ ...ev, payload: { ...ev.payload, date: '2026-11-22' } }, 'ar').url, '/?open=expenses&loc=L1&date=2026-11-22');
+  assert.equal(buildMessage({ ...ev, payload: { ...ev.payload, date: 'x&open=1' } }, 'ar').url, '/?open=expenses&loc=L1');
   const fr = buildMessage(ev, 'fr');
   assert.equal(fr.title, 'حمام الهدى · Nouvelle dépense');
   assert.match(fr.body, /impayé 600 DH/);

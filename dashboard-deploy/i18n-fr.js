@@ -1355,5 +1355,12 @@ window.HPOS_FR = /*BEGIN*/{
 "المعدود": "Compté",
 "الفرق": "Écart",
 "لا توجد زيارات مسجلة بعد": "Aucune visite enregistrée",
-"مبيعات": "ventes"
+"مبيعات": "ventes",
+"مقارنة بالأيام السبعة السابقة": "par rapport aux 7 jours précédents",
+"المبيعات ناقص كل المصروفات": "Ventes moins toutes les dépenses",
+"المصروفات:": "Dépenses :",
+"دفعته أنت": "payé par vous",
+"سُجّل": "saisie le",
+"حالة كل مصروف والمورد تظهر في «اليوم» فقط.": "Le statut de chaque dépense et le fournisseur ne s’affichent que pour « Aujourd’hui ».",
+"آخر إشارة من الجهاز": "Dernier signal du poste"
 }/*END*/;
