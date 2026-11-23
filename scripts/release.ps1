@@ -14,7 +14,7 @@ function Step($t) { Write-Host "`n== $t" -ForegroundColor Cyan }
 # is redirected (e.g. git's "LF will be replaced by CRLF" warning), which used to
 # stop this script silently after the build. Here only the exit code counts.
 function Run([string]$what) {
-  $exe, $rest = $args
+  $exe = $args[0]; $rest = @($args | Select-Object -Skip 1)
   $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
   try { & $exe @rest 2>&1 | ForEach-Object { "$_" } | Write-Host; $code = $LASTEXITCODE }
   finally { $ErrorActionPreference = $old }
