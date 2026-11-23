@@ -21,10 +21,12 @@ const samePath = (a, b) =>
  * @param {string} opts.exePath      this installation's exe
  * @param {string} opts.version      e.g. "2.8.27"
  * @param {string} [opts.iconPath]   logo file (.ico) to show on the shortcut
+ * @param {function} [opts.refreshDesktop] called once when a shortcut changed, so the
+ *   desktop redraws (otherwise Windows can keep showing the old name or icon)
  * @param {function} [opts.log]
  * @returns {{renamed: string[], skipped: string[]}}
  */
-function syncDesktopShortcutName({ shell, desktopDirs, exePath, version, iconPath, log = () => {} }) {
+function syncDesktopShortcutName({ shell, desktopDirs, exePath, version, iconPath, refreshDesktop, log = () => {} }) {
   const result = { renamed: [], skipped: [] };
   const wantedName = `HammamPOS v${version}.lnk`;
 
@@ -86,9 +88,26 @@ function syncDesktopShortcutName({ shell, desktopDirs, exePath, version, iconPat
       }
     }
   }
-  if (result.renamed.length) log('Desktop shortcut updated: ' + result.renamed.join('; '));
+  if (result.renamed.length) {
+    log('Desktop shortcut updated: ' + result.renamed.join('; '));
+    if (refreshDesktop) { try { refreshDesktop(); } catch (_) { /* never stops the app */ } }
+  }
   if (result.skipped.length) log('Desktop shortcut not updated: ' + result.skipped.join('; '));
   return result;
 }
 
-module.exports = { syncDesktopShortcutName };
+/**
+ * Ask Windows to redraw the desktop and reload icons (SHChangeNotify "associations
+ * changed", then the icon cache refresh). Runs hidden, in the background.
+ */
+function refreshWindowsDesktop() {
+  const { spawn } = require('child_process');
+  const ps = "Add-Type -Namespace H -Name S -MemberDefinition '[DllImport(\"shell32.dll\")] public static extern void SHChangeNotify(int e, uint f, IntPtr a, IntPtr b);';" +
+    '[H.S]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero);' +
+    "Start-Process -FilePath \"$env:SystemRoot\\System32\\ie4uinit.exe\" -ArgumentList '-show' -WindowStyle Hidden";
+  const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', ps],
+    { windowsHide: true, detached: false, stdio: 'ignore' });
+  p.on('error', () => {});
+}
+
+module.exports = { syncDesktopShortcutName, refreshWindowsDesktop };

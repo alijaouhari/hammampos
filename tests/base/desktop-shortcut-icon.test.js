@@ -51,6 +51,17 @@ test('right name already: only the logo is updated, once', () => {
   assert.equal(d.calls.length, 1);
 });
 
+test('desktop is refreshed once when a shortcut changed, not when nothing changed', () => {
+  const d = fakeDesktop({ 'HammamPOS v2.8.40.lnk': { target: EXE, icon: ICO }, 'HammamPOS.lnk': { target: EXE, icon: EXE } });
+  let refreshed = 0;
+  const run = () => syncDesktopShortcutName({ shell: d.shell, desktopDirs: [d.dir], exePath: EXE, version: '2.8.42', iconPath: ICO, refreshDesktop: () => { refreshed++; } });
+  run();
+  assert.equal(refreshed, 1);
+  assert.deepEqual(fs.readdirSync(d.dir), ['HammamPOS v2.8.42.lnk']);
+  run();
+  assert.equal(refreshed, 1);
+});
+
 test('no logo file: shortcut keeps its own icon', () => {
   const d = fakeDesktop({ 'HammamPOS v2.8.38.lnk': { target: EXE, icon: 'X.ico', iconIndex: 2 } });
   syncDesktopShortcutName({ shell: d.shell, desktopDirs: [d.dir], exePath: EXE, version: '2.8.39' });

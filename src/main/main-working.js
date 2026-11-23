@@ -205,9 +205,10 @@ app.whenReady().then(async () => {
     setTimeout(() => {
       try {
         const { shell } = require('electron');
-        const { syncDesktopShortcutName } = require('./desktopShortcut');
+        const { syncDesktopShortcutName, refreshWindowsDesktop } = require('./desktopShortcut');
         syncDesktopShortcutName({
           shell,
+          refreshDesktop: refreshWindowsDesktop,
           desktopDirs: [app.getPath('desktop'), path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'Desktop')],
           exePath: process.execPath,
           iconPath: appIconPath(),
