@@ -46,6 +46,9 @@ $z.Dispose()
 if (-not $hasExe) { throw 'HammamPOS.exe is missing from the zip.' }
 Write-Host ("{0} ({1:N0} MB)" -f $zip, ((Get-Item $zip).Length / 1MB))
 
+Step 'Update test (real updater, started like the desktop shortcut, no admin)'
+Run 'Update test (nothing was published)' node scripts/test-update.js $zip
+
 Step 'Remote panel'
 Run 'Remote panel' node scripts/build-remote-admin.js
 

@@ -49,6 +49,8 @@ function appIconPath() {
 }
 let mainWindow;
 let money;
+let remoteActing = 0; // > 0 while the manager's remote panel runs an action
+let health = null;    // HealthMonitor
 let setupWindow;
 let storage;
 let backupManager;
@@ -240,6 +242,22 @@ async function initializeApplication() {
     money = new MoneyService(storage);
     storage.save();
     console.log('✅ Money service ready' + (money.isSwitchedOver() ? '' : ' (not switched over yet)'));
+    // Phone alert when something recorded is deleted or changed (not for the manager's own remote actions)
+    require('./changeAlerts').installChangeAlerts({
+      storage,
+      notify: (payload) => money.notify('change', payload),
+      isRemote: () => remoteActing > 0,
+      isSwitchedOver: () => money.isSwitchedOver(),
+      log: (m) => console.warn(m)
+    });
+    // PC health (printer, disk, cloud backup, restarts): dashboard + phone alert
+    health = new (require('./healthMonitor'))({
+      storage,
+      backupStatus: () => (cloudSync && cloudSync.backup ? cloudSync.backup.status() : null),
+      notify: (p) => money.notify('health', p)
+    });
+    health.noteStart();
+    setInterval(() => { try { health.check(); } catch (_) {} }, 10 * 60 * 1000);
     
     // Initialize Expense Templates
     try {
@@ -442,7 +460,8 @@ function deviceInfo() {
     recentErrors: recentErrors.slice(-10),
     lastDbConflict: storage.lastConflict || null,
     history: historyDiagnostics(),
-    uptimeMin: Math.round(process.uptime() / 60)
+    uptimeMin: Math.round(process.uptime() / 60),
+    health: (() => { try { return health ? health.info() : null; } catch (_) { return null; } })()
   };
 }
 
@@ -454,6 +473,12 @@ const remoteCommandHandlers = {
     const r = await cloudSync.reconcile();
     if (!r.ok) throw new Error(r.error || 'فشلت المزامنة');
     return r.tables;
+  },
+  backup_now: async () => {
+    if (!cloudSync || !cloudSync.backup) throw new Error('السحابة غير مفعلة');
+    const r = await cloudSync.backup.run();
+    if (!r.ok) throw new Error(r.error || 'فشلت النسخة الاحتياطية');
+    return { name: r.name, sizeKb: Math.round(r.size / 1024), dbSizeKb: Math.round(r.dbSize / 1024), removed: r.removed.length };
   },
   diagnostics: () => {
     historyCache = null; // fresh numbers
@@ -600,6 +625,18 @@ function summaryDetails(rows, b, bills, late, today) {
     // Since the last visit, and the latest visits (dashboard period "since my last visit")
     const v = money ? money.getDashboardVisits(10) : null;
     if (v) { out.period = v.period; out.visits = v.visits; }
+    // The seller's box counts (latest first)
+    out.counts = money.getCashCounts(10).map(c => ({ at: c.created_at, x: r2(c.expected), c: r2(c.counted), d: r2(c.difference), n: c.note || '' }));
+    // Regular expenses (wages...): missing or entered twice
+    if (expenseTemplates) out.wages = expenseTemplates.getRepeatStatus(today, money.getSwitchOverAt())
+      .map(w => ({ name: w.name, rule: w.rule, from: w.from, to: w.to, n: w.count, st: w.status }));
+    // Wood bought in the last 3 months, by month and type (kg, DH, unpaid)
+    out.wood = rows(`SELECT substr(delivery_date,1,7), COALESCE(wood_type,''), COUNT(*), COALESCE(SUM(net_wood_weight),0),
+        COALESCE(SUM(total_amount),0), COALESCE(SUM(CASE WHEN paid = 0 THEN total_amount ELSE 0 END),0)
+      FROM wood_purchases WHERE delivery_date >= ? GROUP BY 1, 2 ORDER BY 1, 2`, [(() => {
+        const d = new Date(today + 'T00:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 2); return d.toISOString().slice(0, 10);
+      })()])
+      .map(([m, type, n, kg, a, unpaid]) => ({ m, type, n, kg: r2(kg), a: r2(a), u: r2(unpaid) }));
   } catch (error) {
     out.error = error.message;
   }
@@ -623,7 +660,8 @@ const remoteAdminHooks = {
   invoke: async (channel, args) => {
     const fn = ipcHandlers.get(channel);
     if (!fn) throw new Error('إجراء غير معروف: ' + channel);
-    return fn({ remote: true }, ...args);
+    remoteActing++;
+    try { return await fn({ remote: true }, ...args); } finally { setImmediate(() => { remoteActing--; }); }
   },
   verifyPassword: (password) => storage.verifyAdminPassword(password),
   onSessionsChanged: (count) => {
@@ -913,6 +951,9 @@ ipcMain.handle('money:payBill', (event, expenseId, amount, source, byManager) =>
   return money.payBill(expenseId, amount, source, { createdBy: byManager ? 'manager' : 'seller' });
 });
 
+// End-of-day count of the box (a record only; the manager's phone gets the result)
+ipcMain.handle('money:recordCashCount', (event, opts) => money.recordCashCount({ ...(opts || {}), by: 'seller' }));
+ipcMain.handle('money:hasCashCountToday', () => money.hasCashCountToday());
 // opts = { date, description, supplier, total, fromDrawer, restAs: 'unpaid'|'manager' }
 ipcMain.handle('money:recordExpense', (event, opts) => {
   const res = money.recordExpense(opts || {});
@@ -1242,7 +1283,14 @@ function frenchTicket(ticket, hammamData = {}) {
 // Printer operations
 ipcMain.handle('printer:printTicket', async (event, ticket, hammamData) => {
   if (storage.getSetting('ticket_language') === 'fr') ({ ticket, hammamData } = frenchTicket(ticket, hammamData));
-  return await printer.printTicket(ticket, hammamData);
+  try {
+    const r = await printer.printTicket(ticket, hammamData);
+    if (health) { if (r && r.success === false) health.printFailed(r.error || 'print failed'); else health.printOk(); }
+    return r;
+  } catch (error) {
+    if (health) health.printFailed(error);
+    throw error;
+  }
 });
 
 ipcMain.handle('printer:printTest', async () => {
@@ -1426,6 +1474,10 @@ ipcMain.handle('expenseTemplates:updateTemplate', (event, id, name, category, de
   return { success: true };
 });
 
+ipcMain.handle('expenseTemplates:setRepeat', (event, id, rule) => {
+  if (!expenseTemplates) return { success: false, error: 'غير متاح' };
+  return expenseTemplates.setTemplateRepeat(id, rule);
+});
 ipcMain.handle('expenseTemplates:toggleTemplate', (event, id, active) => {
   if (!expenseTemplates) {
     return { success: false, error: 'Expense templates not available' };

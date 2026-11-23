@@ -120,5 +120,5 @@ test('restart actions: the result is reported first, the restart happens after',
 });
 
 test('allowed action list is the fixed support list', () => {
-  assert.deepEqual(RemoteCommands.ALLOWED_ACTIONS, ['ping', 'sync_now', 'diagnostics', 'restart_app', 'restart_pc', 'install_update']);
+  assert.deepEqual(RemoteCommands.ALLOWED_ACTIONS, ['ping', 'sync_now', 'diagnostics', 'restart_app', 'restart_pc', 'install_update', 'backup_now']);
 });

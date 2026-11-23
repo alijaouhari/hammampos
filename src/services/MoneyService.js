@@ -24,7 +24,7 @@
 // this to true and implementing _deliverNotification().
 const NOTIFICATION_DELIVERY_ENABLED = false;
 
-const NOTIFICATION_TYPES = ['seller_collection', 'refund', 'paid_by_manager', 'late_entry', 'expense'];
+const NOTIFICATION_TYPES = ['seller_collection', 'refund', 'paid_by_manager', 'late_entry', 'expense', 'change', 'count', 'health'];
 
 class MoneyService {
   /**
@@ -102,6 +102,18 @@ class MoneyService {
       profit_part REAL NOT NULL DEFAULT 0,
       cancelled_at TEXT,
       cancel_reason TEXT,
+      created_at TEXT NOT NULL
+    )`);
+
+    // The seller's end-of-day count of the box. Only a record: it never moves money;
+    // the manager settles any difference at his visit.
+    run(`CREATE TABLE IF NOT EXISTS cash_counts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      expected REAL NOT NULL,
+      counted REAL NOT NULL,
+      difference REAL NOT NULL,
+      note TEXT,
+      recorded_by TEXT NOT NULL DEFAULT 'seller',
       created_at TEXT NOT NULL
     )`);
 
@@ -362,7 +374,21 @@ class MoneyService {
   recordExpense(opts = {}) {
     const v = this._validateExpense(opts);
     if (!v.ok) return { success: false, error: v.error };
+    // Same description and amount entered in the last 24 hours: ask before adding it again
+    if (!opts.allowDuplicate) {
+      const dup = this.findRecentDuplicate(v.description, v.total);
+      if (dup) return { success: false, duplicate: dup, error: 'هذا المصروف مسجل مسبقاً' };
+    }
     return this._writeExpense(v);
+  }
+
+  /** An expense with the same description and total entered in the last 24 hours, or null. */
+  findRecentDuplicate(description, total) {
+    const since = MoneyService.toStamp(new Date(this.now().getTime() - 24 * 3600 * 1000));
+    const row = this._rows(`SELECT id, date, description, total, created_at FROM money_expenses
+      WHERE TRIM(description) = TRIM(?) AND ABS(total - ?) < 0.005 AND created_at >= ?
+      ORDER BY created_at DESC, id DESC LIMIT 1`, [String(description || ''), Number(total) || 0, since])[0];
+    return row ? { id: row.id, date: row.date, total: row.total, description: row.description, at: row.created_at } : null;
   }
 
   _validateExpense(opts) {
@@ -754,6 +780,38 @@ class MoneyService {
       },
       visits
     };
+  }
+
+  // ── End-of-day count of the box (by the seller) ─────────────────────────
+  /**
+   * Record what the seller counted. The app compares it with the cash it expects;
+   * nothing is moved (the manager settles differences at his visit). The manager's
+   * phone gets the result.
+   */
+  recordCashCount({ counted, note = '', by = 'seller' } = {}) {
+    if (!this.isSwitchedOver()) return { success: false, error: 'يجب تفعيل نظام المال الجديد أولاً' };
+    const c = MoneyService.round(counted);
+    if (!Number.isFinite(Number(counted)) || c < 0) return { success: false, error: 'المبلغ غير صالح' };
+    const expected = this.getBalances().cashInHand;
+    const difference = MoneyService.round(c - expected);
+    const at = this.nowStamp();
+    this.db.run(`INSERT INTO cash_counts (expected, counted, difference, note, recorded_by, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)`, [expected, c, difference, String(note || '').trim() || null, by === 'manager' ? 'manager' : 'seller', at]);
+    const id = this._scalar('SELECT last_insert_rowid()');
+    this.storage.logAudit('CREATE', 'cash_counts', id, `counted ${c} - expected ${expected} - difference ${difference}`);
+    this.storage.save();
+    this.notify('count', { countId: id, expected, counted: c, difference, note: String(note || '').trim(), at });
+    return { success: true, count: { id, expected, counted: c, difference, at } };
+  }
+
+  /** Latest counts, newest first. */
+  getCashCounts(limit = 10) {
+    return this._rows('SELECT * FROM cash_counts ORDER BY created_at DESC, id DESC LIMIT ?', [limit]);
+  }
+
+  /** Was the box counted today (local day)? */
+  hasCashCountToday() {
+    return !!this._scalar('SELECT COUNT(*) FROM cash_counts WHERE substr(created_at, 1, 10) = ?', [this.todayLocal()]);
   }
 
   // ── In-person collection (the manager's visit) ─────────────────────────

@@ -21,6 +21,7 @@ const { createClient } = require('@supabase/supabase-js');
 const WebSocket = require('ws');
 const RemoteCommands = require('./RemoteCommands');
 const RemoteAdmin = require('./RemoteAdmin');
+const CloudBackup = require('./CloudBackup');
 
 const TABLES = ['tickets', 'expenses', 'collections'];
 const CODE_PREFIX = 'HPOS1.';
@@ -69,6 +70,13 @@ class CloudSync {
     this.lastReconcile = null;
     this.commands = null;
     this.remoteAdmin = null;
+    // Daily full-database copy to the cloud (device login only: its folder is protected by it)
+    this.backup = new CloudBackup({
+      storage,
+      client: () => (this.enabled && this.isDeviceMode() && !this._needsSignIn ? this.supabase : null),
+      locationId: () => this.locationId,
+      log: (m) => console.log('☁ ' + m)
+    });
   }
 
   // ─── Connection code (what the dashboard gives to a new device) ─────
@@ -548,6 +556,7 @@ class CloudSync {
     if (this.commands) await this.commands.poll().catch(() => {});
     else this._startCommands();
     await this.pushNotifications().catch(() => {});
+    this.backup.maybeRun().catch(() => {}); // not awaited: an upload never delays the heartbeat
     // the remote admin channel dropped: open it again
     if (this.remoteAdmin && !this.remoteAdmin.live) this.remoteAdmin.start().catch(() => {});
   }

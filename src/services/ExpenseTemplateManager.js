@@ -81,6 +81,8 @@ class ExpenseTemplateManager {
       for (const sql of woodPurchaseMigrations) {
         try { this.storage.db.run(sql); } catch (_) { /* column already exists */ }
       }
+      // Regular expenses (wages...): '' | 'daily' | 'weekly:<0-6, 0 = Sunday>' | 'monthly'
+      try { this.storage.db.run('ALTER TABLE expense_templates ADD COLUMN repeat_rule TEXT'); } catch (_) { /* exists */ }
 
       this.storage.db.run(`CREATE INDEX IF NOT EXISTS idx_wood_purchases_seller ON wood_purchases(seller_id)`);
       this.storage.db.run(`CREATE INDEX IF NOT EXISTS idx_wood_purchases_paid ON wood_purchases(paid)`);
@@ -225,6 +227,62 @@ class ExpenseTemplateManager {
     this.storage.save();
     
     return true;
+  }
+
+  /** How often this expense is expected: '' | 'daily' | 'weekly:<0-6>' | 'monthly'. */
+  setTemplateRepeat(id, rule) {
+    const r = String(rule || '');
+    if (r && !/^(daily|monthly|weekly:[0-6])$/.test(r)) return { success: false, error: 'تكرار غير صالح' };
+    this.storage.db.run('UPDATE expense_templates SET repeat_rule = ? WHERE id = ?', [r || null, id]);
+    this.storage.logAudit('UPDATE', 'expense_templates', id, `repeat = ${r || 'none'}`);
+    this.storage.save();
+    return { success: true };
+  }
+
+  /**
+   * Regular expenses: was each one entered in its period, and only once?
+   * Periods (by expense date): daily = yesterday and today; weekly = the 7 days from
+   * the last due day (one day of grace before "missing"); monthly = last month
+   * (once this month has started) and this month.
+   * Only periods after `since` (the money system's start) are checked.
+   * @returns {Array<{id,name,rule,from,to,count,status:'ok'|'missing'|'double'|'waiting'}>}
+   */
+  getRepeatStatus(today, since = null) {
+    const day = (s, n) => new Date(Date.parse(s) + n * 86400000).toISOString().slice(0, 10);
+    const sinceDay = since ? String(since).slice(0, 10) : '0000-00-00';
+    const count = (name, from, to) => {
+      const r = this.storage.db.exec(`SELECT COUNT(*) FROM money_expenses WHERE date >= ? AND date <= ?
+        AND (TRIM(description) = ? OR description LIKE ? OR description LIKE ?)`, [from, to, name, name + ' -%', name + ' (%']);
+      return r[0] ? r[0].values[0][0] : 0;
+    };
+    const out = [];
+    let templates = [];
+    try { templates = this.getTemplates(true).filter(t => t.repeat_rule); } catch (_) { return out; }
+    for (const t of templates) {
+      const periods = [];
+      if (t.repeat_rule === 'daily') {
+        periods.push({ from: day(today, -1), to: day(today, -1), done: true });
+        periods.push({ from: today, to: today, done: false });
+      } else if (t.repeat_rule.startsWith('weekly:')) {
+        const wd = Number(t.repeat_rule.slice(7));
+        const back = (new Date(today + 'T00:00:00Z').getUTCDay() - wd + 7) % 7;
+        const due = day(today, -back);
+        periods.push({ from: day(due, -7), to: day(due, -1), done: true });
+        periods.push({ from: due, to: day(due, 6), done: back >= 1 }); // one day of grace
+      } else if (t.repeat_rule === 'monthly') {
+        const m0 = today.slice(0, 7) + '-01';
+        const prev = new Date(Date.parse(m0) - 86400000).toISOString().slice(0, 10);
+        periods.push({ from: prev.slice(0, 7) + '-01', to: prev, done: true });
+        periods.push({ from: m0, to: today, done: false });
+      }
+      for (const p of periods) {
+        if (p.from < sinceDay) continue; // before the app was used for money
+        const n = count(t.name, p.from, p.to > today ? today : p.to);
+        const status = n > 1 ? 'double' : n === 1 ? 'ok' : (p.done ? 'missing' : 'waiting');
+        out.push({ id: t.id, name: t.name, rule: t.repeat_rule, from: p.from, to: p.to, count: n, status });
+      }
+    }
+    return out;
   }
 
   /**

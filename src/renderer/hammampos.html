@@ -174,6 +174,9 @@
         html[dir="ltr"] body { direction: ltr; }
         html[dir="ltr"] .modal-content, html[dir="ltr"] .settings-section, html[dir="ltr"] .category-section { text-align: left; }
         .lang-btn { min-width: 3rem; font-weight: 700; }
+        /* "count the box" reminder after 18:00 until it is done */
+        #cash-count-btn.count-due { background: #f59e0b !important; color: #fff !important; animation: countBlink 1.4s ease-in-out infinite; }
+        @keyframes countBlink { 50% { opacity: 0.55; } }
         #remote-admin-notice {
             position: fixed; bottom: 14px; left: 14px; z-index: 50000; pointer-events: none;
             background: #4c1d95; color: #fff; border-radius: 999px; padding: 0.45rem 1rem;
@@ -1504,6 +1507,7 @@
             <div class="header-actions">
                 <button id="add-expense-btn" class="btn btn-warning">إضافة مصروف</button>
                 <button id="remote-collection-btn" class="btn btn-info" style="display:none;">💸 إيداع / تحويل</button>
+                <button id="cash-count-btn" class="btn btn-secondary" style="display:none;">🧮 عدّ الصندوق</button>
                 <button id="header-update-btn" class="btn btn-secondary" data-state="idle" title="التحقق من التحديثات">🔄 تحديث</button>
                 <button id="lang-btn" class="btn btn-secondary lang-btn" title="Français / العربية" data-no-i18n>FR</button>
                 <button id="admin-btn" class="btn btn-success">إدارة</button>
@@ -2032,6 +2036,26 @@
         </div>
     </div>
 
+    <!-- End-of-day count of the box (blind: the expected amount is shown only after saving) -->
+    <div id="cash-count-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>🧮 عدّ الصندوق</h3>
+            <p style="margin-bottom:0.8rem; color:#475569;">عُدّ النقود الموجودة في الصندوق (بدون صندوق الصرف) واكتب المبلغ.</p>
+            <div class="form-group">
+                <label for="cash-count-amount">المبلغ الذي عددته:</label>
+                <input type="number" id="cash-count-amount" step="0.01" min="0">
+            </div>
+            <div class="form-group">
+                <label for="cash-count-note">ملاحظة (اختياري):</label>
+                <input type="text" id="cash-count-note">
+            </div>
+            <div id="cash-count-result" style="display:none; margin:0.8rem 0; padding:0.8rem; border-radius:8px; font-size:1.1rem;"></div>
+            <div class="modal-actions">
+                <button type="button" id="cash-count-submit" class="btn btn-success">تسجيل العدّ</button>
+                <button type="button" id="cash-count-close" class="btn btn-secondary">إغلاق</button>
+            </div>
+        </div>
+    </div>
     <!-- Cancel a collection (manager) -->
     <div id="cancel-collection-modal" class="modal hidden">
         <div class="modal-content">
@@ -3357,6 +3381,8 @@
                 getPeriodSummary: () => ipcRenderer.invoke('money:getPeriodSummary'),
                 collectInPerson: (opts) => ipcRenderer.invoke('money:collectInPerson', opts),
                 recordRemoteCollection: (opts, byManager) => ipcRenderer.invoke('money:recordRemoteCollection', opts, byManager),
+            recordCashCount: (opts) => ipcRenderer.invoke('money:recordCashCount', opts),
+            hasCashCountToday: () => ipcRenderer.invoke('money:hasCashCountToday'),
                 getCollections: (opts) => ipcRenderer.invoke('money:getCollections', opts),
                 cancelCollection: (id, reason) => ipcRenderer.invoke('money:cancelCollection', id, reason),
                 refundTicket: (ticketId, reason) => ipcRenderer.invoke('money:refundTicket', ticketId, reason),
@@ -3406,7 +3432,8 @@
                 getWoodPurchases: (limit) => ipcRenderer.invoke('expenseTemplates:getWoodPurchases', limit),
                 addTemplate: (name, category, description) => ipcRenderer.invoke('expenseTemplates:addTemplate', name, category, description),
                 updateTemplate: (id, name, category, description) => ipcRenderer.invoke('expenseTemplates:updateTemplate', id, name, category, description),
-                toggleTemplate: (id, active) => ipcRenderer.invoke('expenseTemplates:toggleTemplate', id, active)
+                toggleTemplate: (id, active) => ipcRenderer.invoke('expenseTemplates:toggleTemplate', id, active),
+                setRepeat: (id, rule) => ipcRenderer.invoke('expenseTemplates:setRepeat', id, rule)
             },
             wood: {
                 addSeller: (name, phone, woodType, defaultPricePerKg, notes) => ipcRenderer.invoke('wood:addSeller', name, phone, woodType, defaultPricePerKg, notes),
@@ -3702,6 +3729,7 @@
                 loadTellerBills();
                 const rcBtn = document.getElementById('remote-collection-btn');
                 if (rcBtn) rcBtn.style.display = moneySwitchedOver ? '' : 'none';
+                refreshCashCountButton();
                 
                 console.log('Displays updated');
                 
@@ -3960,8 +3988,24 @@
                     btn.style.cssText = 'padding:0.25rem 0.75rem; font-size:0.8rem;';
                     btn.textContent = active ? 'تعطيل' : 'تفعيل';
                     btn.onclick = () => toggleExpenseTypeActive(t.id, !active);
+                    // Regular expense (wages...): the app checks it is entered once per period
+                    const rep = document.createElement('select');
+                    rep.title = 'يتكرر';
+                    rep.style.cssText = 'margin:0 0.5rem; padding:0.2rem; font-size:0.8rem; width:auto;';
+                    [['', 'لا يتكرر'], ['daily', 'كل يوم'], ['weekly:1', 'كل اثنين'], ['weekly:2', 'كل ثلاثاء'], ['weekly:3', 'كل أربعاء'],
+                     ['weekly:4', 'كل خميس'], ['weekly:5', 'كل جمعة'], ['weekly:6', 'كل سبت'], ['weekly:0', 'كل أحد'], ['monthly', 'كل شهر']]
+                        .forEach(([v, label]) => { const o = document.createElement('option'); o.value = v; o.textContent = label; rep.appendChild(o); });
+                    rep.value = t.repeat_rule || '';
+                    rep.onchange = async () => {
+                        const r = await api.expenseTemplates.setRepeat(t.id, rep.value);
+                        showToast(r && r.success ? 'تم الحفظ' : ((r && r.error) || 'تعذّر الحفظ'), r && r.success ? 'success' : 'error');
+                    };
+                    const right = document.createElement('span');
+                    right.style.cssText = 'display:flex; align-items:center;';
+                    right.appendChild(rep);
+                    right.appendChild(btn);
                     row.appendChild(nameSpan);
-                    row.appendChild(btn);
+                    row.appendChild(right);
                     listEl.appendChild(row);
                 });
             } catch (error) {
@@ -4735,7 +4779,7 @@
                 if (moneySwitchedOver) {
                     const split = readPaySplit('expense', amount);
                     if (split.error) { showToast(split.error, 'error'); return; }
-                    const res = await api.money.recordExpense({
+                    const expenseOpts = {
                         date: expenseDay,
                         description,
                         supplier: document.getElementById('expense-supplier').value.trim(),
@@ -4743,7 +4787,18 @@
                         fromDrawer: split.fromDrawer,
                         restAs: split.restAs,
                         paidBeforeVisit: split.paidBeforeVisit
-                    });
+                    };
+                    let res = await api.money.recordExpense(expenseOpts);
+                    // Same expense already entered in the last 24 hours: ask before adding it again
+                    if (res && res.duplicate) {
+                        const d = res.duplicate;
+                        const when = String(d.at || '').slice(0, 16);
+                        const again = await showConfirm(
+                            `هذا المصروف مسجل مسبقاً\n${d.description} - ${d.total} درهم\n${when}\n\nهل تريد إضافته مرة أخرى؟`,
+                            '⚠ مصروف مكرر؟', 'إضافة مرة أخرى');
+                        if (!again) return;
+                        res = await api.money.recordExpense({ ...expenseOpts, allowDuplicate: true });
+                    }
                     if (!res || res.success === false) {
                         showToast((res && res.error) || 'فشل في إضافة المصروف', 'error');
                         return;
@@ -5901,6 +5956,56 @@
             }
         }
 
+        // ── End-of-day count of the box ──
+        // The button shows once the money system is on; from 18:00 it blinks until the box is counted today.
+        async function refreshCashCountButton() {
+            const btn = document.getElementById('cash-count-btn');
+            if (!btn) return;
+            btn.style.display = moneySwitchedOver ? '' : 'none';
+            if (!moneySwitchedOver) return;
+            try {
+                const done = await api.money.hasCashCountToday();
+                btn.classList.toggle('count-due', !done && new Date().getHours() >= 18);
+            } catch (_) {}
+        }
+        setInterval(() => { refreshCashCountButton(); }, 5 * 60 * 1000);
+        function openCashCount() {
+            document.getElementById('cash-count-amount').value = '';
+            document.getElementById('cash-count-note').value = '';
+            const r = document.getElementById('cash-count-result');
+            r.style.display = 'none'; r.innerHTML = '';
+            document.getElementById('cash-count-submit').style.display = '';
+            document.getElementById('cash-count-modal').classList.remove('hidden');
+            document.getElementById('cash-count-amount').focus();
+        }
+        async function submitCashCount() {
+            const counted = parseFloat(document.getElementById('cash-count-amount').value);
+            if (!Number.isFinite(counted) || counted < 0) { showToast('أدخل المبلغ الذي عددته', 'error'); return; }
+            try {
+                const res = await api.money.recordCashCount({ counted: round2(counted), note: document.getElementById('cash-count-note').value.trim() });
+                if (!res || res.success === false) { showToast((res && res.error) || 'تعذّر التسجيل', 'error'); return; }
+                const c = res.count, d = c.difference;
+                const r = document.getElementById('cash-count-result');
+                r.style.display = '';
+                r.style.background = d === 0 ? '#dcfce7' : '#fef3c7';
+                r.innerHTML = d === 0 ? '✅ مطابق: ' + c.counted + ' درهم'
+                    : (d < 0 ? '⚠ ناقص ' + Math.abs(d) : '⚠ زائد ' + d) + ' درهم<br><small>المتوقع ' + c.expected + ' درهم · المعدود ' + c.counted + ' درهم · سيراجعه المدير</small>';
+                document.getElementById('cash-count-submit').style.display = 'none';
+                refreshCashCountButton();
+            } catch (error) {
+                console.error('Cash count failed:', error);
+                showToast('خطأ في التسجيل', 'error');
+            }
+        }
+        (function initCashCount() {
+            const bind = () => {
+                const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+                on('cash-count-btn', openCashCount);
+                on('cash-count-submit', submitCashCount);
+                on('cash-count-close', () => document.getElementById('cash-count-modal').classList.add('hidden'));
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
+        })();
         let cancelCollectionId = null;
         function openCancelCollection(c) {
             cancelCollectionId = c.id;

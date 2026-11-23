@@ -250,6 +250,7 @@ html[dir="ltr"] .drawer-x{float:right}
 <div class="chart-box" dir="ltr"><canvas id="hm-chart"></canvas></div>
 </div>
 <div class="panel"><h3 style="margin-bottom:0.6rem">مبيعات اليوم حسب الفئة</h3><div id="hm-cats"></div></div>
+<div class="panel"><h3 style="margin-bottom:0.6rem">الحطب (آخر 3 أشهر)</h3><div id="hm-wood"></div></div>
 <div class="panel"><h3 style="margin-bottom:0.6rem">تذاكر اليوم (من السحابة)</h3><div id="hm-tickets" style="max-height:420px;overflow:auto"></div></div>
 </div>
 
@@ -266,6 +267,10 @@ html[dir="ltr"] .drawer-x{float:right}
 <div class="chart-box" dir="ltr"><canvas id="ch-chart"></canvas></div>
 </div>
 <div class="panel"><h3 style="margin-bottom:0.6rem">الأرقام</h3><div id="ch-table" style="overflow:auto"></div></div>
+<div class="panel"><div class="panel-head"><h3>التقرير الشهري</h3>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center"><select id="rp-month"></select>
+<button class="btn" onclick="showMonthReport()">عرض</button><button class="btn" onclick="printMonthReport()">طباعة / PDF</button><button class="btn" onclick="csvMonthReport()">Excel</button></div></div>
+<p class="muted small">لكل حمام (أو كل الحمامات حسب الاختيار أعلاه): المبيعات، المصروفات حسب النوع، الصافي، يوماً بيوم، الحطب، الزيارات وعدّ الصندوق.</p></div>
 </div>
 
 <div id="view-alerts" class="view hidden">
@@ -484,7 +489,9 @@ async function loadDevices(){
       '<span style="color:var(--muted);font-size:0.85rem">'+(l.__hasLogin?'دخول خاص':'بدون دخول خاص (رمز قديم)')+' · النسخة: '+esc(l.app_version||'—')+' · في الانتظار: '+(l.queue_size||0)+' · آخر مزامنة: '+agoText(l.last_sync_at)+'</span>'+
       (counts?'<br><span style="color:var(--muted);font-size:0.85rem">'+counts+'</span>':'')+
       (l.last_error?'<br><span style="color:var(--bad);font-size:0.85rem">آخر خطأ: '+esc(l.last_error)+'</span>':'')+
-      '<div style="margin-top:0.6rem"><a href="admin.html?loc='+l.id+'" target="_blank" rel="noopener" class="btn primary">لوحة الإدارة عن بعد</a></div>'+
+      healthHtml(l)+
+      '<div style="margin-top:0.6rem;display:flex;gap:0.35rem;flex-wrap:wrap"><a href="admin.html?loc='+l.id+'" target="_blank" rel="noopener" class="btn primary">لوحة الإدارة عن بعد</a>'+
+        '<button class="btn" onclick="downloadBackup(\''+l.id+'\')">تحميل آخر نسخة احتياطية</button>'+cmdBtn(l.id,'backup_now','نسخة احتياطية الآن')+'</div>'+
       '<div class="cmd-row" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.5rem">'+
         cmdBtn(l.id,'ping','اختبار فوري')+cmdBtn(l.id,'sync_now','مزامنة الآن')+cmdBtn(l.id,'diagnostics','تشخيص')+
         cmdBtn(l.id,'restart_app','إعادة تشغيل البرنامج')+cmdBtn(l.id,'restart_pc','إعادة تشغيل الجهاز')+cmdBtn(l.id,'install_update','تثبيت آخر تحديث')+
@@ -494,6 +501,8 @@ async function loadDevices(){
       '<button class="btn-blue" onclick="showCode(\''+l.id+'\')">رمز ربط جديد</button> '+
       '<button class="btn-red" onclick="deleteDevice(\''+l.id+'\')">حذف</button></div></div>';
   }
+  if(data.length>1)html='<div class="loc-item" style="flex-wrap:wrap;gap:0.5rem"><div><strong>كل الحمامات</strong><br><span style="color:var(--muted);font-size:0.85rem">يثبّت التحديث على حمام واحد، ينتظر حتى يعود متصلاً بالنسخة الجديدة، ثم ينتقل إلى التالي. إذا فشل حمام يتوقف ولا يلمس الباقي.</span></div>'+
+    '<div><button class="btn-blue" onclick="installAllStaged()">تثبيت التحديث على كل الحمامات (واحداً بعد الآخر)</button></div><div class="ping-result" id="stage-result" style="width:100%"></div></div>'+html;
   box.innerHTML=html;
   clearTimeout(devicesTimer);
   devicesTimer=setTimeout(()=>{if(currentView==='devices'&&!window.__pinging)loadDevices();},15000);
@@ -552,8 +561,73 @@ const CMD_INFO={
   diagnostics:{timeout:30},
   restart_app:{timeout:30,confirm:'إعادة تشغيل برنامج HammamPOS على هذا الجهاز؟ يتوقف البيع حوالي 15 ثانية.'},
   restart_pc:{timeout:30,confirm:'إعادة تشغيل الجهاز بالكامل؟ ستظهر رسالة للبائع ويعاد التشغيل بعد 30 ثانية، ويتوقف البيع 2-3 دقائق.'},
-  install_update:{timeout:600,confirm:'تحميل وتثبيت آخر نسخة على هذا الجهاز؟ يتوقف البيع حوالي دقيقة أثناء التثبيت.'}
+  install_update:{timeout:600,confirm:'تحميل وتثبيت آخر نسخة على هذا الجهاز؟ يتوقف البيع حوالي دقيقة أثناء التثبيت.'},
+  backup_now:{timeout:120}
 };
+// PC health line (app 2.8.44+): cloud backup, disk, printer, restarts, and current problems
+function healthHtml(l){
+  const h=(l.device_info||{}).health;
+  if(!h)return '';
+  const b=h.backup||{};
+  const parts=[
+    b.at?'<span>آخر نسخة احتياطية في السحابة</span> '+agoText(b.at)+(b.size?' ('+Math.round(b.size/1024)+' KB)':''):'<span>لا نسخة احتياطية في السحابة بعد</span>',
+    h.diskFreeGb!=null?'<span>القرص</span> '+h.diskFreeGb+' GB <span>فارغة</span>':'',
+    h.printer&&h.printer.lastErrorAt?'<span>آخر خطأ طابعة</span> '+agoText(h.printer.lastErrorAt):'',
+    h.startsToday>1?'<span>تشغيل البرنامج اليوم</span> '+h.startsToday+' <span>مرات</span>':''
+  ].filter(Boolean);
+  return '<br><span style="color:var(--muted);font-size:0.85rem">'+parts.join(' · ')+'</span>'+
+    (h.problems||[]).map(p=>'<br><span style="color:var(--bad);font-size:0.85rem">⚠ '+esc(p.text)+'</span>').join('');
+}
+// Latest cloud backup of a hammam: a private download link valid 10 minutes
+async function downloadBackup(id){
+  const el=document.getElementById('ping-'+id);
+  try{
+    const{data,error}=await sb.storage.from('backups').list(id,{limit:100,sortBy:{column:'name',order:'desc'}});
+    if(error)throw error;
+    const files=(data||[]).filter(f=>/\.db\.gz$/.test(f.name)).sort((a,b)=>a.name<b.name?1:-1);
+    if(!files.length){el.innerHTML='<div class="msg msg-err">لا توجد نسخة احتياطية في السحابة بعد (تبدأ مع النسخة 2.8.44).</div>';return;}
+    const{data:u,error:e2}=await sb.storage.from('backups').createSignedUrl(id+'/'+files[0].name,600,{download:true});
+    if(e2)throw e2;
+    el.innerHTML='<div class="msg msg-ok">آخر نسخة: '+esc(files[0].name)+' · '+files.length+' <span>نسخ محفوظة</span> · <a href="'+u.signedUrl+'">تحميل</a></div>';
+    location.href=u.signedUrl;
+  }catch(e){el.innerHTML='<div class="msg msg-err">'+esc(e.message||String(e))+'</div>';}
+}
+// Install the latest version on every hammam, one after the other; stop at the first failure
+async function installAllStaged(){
+  const locs=(window.__devices||[]).slice();
+  if(!locs.length)return;
+  if(!confirm('تثبيت آخر نسخة على '+locs.length+' حمامات، واحداً بعد الآخر؟ يتوقف البيع حوالي دقيقة في كل حمام أثناء تثبيته.'))return;
+  const out=document.getElementById('stage-result');
+  const say=(cls,t)=>{out.innerHTML='<div class="msg '+cls+'">'+t+'</div>';};
+  window.__pinging=true;
+  try{
+    for(const l of locs){
+      say('msg-info',esc(l.name)+': <span>إرسال أمر التثبيت…</span>');
+      const{data:cmd,error}=await sb.from('device_commands').insert({location_id:l.id,action:'install_update'}).select('id').single();
+      if(error)throw new Error(l.name+': '+error.message);
+      let res=null;const t0=Date.now();
+      while(Date.now()-t0<300000){
+        await new Promise(r=>setTimeout(r,2000));
+        const{data}=await sb.from('device_commands').select('status,result').eq('id',cmd.id).maybeSingle();
+        if(data&&data.status==='done'){res=data.result||{};break;}
+        if(data&&(data.status==='failed'||data.status==='expired'))throw new Error(l.name+': '+((data.result&&data.result.error)||'فشل التنفيذ'));
+      }
+      if(!res)throw new Error(l.name+': لم يستلم الجهاز الأمر');
+      if(res.upToDate){say('msg-info',esc(l.name)+': <span>يعمل بآخر نسخة</span>');continue;}
+      const target=res.installing;
+      say('msg-info',esc(l.name)+': <span>جاري تثبيت</span> '+esc(target)+'…');
+      let back=false;const t1=Date.now();
+      while(Date.now()-t1<480000){
+        await new Promise(r=>setTimeout(r,5000));
+        const{data:row}=await sb.from('locations').select('app_version,last_seen_at').eq('id',l.id).maybeSingle();
+        if(row&&row.app_version===target&&Date.now()-new Date(row.last_seen_at).getTime()<60000){back=true;break;}
+      }
+      if(!back)throw new Error(l.name+': لم يعد الجهاز متصلاً بالنسخة '+target+' خلال 8 دقائق. توقف التثبيت هنا، الحمامات الأخرى لم تُلمس.');
+    }
+    say('msg-ok','تم: كل الحمامات تعمل بآخر نسخة.');
+  }catch(e){say('msg-err',esc(e.message||String(e)));}
+  finally{window.__pinging=false;loadDevices();}
+}
 function cmdBtn(id,action,label){return '<button class="btn" style="margin-top:0" onclick="sendCommand(\''+id+'\',\''+action+'\')">'+label+'</button>';}
 function showCmd(id,cls,html){document.getElementById('ping-'+id).innerHTML='<div class="msg '+cls+'">'+html+'</div>';}
 function cmdResultHtml(action,r,secs){
@@ -563,6 +637,7 @@ function cmdResultHtml(action,r,secs){
   if(action==='diagnostics')return 'تقرير الجهاز:<pre style="direction:ltr;text-align:left;max-height:300px;overflow:auto;background:#0f172a;color:#e2e8f0;padding:0.5rem;border-radius:6px;font-size:0.75rem;white-space:pre-wrap">'+esc(JSON.stringify(r,null,2))+'</pre>';
   if(action==='restart_app')return 'يعاد تشغيل البرنامج الآن. سيعود الجهاز متصلاً خلال 20-40 ثانية.';
   if(action==='restart_pc')return 'سيعاد تشغيل الجهاز بعد '+esc(r.restartingInSeconds||30)+' ثانية. سيعود متصلاً بعد 2-3 دقائق.';
+  if(action==='backup_now')return 'تم حفظ نسخة احتياطية في السحابة: '+esc(r.name||'')+' ('+esc(r.sizeKb)+' KB، قاعدة البيانات '+esc(r.dbSizeKb)+' KB)';
   if(action==='install_update')return r.upToDate?'الجهاز يعمل بآخر نسخة ('+esc(r.version)+')':'جاري تثبيت النسخة '+esc(r.installing)+' (كانت '+esc(r.from)+'). سيعود الجهاز متصلاً خلال دقيقة إلى دقيقتين.';
   return 'تم';
 }
@@ -691,7 +766,8 @@ function openFromUrl(href){
 }
 // ═══ Push notifications ═══
 const PUSH_KEY='BGaqIvHzCO6OPI5Ssq4Il7aFL1jlcTCe1IRYN3pNwrzzoyPHLVRihv_jhvpdgQrqcivgzj82A0aWq-PoMNaG-es';
-const PUSH_TYPES=[['expense','مصروف جديد (ومصروف غير مدفوع)'],['late_entry','إدخال متأخر'],['refund','استرجاع تذكرة'],['seller_collection','إيداع / تحويل من البائع'],['offline','الجهاز غير متصل / عاد الاتصال']];
+const PUSH_TYPES=[['expense','مصروف جديد (ومصروف غير مدفوع)'],['late_entry','إدخال متأخر'],['refund','استرجاع تذكرة'],['seller_collection','إيداع / تحويل من البائع'],['offline','الجهاز غير متصل / عاد الاتصال'],
+  ['change','حذف أو تعديل (تذكرة، مصروف، تحصيل، سعر)'],['count','عدّ الصندوق في آخر اليوم'],['health','مشكلة في الجهاز (طابعة، قرص، نسخة احتياطية)']];
 let pushReg=null;
 function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
 function isIos(){return /iphone|ipad|ipod/i.test(navigator.userAgent);}
@@ -986,7 +1062,7 @@ function renderHourly(){
   box.innerHTML='<div class="hbars">'+bars+'</div><div class="hax">'+ax+'</div>';
 }
 function renderAttention(){
-  const items=liveAlerts().map(a=>({ico:a.cls,t:a.title,m:a.sub,act:a.loc?(a.title.includes('فاتورة')?"openDrawer('bills')":"openDrawer('late')"):"go('devices')"}));
+  const items=liveAlerts().map(a=>({ico:a.cls,t:a.title,m:a.sub,act:a.act||(a.loc?(a.title.includes('فاتورة')?"openDrawer('bills')":"openDrawer('late')"):"go('devices')")}));
   notes.filter(n=>!n.read_at).slice(0,4).forEach(n=>{const v=noteView(n);items.push({ico:v.cls,t:v.title,m:v.sub+' · '+agoText(v.when),act:"markRead("+n.id+");go('alerts')"});});
   document.getElementById('ov-attn').innerHTML=items.length?items.map(i=>'<button type="button" class="attn-row" onclick="'+i.act+'"><span class="dot '+(i.ico||'')+'"></span><span class="t">'+esc(i.t)+'<span class="m">'+esc(i.m||'')+'</span></span><span class="go">‹</span></button>').join(''):'<div class="empty">لا شيء يحتاج انتباهك الآن</div>';
 }
@@ -1057,7 +1133,7 @@ async function openDrawer(kind,period){
     let tot=0;
     const rows=locations.map(l=>{const s=sumOf(l),d=details(l);tot+=(s&&s.cashInHand)||0;const lc=d&&d.lastCollection;
       return '<tr>'+td(esc(l.name))+td(s?dh(s.cashInHand):'—','num')+td(s&&s.changeFloat!=null?dh(s.changeFloat):'—','num')+td(lc?shortDate(lc.date)+' · '+dh(lc.a):'—')+td('<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">الإدارة عن بعد</a>')+'</tr>';});
-    h='<h3>النقد في الصناديق</h3><div class="sub">'+dh(tot)+'</div>'+tableHtml(['الحمام','النقد','صندوق الصرف','آخر تحصيل',''],rows)+visitsHtml();
+    h='<h3>النقد في الصناديق</h3><div class="sub">'+dh(tot)+'</div>'+tableHtml(['الحمام','النقد','صندوق الصرف','آخر تحصيل',''],rows)+countsHtml()+visitsHtml();
   }else if(kind==='bills'){
     let tot=0;const rows=[];let missing=false;
     locations.forEach(l=>{const s=sumOf(l),d=details(l);tot+=(s&&s.owedToSuppliers)||0;if(!d||!d.bills){if(s&&s.openBills&&s.openBills.count)missing=true;return;}
@@ -1145,6 +1221,14 @@ async function salesPeriodHtml(period){
   if(period==='yesterday'&&tix.length)h+='<div class="sec">آخر التذاكر</div>'+tableHtml(['الوقت','الحمام','الفئة','السعر'],tix.slice(0,40).map(t=>'<tr>'+td(esc(String(t.time||'').slice(0,5)),'num')+td(esc(locName2(t.location_id)))+td(esc(t.category_name))+td(dh(t.price),'num')+'</tr>'));
   return h;
 }
+// The seller's end-of-day box counts, latest first, per hammam (app 2.8.44+)
+function countsHtml(){
+  let h='',any=false;
+  locations.forEach(l=>{const d=details(l);if(!d||!d.counts)return;any=true;
+    h+='<div class="sec">'+esc(l.name)+'</div>'+(tableHtml(['العدّ','المتوقع','المعدود','الفرق','ملاحظة'],d.counts.map(c=>'<tr>'+td(stampText(c.at),'num')+td(dh(c.x),'num')+td(dh(c.c),'num')+
+      td(c.d===0?'<span class="up">مطابق</span>':(c.d>0?'+ ':'− ')+dh(Math.abs(c.d)),'num'+(c.d<0?' down':c.d>0?' up':''))+td(esc(c.n||''))+'</tr>'))||'<div class="empty">لم يُعدّ الصندوق بعد</div>');});
+  return any?'<div class="sec" style="margin-top:18px">عدّ الصندوق في آخر اليوم</div><div class="muted small">يعدّه البائع ويكتب المبلغ دون أن يرى المتوقع. لا يغيّر أي رقم: تسوّي الفرق عند زيارتك.</div>'+h:'';
+}
 // The manager's visits (in-person collections), latest first, per hammam
 function visitsHtml(){
   let h='',missing=[];
@@ -1185,6 +1269,12 @@ async function renderHammam(quiet){
   document.getElementById('hm-cats').innerHTML=cats.length?'<table class="t"><thead><tr><th>الفئة</th><th>التذاكر</th><th>المبلغ</th></tr></thead><tbody>'+
     cats.map(c=>'<tr><td>'+esc(c[0])+'</td><td class="num">'+int(c[1])+'</td><td class="num">'+dh(c[2])+'</td></tr>').join('')+'</tbody></table>':'<div class="empty">لا مبيعات اليوم</div>';
   hmChart=drawChart('hm-chart',hmChart,seriesFor(l.id,hmPeriod),true);
+  // Wood bought, by month and type, with the price per kilo and the cost per selling day
+  const dd=details(l),wood=(dd&&dd.wood)||null;
+  const mSales=Object.fromEntries(((s&&s.months)||[]).map(m=>[m[0],m]));
+  document.getElementById('hm-wood').innerHTML=!wood?'<div class="empty">يظهر بعد تحديث الجهاز إلى آخر نسخة.</div>':(!wood.length?'<div class="empty">لا مشتريات حطب في آخر 3 أشهر</div>':
+    tableHtml(['الشهر','النوع','المشتريات','الكمية (كغ)','المبلغ','ثمن الكيلو','غير مدفوع'],wood.slice().reverse().map(w=>'<tr>'+td(esc(labelOf(w.m,'month')))+td(esc(w.type||'—'))+td(int(w.n),'num')+td(w.kg?int(Math.round(w.kg)):'—','num')+td(dh(w.a),'num')+td(w.kg?(w.a/w.kg).toFixed(2)+' DH':'—','num')+td(dh(w.u),'num'+(w.u>0?' down':''))+'</tr>'))+
+    '<div class="muted small">'+[...new Set(wood.map(w=>w.m))].sort().reverse().map(m=>{const a=wood.filter(w=>w.m===m).reduce((x,w)=>x+w.a,0),ms=mSales[m];return esc(labelOf(m,'month'))+': '+dh(a)+(ms&&ms[2]>0?' = '+Math.round(a/ms[2]*100)+'% <span>من المبيعات</span>':'');}).join(' · ')+'</div>');
   if(quiet)return;
   const box=document.getElementById('hm-tickets');
   box.innerHTML='<div class="empty">جاري التحميل...</div>';
@@ -1253,6 +1343,7 @@ setupSeg('ch-seg',p=>{chPeriod=p;renderCharts();});
 document.getElementById('ov-period').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;ovPeriod=b.dataset.p;renderOverview();});
 setupSeg('hm-seg',p=>{hmPeriod=p;hmChart=drawChart('hm-chart',hmChart,seriesFor(currentHammam,hmPeriod),true);});
 function renderCharts(){
+  fillReportMonths();
   const locId=document.getElementById('ch-loc').value||null;
   const rows=seriesFor(locId,chPeriod);
   const tot=rows.reduce((a,r)=>[a[0]+r[1],a[1]+r[2],a[2]+r[3]],[0,0,0]);
@@ -1267,14 +1358,125 @@ function renderCharts(){
     '</tbody></table>':'<div class="empty">لا بيانات بعد. الأجهزة ترسل الأرقام بعد التحديث إلى 2.8.34.</div>';
 }
 
+// ═══ Monthly report ═══
+const WOOD_TYPES={}; // wood types are typed by each hammam (shown as typed)
+function fillReportMonths(){
+  const el=document.getElementById('rp-month');if(!el)return;
+  const ms=new Set([todayStr().slice(0,7)]);
+  locations.forEach(l=>{const s=sumOf(l);(s&&s.months||[]).forEach(m=>ms.add(m[0]));});
+  const v=el.value;
+  el.innerHTML=[...ms].sort().reverse().map(m=>'<option value="'+m+'">'+esc(labelOf(m,'month'))+'</option>').join('');
+  if(v)el.value=v;
+}
+// Expense type: the part before " - " (template name, wood "خشب", wages...)
+const expenseGroup=(d)=>String(d||'').split(' - ')[0].replace(/\s*\(.*\)\s*$/,'').trim()||'—';
+async function monthReportData(month){
+  const locId=document.getElementById('ch-loc').value||null;
+  const locs=locations.filter(l=>!locId||l.id===locId);
+  const from=month+'-01',to=new Date(Date.UTC(+month.slice(0,4),+month.slice(5,7),0)).toISOString().slice(0,10);
+  const out=[];
+  for(const l of locs){
+    const [tix,exps]=await Promise.all([
+      fetchAll(()=>sb.from('tickets').select('date,price,category_name').eq('location_id',l.id).gte('date',from).lte('date',to).order('date')),
+      fetchAll(()=>sb.from('expenses').select('date,time,description,amount,created_at').eq('location_id',l.id).gte('date',from).lte('date',to).order('date'))]);
+    const byDay={},cats={},groups={};
+    tix.forEach(t=>{const x=byDay[t.date]=byDay[t.date]||{n:0,s:0,e:0};x.n++;x.s+=Number(t.price)||0;const c=cats[t.category_name]=cats[t.category_name]||[0,0];c[0]++;c[1]+=Number(t.price)||0;});
+    exps.forEach(e=>{const x=byDay[e.date]=byDay[e.date]||{n:0,s:0,e:0};x.e+=Number(e.amount)||0;const g=expenseGroup(e.description);const gg=groups[g]=groups[g]||[0,0];gg[0]++;gg[1]+=Number(e.amount)||0;});
+    const sales=r2(tix.reduce((a,t)=>a+(Number(t.price)||0),0)),expenses=r2(exps.reduce((a,e)=>a+(Number(e.amount)||0),0));
+    // How the month's expenses were paid: only when the PC's daily split covers the whole month
+    const s=sumOf(l),days=(s&&s.days)||[];let split=null;
+    if(days.length&&days[0][0]<=from&&days.every(d=>d.length>=6)){split={drawer:0,manager:0};days.forEach(d=>{if(d[0]>=from&&d[0]<=to){split.drawer+=d[4];split.manager+=d[5];}});}
+    const d=details(l)||{};
+    out.push({l,from,to,tickets:tix.length,sales,expenses,net:r2(sales-expenses),split,byDay,cats,groups,exps,
+      wood:(d.wood||[]).filter(w=>w.m===month),visits:(d.visits||[]).filter(v=>v.at.slice(0,7)===month),counts:(d.counts||[]).filter(c=>c.at.slice(0,7)===month),
+      daysSelling:Object.values(byDay).filter(x=>x.n>0).length});
+  }
+  return out;
+}
+function monthReportHtml(month,data){
+  let h='<h3>التقرير الشهري · '+esc(labelOf(month,'month'))+'</h3>';
+  for(const r of data){
+    const sp=splitText(r.expenses,r.split);
+    h+='<div class="sec" style="font-size:15px">'+esc(r.l.name)+'</div>'+
+      tableHtml(['التذاكر','المبيعات','المصروفات','الصافي','أيام البيع','معدل اليوم'],['<tr>'+td(int(r.tickets),'num')+td(dh(r.sales),'num')+td(dh(r.expenses),'num')+td(dh(r.net),'num'+(r.net<0?' down':''))+td(int(r.daysSelling),'num')+td(r.daysSelling?dh(r.sales/r.daysSelling):'—','num')+'</tr>'])+
+      (sp?'<div class="muted small">المصروفات: '+sp+'</div>':'');
+    const gr=Object.entries(r.groups).sort((a,b)=>b[1][1]-a[1][1]);
+    if(gr.length)h+='<div class="sec">المصروفات حسب النوع</div>'+tableHtml(['النوع','المرات','المبلغ','من المبيعات'],gr.map(([g,v])=>'<tr>'+td(esc(g))+td(int(v[0]),'num')+td(dh(v[1]),'num')+td(r.sales>0?Math.round(v[1]/r.sales*100)+'%':'—','num')+'</tr>'));
+    const ct=Object.entries(r.cats).sort((a,b)=>b[1][1]-a[1][1]);
+    if(ct.length)h+='<div class="sec">المبيعات حسب الفئة</div>'+tableHtml(['الفئة','التذاكر','المبلغ'],ct.map(([c,v])=>'<tr>'+td(esc(c))+td(int(v[0]),'num')+td(dh(v[1]),'num')+'</tr>'));
+    if(r.wood.length){
+      const wkg=r.wood.reduce((a,w)=>a+w.kg,0),wa=r.wood.reduce((a,w)=>a+w.a,0);
+      h+='<div class="sec">الحطب</div>'+tableHtml(['النوع','المشتريات','الكمية (كغ)','المبلغ','ثمن الكيلو','غير مدفوع'],r.wood.map(w=>'<tr>'+td(esc(WOOD_TYPES[w.type]||w.type||'—'))+td(int(w.n),'num')+td(w.kg?int(Math.round(w.kg)):'—','num')+td(dh(w.a),'num')+td(w.kg?(w.a/w.kg).toFixed(2)+' DH':'—','num')+td(dh(w.u),'num'+(w.u>0?' down':''))+'</tr>'))+
+        '<div class="muted small">كلفة الحطب لكل يوم بيع: '+(r.daysSelling?dh(wa/r.daysSelling):'—')+(wkg?' · لكل تذكرة: '+(r.tickets?(wa/r.tickets).toFixed(2)+' DH':'—'):'')+'</div>';
+    }
+    const dk=Object.keys(r.byDay).sort();
+    if(dk.length)h+='<div class="sec">يوماً بيوم</div>'+tableHtml(['اليوم','التذاكر','المبيعات','المصروفات','الصافي'],dk.map(k=>{const x=r.byDay[k];return '<tr>'+td(shortDate(k),'num')+td(int(x.n),'num')+td(dh(x.s),'num')+td(dh(x.e),'num')+td(dh(x.s-x.e),'num'+(x.s-x.e<0?' down':''))+'</tr>';}));
+    if(r.visits.length)h+='<div class="sec">الزيارات</div>'+tableHtml(['الزيارة','المتوقع','المعدود','الفرق'],r.visits.map(v=>{const df=r2(v.c-v.x);return '<tr>'+td(stampText(v.at),'num')+td(dh(v.x),'num')+td(dh(v.c),'num')+td(df===0?'مطابق':(df>0?'+ ':'− ')+dh(Math.abs(df)),'num')+'</tr>';}));
+    if(r.counts.length)h+='<div class="sec">عدّ الصندوق</div>'+tableHtml(['العدّ','المتوقع','المعدود','الفرق'],r.counts.map(c=>'<tr>'+td(stampText(c.at),'num')+td(dh(c.x),'num')+td(dh(c.c),'num')+td(c.d===0?'مطابق':(c.d>0?'+ ':'− ')+dh(Math.abs(c.d)),'num')+'</tr>'));
+    if(r.exps.length)h+='<div class="sec">قائمة المصروفات</div>'+tableHtml(['التاريخ','الوصف','المبلغ'],r.exps.map(e=>'<tr>'+td(shortDate(e.date),'num')+td(esc(e.description))+td(dh(e.amount),'num')+'</tr>'));
+  }
+  return h;
+}
+async function showMonthReport(){
+  const month=document.getElementById('rp-month').value;
+  const el=document.getElementById('drawer'),body=document.getElementById('drawer-body');
+  el.classList.remove('hidden');body.innerHTML='<div class="empty">جارٍ التحميل…</div>';
+  try{body.innerHTML=monthReportHtml(month,await monthReportData(month));}catch(e){body.innerHTML='<div class="empty">تعذّر تحميل البيانات من السحابة. حاول مرة أخرى.</div>';}
+}
+async function printMonthReport(){
+  const month=document.getElementById('rp-month').value;
+  const w=window.open('','_blank');if(!w){alert('اسمح بالنوافذ المنبثقة لهذا الموقع');return;}
+  w.document.write('<p>…</p>');
+  try{
+    const html=monthReportHtml(month,await monthReportData(month)).replace(/[\u2066\u2069]/g,'');
+    w.document.open();
+    w.document.write('<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>HammamPOS '+month+'</title><style>body{font-family:system-ui,Arial,sans-serif;margin:24px;color:#111}h3{margin:0 0 8px}.sec{font-weight:700;margin:16px 0 6px}.muted,.small{color:#555;font-size:12px}table{border-collapse:collapse;width:100%;margin-bottom:6px;font-size:13px}th,td{border:1px solid #ccc;padding:4px 6px;text-align:right}.num{direction:ltr;text-align:left}.down{color:#b91c1c}@media print{.sec{break-after:avoid}}</style></head><body>'+html+'</body></html>');
+    w.document.close();w.focus();setTimeout(()=>w.print(),400);
+  }catch(e){w.document.body.textContent='تعذّر تحميل البيانات';}
+}
+async function csvMonthReport(){
+  const month=document.getElementById('rp-month').value;
+  try{
+    const data=await monthReportData(month);
+    const q=(v)=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+    const rows=[['الحمام','النوع','التاريخ','الوصف / الفئة','العدد','المبلغ']];
+    data.forEach(r=>{
+      rows.push([r.l.name,'المجموع',month,'المبيعات',r.tickets,r.sales],[r.l.name,'المجموع',month,'المصروفات','',r.expenses],[r.l.name,'المجموع',month,'الصافي','',r.net]);
+      Object.keys(r.byDay).sort().forEach(k=>{const x=r.byDay[k];rows.push([r.l.name,'يوم',k,'المبيعات',x.n,r2(x.s)],[r.l.name,'يوم',k,'المصروفات','',r2(x.e)]);});
+      r.exps.forEach(e=>rows.push([r.l.name,'مصروف',e.date,e.description,'',Number(e.amount)]));
+      r.wood.forEach(w=>rows.push([r.l.name,'حطب',month,WOOD_TYPES[w.type]||w.type,w.kg,w.a]));
+    });
+    const blob=new Blob(['\ufeff'+rows.map(r=>r.map(q).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='HammamPOS-'+month+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  }catch(e){alert('تعذّر تحميل البيانات');}
+}
+
 // ═══ Alerts ═══
 const NOTE_TYPES={
   seller_collection:{ico:'',t:'تحصيل سجّله البائع',cls:''},
   refund:{ico:'',t:'استرجاع تذكرة',cls:'bad'},
   paid_by_manager:{ico:'',t:'مصروف على حساب المدير',cls:'warn'},
   late_entry:{ico:'',t:'إدخال متأخر',cls:'warn'},
-  expense:{ico:'',t:'مصروف جديد',cls:''}
+  expense:{ico:'',t:'مصروف جديد',cls:''},
+  change:{ico:'',t:'حذف أو تعديل',cls:'bad'},
+  count:{ico:'',t:'عدّ الصندوق',cls:''},
+  health:{ico:'',t:'مشكلة في الجهاز',cls:'bad'}
 };
+// What was deleted or changed (PC event 'change')
+const CHANGE_KINDS={ticket_deleted:'حذف تذكرة',refund_undone:'إلغاء استرجاع',expense_deleted:'حذف مصروف',expense_edited:'تعديل مصروف',
+  collection_cancelled:'إلغاء تحصيل',collection_edited:'تعديل تحصيل',collection_deleted:'حذف تحصيل',category_changed:'تغيير فئة / سعر',wood_edited:'تعديل شراء حطب',data_cleared:'مسح كل البيانات'};
+function changeText(p){
+  const k=CHANGE_KINDS[p.kind]||p.kind||'';
+  if(p.kind==='expense_edited'&&p.before&&p.after){
+    const b=p.before,a=p.after,diff=[];
+    if(b.total!==a.total)diff.push(dh(b.total)+' ← '+dh(a.total));
+    if(b.description!==a.description)diff.push(b.description+' ← '+a.description);
+    if(b.date!==a.date)diff.push(b.date+' ← '+a.date);
+    return [k,a.description||b.description,diff.join(' · ')].filter(Boolean).join(' · ');
+  }
+  return [k,p.text].filter(Boolean).join(' · ');
+}
+const countText=(p)=>Number(p.difference)===0?'مطابق: '+dh(p.counted):(Number(p.difference)<0?'ناقص '+dh(Math.abs(p.difference)):'زائد '+dh(p.difference))+' · المعدود '+dh(p.counted)+' · المتوقع '+dh(p.expected)+(p.note?' · '+p.note:'');
 function locName(id){const l=locations.find(x=>x.id===id);return l?l.name:'—';}
 function noteView(n){
   const ty=NOTE_TYPES[n.type]||{ico:'',t:n.type,cls:''};const p=n.payload||{};
@@ -1283,6 +1485,9 @@ function noteView(n){
   else if(n.type==='refund')sub=[dh(p.amount),p.category,p.serial&&('#'+p.serial),p.reason&&('السبب: '+p.reason)].filter(Boolean).join(' · ');
   else if(n.type==='paid_by_manager')sub=[dh(p.amount)+(p.total&&p.total!==p.amount?' من '+dh(p.total):''),p.description,p.supplier].filter(Boolean).join(' · ');
   else if(n.type==='expense')sub=[dh(p.total),p.description,p.supplier,Number(p.unpaid)>0?('غير مدفوع '+dh(p.unpaid)):''].filter(Boolean).join(' · ');
+  else if(n.type==='change')sub=changeText(p);
+  else if(n.type==='count')sub=countText(p);
+  else if(n.type==='health')sub=p.text||'';
   else if(n.type==='late_entry')sub=[dh(p.amount),p.description,p.supplier,p.date&&('بتاريخ '+p.date)].filter(Boolean).join(' · ');
   else sub=esc(JSON.stringify(p));
   return{id:n.id,ico:ty.ico,cls:ty.cls,title:ty.t+' — '+locName(n.location_id),sub,when:n.created_at||n.received_at,unread:!n.read_at};
@@ -1295,6 +1500,16 @@ function liveAlerts(){
     if(p.cls==='off')out.push({ico:'',cls:'bad',title:l.name+': الجهاز غير متصل',sub:'آخر إشارة '+agoText(l.last_seen_at)+'. الجهاز مغلق أو بلا إنترنت.'});
     if(s&&s.pendingLate&&s.pendingLate.count)out.push({ico:'',cls:'warn',title:l.name+': '+s.pendingLate.count+' إدخال متأخر في انتظار مراجعتك',sub:'المجموع '+dh(s.pendingLate.total)+'. راجعها من لوحة الإدارة عن بعد.',loc:l.id});
     if(s&&s.openBills&&s.openBills.count)out.push({ico:'',cls:'warn',title:l.name+': '+s.openBills.count+' فاتورة غير مدفوعة',sub:'الباقي '+dh(s.openBills.total)+'.',loc:l.id});
+    // PC problems (printer, disk, cloud backup, restarts)
+    const h=(l.device_info||{}).health;
+    if(p.cls!=='off'&&h&&h.problems)h.problems.forEach(pr=>out.push({ico:'',cls:'bad',title:l.name+': مشكلة في الجهاز',sub:pr.text,act:"go('devices')"}));
+    const d=details(l);
+    // Box count with a difference in the last 24 hours
+    const c=d&&d.counts&&d.counts[0];
+    if(c&&c.d!==0&&Date.now()-Date.parse(c.at.replace(' ','T')+'Z')<86400000)out.push({ico:'',cls:'warn',title:l.name+': '+(c.d<0?'نقص':'زيادة')+' عند عدّ الصندوق',sub:countText({difference:c.d,counted:c.c,expected:c.x,note:c.n})+' · '+agoText(c.at.replace(' ','T')+'Z'),act:"openDrawer('cash')"});
+    // Regular expenses (wages...) missing or entered twice
+    (d&&d.wages||[]).filter(w=>w.st==='missing'||w.st==='double').forEach(w=>out.push({ico:'',cls:'warn',title:l.name+': '+w.name+' '+(w.st==='double'?'سُجّل '+w.n+' مرات':'لم يُسجّل'),
+      sub:(w.from===w.to?shortDate(w.from):shortDate(w.from)+' – '+shortDate(w.to))+' · '+(w.st==='double'?'تحقق أنه ليس مكرراً':'تحقق أنه دُفع'),act:"openDrawer('expenses')"}));
   }
   return out;
 }

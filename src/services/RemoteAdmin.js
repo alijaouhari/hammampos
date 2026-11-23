@@ -29,7 +29,8 @@ const ALLOW_EXACT = new Set([
 ]);
 // Never remotely, even if the prefix is allowed: wipes, fake data, selling / seller-only actions.
 const DENY = new Set([
-  'storage:clearAllData', 'storage:generateTestData', 'storage:createTicket', 'money:refundTicket'
+  'storage:clearAllData', 'storage:generateTestData', 'storage:createTicket', 'money:refundTicket',
+  'money:recordCashCount' // the box is counted on site, by the seller
 ]);
 // Settings that would cut the PC off the cloud or change who can log in.
 const PROTECTED_SETTINGS = /^(cloud_|device_|location_id$|admin_password|recovery_|remote_notice$)/;

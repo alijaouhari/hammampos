@@ -10,14 +10,24 @@ const T = {
     late_entry: 'إدخال متأخر', lateWait: 'ينتظر مراجعتك', refund: 'استرجاع تذكرة',
     seller_collection: 'إيداع / تحويل من البائع', offline: 'الجهاز غير متصل', offlineBody: (m) => 'لا إشارة منذ ' + m + ' دقيقة',
     online: 'عاد الاتصال', onlineBody: 'الجهاز متصل من جديد', test: 'تجربة الإشعارات', testBody: 'الإشعارات تعمل على هذا الهاتف ✓',
-    types: { in_person: 'تحصيل شخصي', bank: 'إيداع بنكي', transfer: 'تحويل', on_behalf: 'دفع نيابة عنك' }, ref: 'مرجع'
+    types: { in_person: 'تحصيل شخصي', bank: 'إيداع بنكي', transfer: 'تحويل', on_behalf: 'دفع نيابة عنك' }, ref: 'مرجع',
+    change: 'حذف أو تعديل', count: 'عدّ الصندوق', countOk: 'مطابق', countShort: 'ناقص', countOver: 'زائد', counted: 'المعدود', expected: 'المتوقع',
+    health: 'مشكلة في الجهاز',
+    changes: { ticket_deleted: 'حذف تذكرة', refund_undone: 'إلغاء استرجاع', expense_deleted: 'حذف مصروف', expense_edited: 'تعديل مصروف',
+      collection_cancelled: 'إلغاء تحصيل', collection_edited: 'تعديل تحصيل', collection_deleted: 'حذف تحصيل', category_changed: 'تغيير فئة / سعر',
+      wood_edited: 'تعديل شراء حطب', data_cleared: 'مسح كل البيانات' }
   },
   fr: {
     expense: 'Nouvelle dépense', unpaidPart: 'impayé', fullyUnpaid: 'entièrement impayée', byManager: 'payé par le gérant',
     late_entry: 'Saisie tardive', lateWait: 'en attente de votre vérification', refund: 'Ticket remboursé',
     seller_collection: 'Dépôt / virement du vendeur', offline: 'Ordinateur hors ligne', offlineBody: (m) => 'Aucun signal depuis ' + m + ' min',
     online: 'Connexion rétablie', onlineBody: "L'ordinateur est de nouveau connecté", test: 'Test des notifications', testBody: 'Les notifications fonctionnent sur ce téléphone ✓',
-    types: { in_person: 'Encaissement sur place', bank: 'Dépôt bancaire', transfer: 'Virement', on_behalf: 'Paiement pour votre compte' }, ref: 'réf.'
+    types: { in_person: 'Encaissement sur place', bank: 'Dépôt bancaire', transfer: 'Virement', on_behalf: 'Paiement pour votre compte' }, ref: 'réf.',
+    change: 'Suppression ou modification', count: 'Comptage de la caisse', countOk: 'Exact', countShort: 'Manque', countOver: 'Surplus', counted: 'compté', expected: 'attendu',
+    health: 'Problème sur le poste',
+    changes: { ticket_deleted: 'Ticket supprimé', refund_undone: 'Remboursement annulé', expense_deleted: 'Dépense supprimée', expense_edited: 'Dépense modifiée',
+      collection_cancelled: 'Encaissement annulé', collection_edited: 'Encaissement modifié', collection_deleted: 'Encaissement supprimé', category_changed: 'Catégorie / prix modifié',
+      wood_edited: 'Achat de bois modifié', data_cleared: 'Toutes les données effacées' }
   }
 };
 const dh = (n) => {
@@ -51,6 +61,23 @@ function buildMessage(event, lang) {
       return { title: where + t.offline, body: t.offlineBody(p.minutes || 10), url: '/?open=devices' + loc, tag: 'status-' + (event.location_id || '') };
     case 'online':
       return { title: where + t.online, body: t.onlineBody, url: '/?open=devices' + loc, tag: 'status-' + (event.location_id || '') };
+    case 'change': {
+      const kind = t.changes[p.kind] || t.change;
+      let detail = p.text || '';
+      if (p.kind === 'expense_edited' && p.before && p.after) {
+        const b = p.before, a = p.after;
+        detail = parts(a.description || b.description, b.total !== a.total ? dh(b.total) + ' → ' + dh(a.total) : '', b.date !== a.date ? b.date + ' → ' + a.date : '');
+      }
+      return { title: where + kind, body: detail || t.change, url: '/?open=alerts' + loc, tag: 'change-' + (event.location_id || '') + '-' + Date.now() };
+    }
+    case 'count': {
+      const d = Number(p.difference) || 0;
+      const head = d === 0 ? t.countOk : (d < 0 ? t.countShort : t.countOver) + ' ' + dh(Math.abs(d));
+      return { title: where + t.count, body: parts(head, t.counted + ' ' + dh(p.counted), t.expected + ' ' + dh(p.expected), p.note),
+        url: '/?open=cash' + loc, tag: 'count-' + (event.location_id || '') + '-' + (p.countId || '') };
+    }
+    case 'health':
+      return { title: where + t.health, body: p.text || '', url: '/?open=devices' + loc, tag: 'health-' + (event.location_id || '') + '-' + (p.kind || '') };
     case 'test':
       return { title: t.test, body: t.testBody, url: '/', tag: 'test' };
     default:

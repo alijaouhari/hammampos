@@ -13,7 +13,7 @@
  *    after() runs 1.5 s later (restart app / restart PC / install update).
  */
 
-const ALLOWED_ACTIONS = ['ping', 'sync_now', 'diagnostics', 'restart_app', 'restart_pc', 'install_update'];
+const ALLOWED_ACTIONS = ['ping', 'sync_now', 'diagnostics', 'restart_app', 'restart_pc', 'install_update', 'backup_now'];
 const MAX_RESULT_CHARS = 60000;
 
 class RemoteCommands {
