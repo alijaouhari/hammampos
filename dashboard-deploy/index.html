@@ -224,7 +224,7 @@ html[dir="ltr"] .drawer-x{float:right}
 
 <div id="view-overview" class="view">
 <div class="ov-top"><h2 class="section" style="margin:0">نظرة عامة <span class="updated" id="ov-date"></span></h2>
-<div class="seg" id="ov-period"><button data-p="today" class="active">اليوم</button><button data-p="yesterday">أمس</button><button data-p="week">هذا الأسبوع</button><button data-p="month">هذا الشهر</button></div></div>
+<div class="seg" id="ov-period"><button data-p="today" class="active">اليوم</button><button data-p="yesterday">أمس</button><button data-p="week">هذا الأسبوع</button><button data-p="month">هذا الشهر</button><button data-p="visit">منذ آخر زيارة</button></div></div>
 <h2 class="section" id="ov-period-title">اليوم</h2>
 <div class="stats4" id="ov-period-stats"></div>
 <h2 class="section">المال الآن</h2>
@@ -825,8 +825,42 @@ function periodOf(l,period){
     const cur=sumRange(dayOffset(-wd),today);const prev=sumRange(dayOffset(-wd-7),dayOffset(-7));
     return Object.assign(cur,{prev:prev.sales});
   }
+  if(period==='visit'){ // since the last visit, counted by the PC itself (exact to the second)
+    const v=visitOf(l);
+    if(!v)return Object.assign(z,{missing:true});
+    const days=Math.max(1,Math.round((Date.parse(todayStr())-Date.parse(v.start.slice(0,10)))/86400000)+1);
+    return {tickets:v.n,sales:Math.round((v.s-(v.r||0))*100)/100,expenses:v.e,prev:null,days};
+  }
   const cur=sumRange(today.slice(0,7)+'-01',today);
   return Object.assign(cur,{prev:null});
+}
+// "Since my last visit" as sent by the PC (2.8.41+): start, sales, expenses, cash...
+function visitOf(l){const d=details(l);return d&&d.period&&d.period.start?d.period:null;}
+// Date range of a period (visit: per hammam, see visitOf)
+function rangeOf(period){
+  const today=todayStr();
+  if(period==='yesterday'){const y=dayOffset(-1);return {from:y,to:y};}
+  if(period==='week')return {from:dayOffset(-((new Date().getUTCDay()+6)%7)),to:today};
+  if(period==='month')return {from:today.slice(0,7)+'-01',to:today};
+  return {from:today,to:today};
+}
+const stampText=(st)=>st?shortDate(st)+' '+esc(String(st).slice(11,16)):'';
+// All rows of a cloud query, 1000 at a time (the cloud returns at most 1000 per call)
+async function fetchAll(build){
+  let out=[];
+  for(let i=0;i<50000;i+=1000){const{data,error}=await build().range(i,i+999);if(error)throw error;out=out.concat(data||[]);if(!data||data.length<1000)break;}
+  return out;
+}
+// Cloud rows (tickets / expenses) of the selected period, each hammam with its own visit start
+async function periodRows(table,cols,period){
+  if(period!=='visit'){const r=rangeOf(period);return fetchAll(()=>sb.from(table).select(cols).gte('date',r.from).lte('date',r.to).order('date',{ascending:false}).order('time',{ascending:false}));}
+  let out=[];
+  for(const l of locations){
+    const v=visitOf(l);if(!v)continue;
+    const rows=await fetchAll(()=>sb.from(table).select(cols).eq('location_id',l.id).gte('date',v.start.slice(0,10)).order('date',{ascending:false}).order('time',{ascending:false}));
+    out=out.concat(rows.filter(x=>(x.date+' '+String(x.time||'').slice(0,8))>v.start||(!v.visit&&(x.date+' '+String(x.time||'').slice(0,8))===v.start)));
+  }
+  return out.sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
 }
 function usualDay(l){ // average of the same weekday over the last 4 weeks
   const s=sumOf(l);if(!s)return null;
@@ -845,29 +879,37 @@ async function loadTodayTickets(){
   return ovTickets;
 }
 function details(l){const s=sumOf(l);return (s&&s.details)||null;}
+const PERIOD_NAMES={today:'اليوم',yesterday:'أمس',week:'هذا الأسبوع',month:'هذا الشهر',visit:'منذ آخر زيارة'};
+// Where each hammam's "since my last visit" starts
+function visitStartsText(){
+  return locations.map(l=>{const v=visitOf(l);const n=locations.length>1?esc(l.name)+' ':'';
+    if(!v)return n+'<span class="muted">تظهر بعد تحديث الجهاز</span>';
+    return n+(v.visit?'<span>زيارة</span> '+stampText(v.start):'<span>لا توجد زيارة بعد، منذ تفعيل نظام المال</span> '+shortDate(v.start));}).join(' · ');
+}
 function renderOverview(){
   document.getElementById('ov-date').textContent=new Date().toLocaleDateString('ar-MA',{weekday:'long',day:'numeric',month:'long'});
-  const names={today:'اليوم',yesterday:'أمس',week:'هذا الأسبوع',month:'هذا الشهر'};
-  const cmp={today:'مقارنة بنفس اليوم من الأسبوع الماضي',yesterday:'مقارنة بنفس اليوم من الأسبوع الماضي',week:'مقارنة بنفس الفترة من الأسبوع الماضي',month:''};
+  const names=PERIOD_NAMES;
+  const cmp={today:'مقارنة بنفس اليوم من الأسبوع الماضي',yesterday:'مقارنة بنفس اليوم من الأسبوع الماضي',week:'مقارنة بنفس الفترة من الأسبوع الماضي',month:'',visit:''};
   let P={tickets:0,sales:0,expenses:0,prev:0,hasPrev:false,days:0};
-  let cash=0,sup=0,mgr=0,seller=0,bills=0,unpaidToday=0,expCount=0,lastCol=null,sellerWhere=[];
+  let cash=0,sup=0,mgr=0,seller=0,bills=0,unpaidToday=0,expCount=0,visitCount=0,lastCol=null,sellerWhere=[];
   for(const l of locations){
     const p=periodOf(l,ovPeriod),s=sumOf(l),d=details(l);
     P.tickets+=p.tickets;P.sales+=p.sales;P.expenses+=p.expenses;P.days=Math.max(P.days,p.days||0);
     if(p.prev!=null){P.prev+=p.prev;P.hasPrev=true;}
     if(s){cash+=s.cashInHand||0;sup+=s.owedToSuppliers||0;mgr+=s.owedToManager||0;seller+=s.owedBySeller||0;bills+=(s.openBills&&s.openBills.count)||0;if((s.owedBySeller||0)>0)sellerWhere.push(l.name);}
+    if(ovPeriod==='visit'&&visitOf(l))visitCount+=visitOf(l).en||0;
     if(d&&d.expenses&&ovPeriod==='today'){expCount+=d.expenses.length;unpaidToday+=d.expenses.filter(e=>e.left>0).length;}
     if(d&&d.lastCollection&&(!lastCol||d.lastCollection.date>lastCol.date))lastCol=d.lastCollection;
   }
-  document.getElementById('ov-period-title').innerHTML=esc(names[ovPeriod])+' <small>· '+(locations.length>1?'كل الحمامات':'')+'</small>';
+  document.getElementById('ov-period-title').innerHTML=esc(names[ovPeriod])+' <small>· '+(ovPeriod==='visit'?visitStartsText():(locations.length>1?'كل الحمامات':''))+'</small>';
   document.querySelectorAll('#ov-period button').forEach(b=>b.classList.toggle('active',b.dataset.p===ovPeriod));
   const lastT=locations.map(l=>{const s=sumOf(l);return s&&s.lastTicketAt&&s.lastTicketAt.slice(0,10)===todayStr()?s.lastTicketAt.slice(11,16):'';}).filter(Boolean).sort().pop();
   const peak=peakHour(ovTickets);
   const net=P.sales-P.expenses;
   document.getElementById('ov-period-stats').innerHTML=
-    box('المبيعات',dh(P.sales),'',P.hasPrev?trend(P.sales,P.prev,cmp[ovPeriod]):(ovPeriod==='month'&&P.days?'معدل اليوم '+dh(P.sales/P.days):''),"openDrawer('sales')")+
+    box('المبيعات',dh(P.sales),'',P.hasPrev?trend(P.sales,P.prev,cmp[ovPeriod]):((ovPeriod==='month'||ovPeriod==='visit')&&P.days?'معدل اليوم '+dh(P.sales/P.days):''),"openDrawer('sales')")+
     box('التذاكر',int(P.tickets),'',ovPeriod==='today'?[lastT?'آخر تذكرة '+lastT:'',peak?'ذروة '+peak:''].filter(Boolean).join(' · '):(P.days?'معدل اليوم '+int(Math.round(P.tickets/P.days)):''),"openDrawer('sales')")+
-    box('المصروفات',dh(P.expenses),'',ovPeriod==='today'&&expCount?int(expCount)+' مصروفات'+(unpaidToday?' · <span class="warn">'+unpaidToday+' غير مدفوعة</span>':''):'',"openDrawer('expenses')")+
+    box('المصروفات',dh(P.expenses),'',ovPeriod==='today'&&expCount?int(expCount)+' مصروفات'+(unpaidToday?' · <span class="warn">'+unpaidToday+' غير مدفوعة</span>':''):(ovPeriod==='visit'&&visitCount?int(visitCount)+' مصروفات':''),"openDrawer('expenses')")+
     box('الصافي',dh(net),net<0?'red':'','المبيعات ناقص المصروفات',"openDrawer('expenses')");
   document.getElementById('ov-money').innerHTML=
     box('النقد في الصناديق',dh(cash),'',lastCol?'آخر تحصيل: '+esc(new Date(lastCol.date+'T12:00:00Z').toLocaleDateString('ar-MA',{weekday:'long',day:'numeric',month:'long'})):'',"openDrawer('cash')")+
@@ -938,6 +980,12 @@ async function openDrawer(kind){
   const el=document.getElementById('drawer'),body=document.getElementById('drawer-body');
   el.classList.remove('hidden');
   let h='';
+  if((kind==='sales'||kind==='expenses')&&ovPeriod!=='today'){
+    body.innerHTML='<div class="empty">جارٍ التحميل…</div>';
+    try{h=kind==='sales'?await salesPeriodHtml(ovPeriod):await expensesPeriodHtml(ovPeriod);}
+    catch(e){h='<div class="empty">تعذّر تحميل البيانات من السحابة. حاول مرة أخرى.</div>';}
+    kind='';
+  }
   if(kind==='sales'){
     await loadTodayTickets();
     let tot=0,cnt=0;const per=locations.map(l=>{const t=todayOf(l);const w=(sumOf(l)&&(sumOf(l).days||[]).find(d=>d[0]===dayOffset(-7)))||null;tot+=t.sales||0;cnt+=t.tickets||0;return [l,t,w];});
@@ -962,7 +1010,7 @@ async function openDrawer(kind){
     let tot=0;
     const rows=locations.map(l=>{const s=sumOf(l),d=details(l);tot+=(s&&s.cashInHand)||0;const lc=d&&d.lastCollection;
       return '<tr>'+td(esc(l.name))+td(s?dh(s.cashInHand):'—','num')+td(s&&s.changeFloat!=null?dh(s.changeFloat):'—','num')+td(lc?shortDate(lc.date)+' · '+dh(lc.a):'—')+td('<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">الإدارة عن بعد</a>')+'</tr>';});
-    h='<h3>النقد في الصناديق</h3><div class="sub">'+dh(tot)+'</div>'+tableHtml(['الحمام','النقد','صندوق الصرف','آخر تحصيل',''],rows);
+    h='<h3>النقد في الصناديق</h3><div class="sub">'+dh(tot)+'</div>'+tableHtml(['الحمام','النقد','صندوق الصرف','آخر تحصيل',''],rows)+visitsHtml();
   }else if(kind==='bills'){
     let tot=0;const rows=[];let missing=false;
     locations.forEach(l=>{const s=sumOf(l),d=details(l);tot+=(s&&s.owedToSuppliers)||0;if(!d||!d.bills){if(s&&s.openBills&&s.openBills.count)missing=true;return;}
@@ -989,6 +1037,72 @@ async function openDrawer(kind){
   }
   body.innerHTML=h;
   el.querySelector('.drawer-in').scrollTop=0;
+}
+// Side panels for yesterday / this week / this month / since my last visit
+const r2=(n)=>Math.round((Number(n)||0)*100)/100;
+function periodHead(what,period){return '<h3>'+esc(what)+' · '+esc(PERIOD_NAMES[period])+'</h3>';}
+function periodSubText(period){
+  if(period==='visit')return visitStartsText();
+  const r=rangeOf(period);return r.from===r.to?shortDate(r.from):shortDate(r.from)+' – '+shortDate(r.to);
+}
+const missingVisit=()=>locations.some(l=>!visitOf(l))?'<div class="muted small">'+locations.filter(l=>!visitOf(l)).map(l=>esc(l.name)).join('، ')+': <span>تظهر بعد تحديث الجهاز إلى آخر نسخة.</span></div>':'';
+async function expensesPeriodHtml(period){
+  const per=locations.map(l=>[l,periodOf(l,period)]);
+  const tot=r2(per.reduce((a,[,p])=>a+(p.expenses||0),0));
+  const rows=await periodRows('expenses','location_id,date,time,description,amount',period);
+  const listTot=r2(rows.reduce((a,x)=>a+Number(x.amount||0),0));
+  let h=periodHead('المصروفات',period)+'<div class="sub">'+dh(tot)+' · '+periodSubText(period)+'</div>';
+  if(locations.length>1)h+=tableHtml(['الحمام','المصروفات'],per.map(([l,p])=>'<tr>'+td(esc(l.name))+td(dh(p.expenses),'num')+'</tr>'));
+  h+='<div class="sec">القائمة</div>'+(tableHtml(['التاريخ','الوقت','الحمام','الوصف','المبلغ'],rows.map(x=>'<tr>'+td(shortDate(x.date),'num')+td(esc(String(x.time||'').slice(0,5)),'num')+td(esc(locName2(x.location_id)))+td(esc(x.description))+td(dh(x.amount),'num')+'</tr>'))||'<div class="empty">لا توجد مصروفات في هذه الفترة</div>');
+  if(Math.abs(listTot-tot)>0.01)h+='<div class="muted small">مجموع القائمة '+dh(listTot)+' · <span>بعض المصروفات لم تصل إلى السحابة بعد أو سُجّلت بتاريخ سابق.</span></div>';
+  h+='<div class="muted small">حالة الدفع والمورد تظهر في «اليوم» فقط.</div>';
+  if(period==='visit')h+=missingVisit();
+  return h;
+}
+async function salesPeriodHtml(period){
+  const per=locations.map(l=>[l,periodOf(l,period)]);
+  const tot=per.reduce((a,[,p])=>({t:a.t+(p.tickets||0),s:a.s+(p.sales||0),e:a.e+(p.expenses||0)}),{t:0,s:0,e:0});
+  let h=periodHead('المبيعات',period)+'<div class="sub">'+dh(tot.s)+' · '+int(tot.t)+' تذكرة · '+periodSubText(period)+'</div>';
+  h+=tableHtml(['الحمام','التذاكر','المبيعات','المصروفات','الصافي'],per.map(([l,p])=>'<tr>'+td(esc(l.name))+td(int(p.tickets),'num')+td(dh(p.sales),'num')+td(dh(p.expenses),'num')+td(dh(p.sales-p.expenses),'num'+(p.sales-p.expenses<0?' down':''))+'</tr>'));
+  if(period==='visit'){
+    // What the PC expects in the box, line by line (same as the visit screen on the PC)
+    locations.forEach(l=>{const v=visitOf(l);if(!v)return;
+      h+='<div class="sec">'+esc(l.name)+' · <span>النقد المتوقع في الصندوق</span> '+dh(v.cash)+'</div>'+tableHtml(['',''],[
+        '<tr>'+td('المبيعات')+td(dh(v.s),'num')+'</tr>',
+        v.r?'<tr>'+td('الاسترجاعات')+td('− '+dh(v.r),'num down')+'</tr>':'',
+        '<tr>'+td('مدفوع من الصندوق')+td('− '+dh(v.p),'num down')+'</tr>',
+        v.remote?'<tr>'+td('إيداعات وتحويلات')+td('− '+dh(v.remote),'num down')+'</tr>':'',
+        v.other?'<tr>'+td('أخرى')+td(dh(v.other),'num')+'</tr>':'',
+        '<tr>'+td('<b>النقد المتوقع</b>')+td('<b>'+dh(v.cash)+'</b>','num')+'</tr>'].filter(Boolean));});
+    h+=missingVisit();
+  }else if(period!=='yesterday'){
+    const r=rangeOf(period),byDay={};
+    locations.forEach(l=>{const s=sumOf(l);(s&&s.days||[]).forEach(([d,n,v,e])=>{if(d<r.from||d>r.to)return;const x=byDay[d]=byDay[d]||[0,0,0];x[0]+=n;x[1]+=v;x[2]+=e;});});
+    const dr=Object.keys(byDay).sort().reverse().map(d=>{const[n,v,e]=byDay[d];return '<tr>'+td(shortDate(d),'num')+td(int(n),'num')+td(dh(v),'num')+td(dh(e),'num')+td(dh(v-e),'num'+(v-e<0?' down':''))+'</tr>';});
+    if(dr.length)h+='<div class="sec">يوماً بيوم</div>'+tableHtml(['اليوم','التذاكر','المبيعات','المصروفات','الصافي'],dr);
+  }
+  const tix=await periodRows('tickets','location_id,category_name,price,date,time',period);
+  const cats={};tix.forEach(t=>{const c=cats[t.category_name]=cats[t.category_name]||[0,0];c[0]++;c[1]+=Number(t.price)||0;});
+  const cr=Object.entries(cats).sort((a,b)=>b[1][1]-a[1][1]).map(([n,v])=>'<tr>'+td(esc(n))+td(int(v[0]),'num')+td(dh(v[1]),'num')+'</tr>');
+  if(cr.length)h+='<div class="sec">حسب الفئة</div>'+tableHtml(['الفئة','التذاكر','المبلغ'],cr);
+  const r=rangeOf(period);
+  const refunds=notes.filter(n=>{if(n.type!=='refund')return false;const st=String(n.created_at||n.received_at||'').replace('T',' ').slice(0,19);
+    if(period!=='visit')return st.slice(0,10)>=r.from&&st.slice(0,10)<=r.to;const v=visitOf(locations.find(l=>l.id===n.location_id)||{});return v&&st>v.start;});
+  if(refunds.length)h+='<div class="sec">الاسترجاعات</div>'+tableHtml(['الحمام','التذكرة','المبلغ','السبب'],refunds.map(n=>{const p=n.payload||{};return '<tr>'+td(esc(locName2(n.location_id)))+td(esc((p.category||'')+' #'+(p.serial||'')))+td(dh(p.amount),'num')+td(esc(p.reason||''))+'</tr>';}));
+  if(period==='yesterday'&&tix.length)h+='<div class="sec">آخر التذاكر</div>'+tableHtml(['الوقت','الحمام','الفئة','السعر'],tix.slice(0,40).map(t=>'<tr>'+td(esc(String(t.time||'').slice(0,5)),'num')+td(esc(locName2(t.location_id)))+td(esc(t.category_name))+td(dh(t.price),'num')+'</tr>'));
+  return h;
+}
+// The manager's visits (in-person collections), latest first, per hammam
+function visitsHtml(){
+  let h='',missing=[];
+  locations.forEach(l=>{const d=details(l);if(!d||!d.visits){missing.push(l.name);return;}
+    const v=visitOf(l);
+    h+='<div class="sec">'+esc(l.name)+(v?' · <span>منذ آخر زيارة</span>: '+dh(v.s-(v.r||0))+' <span>مبيعات</span> · <span>النقد المتوقع</span> '+dh(v.cash):'')+'</div>';
+    h+=tableHtml(['الزيارة','المبيعات في الفترة','مدفوع من الصندوق','المتوقع','المعدود','الفرق'],d.visits.map(x=>{const diff=r2(x.c-x.x);
+      return '<tr>'+td(stampText(x.at),'num')+td(dh(x.s)+' <span class="muted">· '+int(x.n)+'</span>','num')+td(dh(x.p),'num')+td(dh(x.x),'num')+td(dh(x.c),'num')+td(diff===0?'<span class="up">مطابق</span>':(diff>0?'+ ':'− ')+dh(Math.abs(diff)),'num'+(diff<0?' down':diff>0?' up':''))+'</tr>';}))||'<div class="empty">لا توجد زيارات مسجلة بعد</div>';
+  });
+  if(missing.length)h+='<div class="muted small">'+missing.map(esc).join('، ')+': <span>تظهر بعد تحديث الجهاز إلى آخر نسخة.</span></div>';
+  return '<div class="sec" style="margin-top:18px">الزيارات</div>'+h;
 }
 function closeDrawer(){document.getElementById('drawer').classList.add('hidden');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});

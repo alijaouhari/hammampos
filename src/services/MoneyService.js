@@ -713,6 +713,44 @@ class MoneyService {
     return rows.length;
   }
 
+  /**
+   * For the dashboard: the period since the last visit, and the latest visits, each
+   * with what happened in its own period (sales and payments from the drawer between
+   * the visit before it and itself). Short keys: this travels with every heartbeat.
+   */
+  getDashboardVisits(limit = 10) {
+    if (!this.isSwitchedOver()) return null;
+    const r = MoneyService.round;
+    const switchOver = this.getSwitchOverAt();
+    const one = (sql, p) => this._rows(sql, p)[0] || {};
+    const between = (from, fromOp, to) => {
+      const cond = `${fromOp} ?` + (to ? ' AND {c} <= ?' : '');
+      const args = to ? [from, to] : [from];
+      const t = one(`SELECT COUNT(*) AS n, COALESCE(SUM(price),0) AS s FROM tickets WHERE timestamp ${cond.replace('{c}', 'timestamp')}`, args);
+      const p = one(`SELECT COALESCE(SUM(amount),0) AS p FROM expense_payments WHERE legacy = 0 AND source = 'drawer'
+        AND late_status IS NULL AND created_at ${cond.replace('{c}', 'created_at')}`, args);
+      return { n: t.n || 0, s: r(t.s), p: r(p.p) };
+    };
+    const rows = this._rows(`SELECT created_at, expected, counted FROM money_collections
+      WHERE type = 'in_person' AND cancelled_at IS NULL ORDER BY created_at DESC, id DESC LIMIT ?`, [limit + 1]);
+    const visits = rows.slice(0, limit).map((v, i) => {
+      const prev = rows[i + 1];
+      const b = between(prev ? prev.created_at : switchOver, prev ? '>' : '>=', v.created_at);
+      return { at: v.created_at, x: r(v.expected), c: r(v.counted), ...b };
+    });
+    const p = this.getPeriodSummary();
+    const e = one(`SELECT COUNT(*) AS n, COALESCE(SUM(total),0) AS t FROM money_expenses
+      WHERE created_at ${this.getPeriodStart().op} ?`, [p.periodStart]);
+    return {
+      period: {
+        start: p.periodStart, visit: !!p.lastVisit,
+        n: p.sales.count, s: p.sales.total, r: p.refunds.total,
+        e: r(e.t), en: e.n || 0, p: p.payments.total, remote: p.remote.total, other: p.other, cash: p.expected
+      },
+      visits
+    };
+  }
+
   // ── In-person collection (the manager's visit) ─────────────────────────
   /** Start of the current period: the last in-person collection, or the switch-over. */
   getPeriodStart() {

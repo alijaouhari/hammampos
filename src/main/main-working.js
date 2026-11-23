@@ -585,6 +585,9 @@ function summaryDetails(rows, b, bills, late, today) {
     // Last collection that took money out of the box
     const lc = rows("SELECT substr(created_at,1,10), type, amount FROM money_collections WHERE cancelled_at IS NULL ORDER BY id DESC LIMIT 1")[0];
     if (lc) out.lastCollection = { date: lc[0], type: lc[1], a: r2(lc[2]) };
+    // Since the last visit, and the latest visits (dashboard period "since my last visit")
+    const v = money ? money.getDashboardVisits(10) : null;
+    if (v) { out.period = v.period; out.visits = v.visits; }
   } catch (error) {
     out.error = error.message;
   }
