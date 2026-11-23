@@ -223,6 +223,9 @@ class UpdateManager {
       "'HammamPOS Updater Launcher v3.0",
       "'Escapes Electron Job Object via WScript.Shell.Run (ShellExecuteEx)",
       'Set sh = CreateObject("WScript.Shell")',
+      // Never run from inside the install folder: Windows refuses to rename a folder
+      // that a running process uses as its working folder (app started from the shortcut).
+      `sh.CurrentDirectory = "${path.dirname(ps1Path).replace(/"/g, '""')}"`,
       `sh.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File ""${ps1Path}""", 0, False`,
       'Set sh = Nothing',
     ].join('\r\n') + '\r\n';
@@ -232,6 +235,7 @@ class UpdateManager {
     try {
       // cmd /c start uses ShellExecuteEx at the OS level
       execSync(`cmd /c start "" /b wscript.exe "${vbsPath}"`, {
+        cwd: path.dirname(vbsPath), // not the install folder (see _buildVBS)
         windowsHide: true,
         timeout: 10000
       });
@@ -239,7 +243,7 @@ class UpdateManager {
     } catch (e) {
       this._log('WARN', 'cmd start failed, trying direct wscript', { vbsPath, error: e.message });
       try {
-        execSync(`wscript.exe "${vbsPath}"`, { windowsHide: true, timeout: 10000 });
+        execSync(`wscript.exe "${vbsPath}"`, { cwd: path.dirname(vbsPath), windowsHide: true, timeout: 10000 });
         this._log('INFO', 'VBS launched via direct wscript', { vbsPath });
       } catch (e2) {
         this._log('ERROR', 'All launch methods failed', { vbsPath, error1: e.message, error2: e2.message });
@@ -275,6 +279,9 @@ $handshakeTimeout = 90
 $renameMaxSeconds = 60   # hard upper bound for total retry time
 $renameDelayMs    = 1000 # wait between attempts
 $scriptPath      = $MyInvocation.MyCommand.Path
+# Work from the updater's own folder, never from inside the install folder
+# (a process "standing in" C:\\HammamPOS blocks the rename in Step 6).
+try { $wd = Split-Path -Parent $scriptPath; Set-Location -LiteralPath $wd; [Environment]::CurrentDirectory = $wd } catch {}
 
 function Write-Log($msg) {
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'
@@ -548,6 +555,7 @@ $oldDir     = '${esc(this.oldDir)}'
 $logPath    = '${esc(logPath)}'
 $exeName    = 'HammamPOS.exe'
 $scriptPath = $MyInvocation.MyCommand.Path
+try { $wd = Split-Path -Parent $scriptPath; Set-Location -LiteralPath $wd; [Environment]::CurrentDirectory = $wd } catch {}
 
 function Write-Log($msg) {
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'

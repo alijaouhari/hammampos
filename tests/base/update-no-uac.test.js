@@ -19,6 +19,16 @@ function loadUpdateManager() {
   } finally { Module._load = orig; }
 }
 
+test('the updater never runs from inside the install folder (Windows blocks the rename)', () => {
+  const um = loadUpdateManager();
+  const vbs = um._buildVBS('C:\\Users\\DT\\AppData\\Roaming\\HammamPOS\\updates\\hammampos-updater.ps1');
+  assert.match(vbs, /sh\.CurrentDirectory = "C:\\Users\\DT\\AppData\\Roaming\\HammamPOS\\updates"/);
+  assert.ok(vbs.indexOf('sh.CurrentDirectory') < vbs.indexOf('sh.Run'));
+  for (const s of [um._buildUpdatePS1('C:\\x.zip', 'C:\\x.lock'), um._buildRevertPS1()]) {
+    assert.match(s, /Set-Location -LiteralPath \$wd; \[Environment\]::CurrentDirectory = \$wd/);
+  }
+});
+
 for (const [name, build] of [
   ['update', (um) => um._buildUpdatePS1('C:\\x.zip', 'C:\\x.lock')],
   ['revert', (um) => um._buildRevertPS1()]
