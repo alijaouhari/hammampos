@@ -767,7 +767,7 @@ function openFromUrl(href){
 // ═══ Push notifications ═══
 const PUSH_KEY='BGaqIvHzCO6OPI5Ssq4Il7aFL1jlcTCe1IRYN3pNwrzzoyPHLVRihv_jhvpdgQrqcivgzj82A0aWq-PoMNaG-es';
 const PUSH_TYPES=[['expense','مصروف جديد (ومصروف غير مدفوع)'],['late_entry','إدخال متأخر'],['refund','استرجاع تذكرة'],['seller_collection','إيداع / تحويل من البائع'],['offline','الجهاز غير متصل / عاد الاتصال'],
-  ['change','حذف أو تعديل (تذكرة، مصروف، تحصيل، سعر)'],['count','عدّ الصندوق في آخر اليوم'],['health','مشكلة في الجهاز (طابعة، قرص، نسخة احتياطية)']];
+  ['change','حذف أو تعديل (تذكرة، مصروف، تحصيل، سعر)'],['health','مشكلة في الجهاز (طابعة، قرص، نسخة احتياطية)']];
 let pushReg=null;
 function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
 function isIos(){return /iphone|ipad|ipod/i.test(navigator.userAgent);}
@@ -1133,7 +1133,7 @@ async function openDrawer(kind,period){
     let tot=0;
     const rows=locations.map(l=>{const s=sumOf(l),d=details(l);tot+=(s&&s.cashInHand)||0;const lc=d&&d.lastCollection;
       return '<tr>'+td(esc(l.name))+td(s?dh(s.cashInHand):'—','num')+td(s&&s.changeFloat!=null?dh(s.changeFloat):'—','num')+td(lc?shortDate(lc.date)+' · '+dh(lc.a):'—')+td('<a class="btn primary" href="admin.html?loc='+l.id+'" target="_blank" rel="noopener">الإدارة عن بعد</a>')+'</tr>';});
-    h='<h3>النقد في الصناديق</h3><div class="sub">'+dh(tot)+'</div>'+tableHtml(['الحمام','النقد','صندوق الصرف','آخر تحصيل',''],rows)+countsHtml()+visitsHtml();
+    h='<h3>النقد في الصناديق</h3><div class="sub">'+dh(tot)+'</div>'+tableHtml(['الحمام','النقد','صندوق الصرف','آخر تحصيل',''],rows)+visitsHtml();
   }else if(kind==='bills'){
     let tot=0;const rows=[];let missing=false;
     locations.forEach(l=>{const s=sumOf(l),d=details(l);tot+=(s&&s.owedToSuppliers)||0;if(!d||!d.bills){if(s&&s.openBills&&s.openBills.count)missing=true;return;}
@@ -1220,14 +1220,6 @@ async function salesPeriodHtml(period){
   if(refunds.length)h+='<div class="sec">الاسترجاعات</div>'+tableHtml(['الحمام','التذكرة','المبلغ','السبب'],refunds.map(n=>{const p=n.payload||{};return '<tr>'+td(esc(locName2(n.location_id)))+td(esc((p.category||'')+' #'+(p.serial||'')))+td(dh(p.amount),'num')+td(esc(p.reason||''))+'</tr>';}));
   if(period==='yesterday'&&tix.length)h+='<div class="sec">آخر التذاكر</div>'+tableHtml(['الوقت','الحمام','الفئة','السعر'],tix.slice(0,40).map(t=>'<tr>'+td(esc(String(t.time||'').slice(0,5)),'num')+td(esc(locName2(t.location_id)))+td(esc(t.category_name))+td(dh(t.price),'num')+'</tr>'));
   return h;
-}
-// The seller's end-of-day box counts, latest first, per hammam (app 2.8.44+)
-function countsHtml(){
-  let h='',any=false;
-  locations.forEach(l=>{const d=details(l);if(!d||!d.counts)return;any=true;
-    h+='<div class="sec">'+esc(l.name)+'</div>'+(tableHtml(['العدّ','المتوقع','المعدود','الفرق','ملاحظة'],d.counts.map(c=>'<tr>'+td(stampText(c.at),'num')+td(dh(c.x),'num')+td(dh(c.c),'num')+
-      td(c.d===0?'<span class="up">مطابق</span>':(c.d>0?'+ ':'− ')+dh(Math.abs(c.d)),'num'+(c.d<0?' down':c.d>0?' up':''))+td(esc(c.n||''))+'</tr>'))||'<div class="empty">لم يُعدّ الصندوق بعد</div>');});
-  return any?'<div class="sec" style="margin-top:18px">عدّ الصندوق في آخر اليوم</div><div class="muted small">يعدّه البائع ويكتب المبلغ دون أن يرى المتوقع. لا يغيّر أي رقم: تسوّي الفرق عند زيارتك.</div>'+h:'';
 }
 // The manager's visits (in-person collections), latest first, per hammam
 function visitsHtml(){
@@ -1504,9 +1496,6 @@ function liveAlerts(){
     const h=(l.device_info||{}).health;
     if(p.cls!=='off'&&h&&h.problems)h.problems.forEach(pr=>out.push({ico:'',cls:'bad',title:l.name+': مشكلة في الجهاز',sub:pr.text,act:"go('devices')"}));
     const d=details(l);
-    // Box count with a difference in the last 24 hours
-    const c=d&&d.counts&&d.counts[0];
-    if(c&&c.d!==0&&Date.now()-Date.parse(c.at.replace(' ','T')+'Z')<86400000)out.push({ico:'',cls:'warn',title:l.name+': '+(c.d<0?'نقص':'زيادة')+' عند عدّ الصندوق',sub:countText({difference:c.d,counted:c.c,expected:c.x,note:c.n})+' · '+agoText(c.at.replace(' ','T')+'Z'),act:"openDrawer('cash')"});
     // Regular expenses (wages...) missing or entered twice
     (d&&d.wages||[]).filter(w=>w.st==='missing'||w.st==='double').forEach(w=>out.push({ico:'',cls:'warn',title:l.name+': '+w.name+' '+(w.st==='double'?'سُجّل '+w.n+' مرات':'لم يُسجّل'),
       sub:(w.from===w.to?shortDate(w.from):shortDate(w.from)+' – '+shortDate(w.to))+' · '+(w.st==='double'?'تحقق أنه ليس مكرراً':'تحقق أنه دُفع'),act:"openDrawer('expenses')"}));

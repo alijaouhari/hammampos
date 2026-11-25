@@ -625,8 +625,6 @@ function summaryDetails(rows, b, bills, late, today) {
     // Since the last visit, and the latest visits (dashboard period "since my last visit")
     const v = money ? money.getDashboardVisits(10) : null;
     if (v) { out.period = v.period; out.visits = v.visits; }
-    // The seller's box counts (latest first)
-    out.counts = money.getCashCounts(10).map(c => ({ at: c.created_at, x: r2(c.expected), c: r2(c.counted), d: r2(c.difference), n: c.note || '' }));
     // Regular expenses (wages...): missing or entered twice
     if (expenseTemplates) out.wages = expenseTemplates.getRepeatStatus(today, money.getSwitchOverAt())
       .map(w => ({ name: w.name, rule: w.rule, from: w.from, to: w.to, n: w.count, st: w.status }));
